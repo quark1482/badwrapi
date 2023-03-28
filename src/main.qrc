@@ -1,0 +1,24 @@
+<RCC>
+    <qresource prefix="/">
+        <file>../img/bw.ico</file>
+        <file>../img/action-back.svg</file>
+        <file>../img/action-like.svg</file>
+        <file>../img/action-nope.svg</file>
+        <file>../img/action-skip.svg</file>
+        <file>../img/badge-liked-you.svg</file>
+        <file>../img/badge-quick-chat.svg</file>
+        <file>../img/badge-verification.svg</file>
+        <file>../img/video-placeholder.mp4</file>
+        <file>../img/media-first.png</file>
+        <file>../img/media-last.png</file>
+        <file>../img/media-next.png</file>
+        <file>../img/media-pause.png</file>
+        <file>../img/media-play.png</file>
+        <file>../img/media-previous.png</file>
+        <file>../img/media-sound-off.png</file>
+        <file>../img/media-sound-on.png</file>
+        <file>../img/photo-placeholder.png</file>
+        <file>../img/tool-copy.png</file>
+        <file>../img/tool-download.png</file>
+    </qresource>
+</RCC>

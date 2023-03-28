@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>594</width>
+    <height>517</height>
+   </rect>
+  </property>
+  <widget class="QWidget" name="centralwidget"/>
+  <widget class="QMenuBar" name="mnbMain">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>594</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="mnuDemo">
+    <property name="title">
+     <string>Demo</string>
+    </property>
+    <addaction name="actPlayEncounters"/>
+    <addaction name="separator"/>
+    <addaction name="actExit"/>
+   </widget>
+   <widget class="QMenu" name="mnuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <widget class="QMenu" name="mnuSearchSettings">
+     <property name="title">
+      <string>Search settings</string>
+     </property>
+     <addaction name="actEncountersSettings"/>
+     <addaction name="actPeopleNearbySettings"/>
+    </widget>
+    <addaction name="actLogin"/>
+    <addaction name="actLogout"/>
+    <addaction name="separator"/>
+    <addaction name="mnuSearchSettings"/>
+   </widget>
+   <addaction name="mnuDemo"/>
+   <addaction name="mnuSettings"/>
+  </widget>
+  <widget class="QStatusBar" name="stbMain"/>
+  <action name="actLogin">
+   <property name="text">
+    <string>Login</string>
+   </property>
+  </action>
+  <action name="actLogout">
+   <property name="text">
+    <string>Logout</string>
+   </property>
+  </action>
+  <action name="actEncountersSettings">
+   <property name="text">
+    <string>Encounters</string>
+   </property>
+  </action>
+  <action name="actPeopleNearbySettings">
+   <property name="text">
+    <string>People nearby</string>
+   </property>
+  </action>
+  <action name="actPlayEncounters">
+   <property name="text">
+    <string>Play encounters</string>
+   </property>
+  </action>
+  <action name="actExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
