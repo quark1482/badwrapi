@@ -1,6 +1,6 @@
 # BadWrAPI - a C++ wrapper for the undocumented Badoo API
 Demo application and wrapper class made in Qt/C++ as a proof of concept
-on how to connect and use the Badoo API from a desktop program.
+on how to connect to the Badoo network from a desktop program.
 
 Contains reverse-engineered #define's taken from the mobile apps Badoo,
 Bumble and the now-defunct Blendr.
@@ -28,6 +28,7 @@ ToDo's
 ------
 
 - [ ] Show "People nearby".
+- [ ] Show "Likes".
 - [ ] Show "Matches".
 - [ ] Show "Favorites".
 - [ ] Implement chat.

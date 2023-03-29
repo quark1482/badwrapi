@@ -67,9 +67,37 @@
 </table>
 )"
 
-#define HTML_IMAGE_ONCLICK R"(window.open("","_self").document.write("<img src=\""+src+"\" onclick=\"location.reload()\" style=\"cursor: pointer\">"))"
-
-#define HTML_VIDEO_ONCLICK R"(window.open("","_self").document.write("<video controls autoplay loop muted width=100% height=100% onclick=\"location.reload()\" style=\"cursor: pointer\"><source src=\""+currentSrc+"\">Video</video>"))"
+#define JS_MEDIA_ONCLICK R"(
+<script>
+    window.onload=function() {
+        const img=document.querySelectorAll('img');
+        img.forEach(
+            function(i) {
+                i.onclick=function() {
+                    const doc=window.open('','_self').document;
+                    const src=`src='${i.src}'`;
+                    const clk=`onclick='location.reload()'`;
+                    const stl=`style='cursor: pointer'`;
+                    doc.write(`<img ${src} ${clk} ${stl}>`);
+                };
+            }
+        );
+        const vid=document.querySelectorAll('video');
+        vid.forEach(
+            function(v) {
+                v.onclick=function() {
+                    const doc=window.open('','_self').document;
+                    const src=`src='${v.currentSrc}'`;
+                    const atr=`controls autoplay loop muted width=100% height=100%`;
+                    const clk=`onclick='location.reload()'`;
+                    const stl=`style='cursor: pointer'`;
+                    doc.write(`<video ${atr} ${clk} ${stl}><source ${src}>Video</video>`);
+                };
+            }
+        );
+    };
+</script>
+)"
 
 BadooWrapper::BadooWrapper() {
     sLastError.clear();
@@ -304,26 +332,6 @@ void BadooWrapper::getEncountersSettings(EncountersSettings &esSettings) {
     esSettings=esEncounters;
 }
 
-bool BadooWrapper::getLoggedInProfile(BadooUserProfile &bupUser) {
-    bool    bResult=false;
-    QString sError;
-    sError.clear();
-    if(this->isLoggedIn()) {
-        bupUser=bupSelf;
-        bResult=true;
-    }
-    else
-        sError=QStringLiteral("Not logged in");
-    if(!bResult)
-        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
-    sLastError=sError;
-    return bResult;
-}
-
-void BadooWrapper::getPeopleNearbySettings(PeopleNearbySettings &pnsSettings) {
-    pnsSettings=pnsPeopleNearby;
-}
-
 QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
                                          bool              bFullHTML,
                                          QString           sStyle,
@@ -392,9 +400,7 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
         sPhotos.append(QStringLiteral("<tr>"));
         for(int iC=0;iC<iCols;iC++) {
             sPhotos.append(
-                QStringLiteral("<td><img src='%1' onclick='%2'></td>").
-                arg(slPhotos.at(iIndex)).
-                arg(QStringLiteral(HTML_IMAGE_ONCLICK))
+                QStringLiteral("<td><img src='%1'></td>").arg(slPhotos.at(iIndex))
             );
             if(++iIndex==slPhotos.count())
                 break;
@@ -419,13 +425,8 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
         sVideos.append(QStringLiteral("<tr>"));
         for(int iC=0;iC<iCols;iC++) {
             sVideos.append(
-                QStringLiteral("<td><video autoplay loop muted onclick='%2'><source src='%1'>").
-                arg(slVideos.at(iIndex)).
-                arg(QStringLiteral(HTML_VIDEO_ONCLICK))
-            );
-            sVideos.append(
-                QStringLiteral("Video #%1</video></td>").
-                arg(iIndex+1)
+                QStringLiteral("<td><video autoplay loop muted><source src='%1'>Video</video></td>").
+                arg(slVideos.at(iIndex))
             );
             if(++iIndex==slVideos.count())
                 break;
@@ -434,7 +435,8 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
     }
     sVideos.append(QStringLiteral("</table>"));
 
-    sBody=sStyle;
+    sBody=QStringLiteral(JS_MEDIA_ONCLICK);
+    sBody.append(sStyle);
     sBody.append(QStringLiteral("<b>%1</b>").arg(sTitle));
     sBody.append(QStringLiteral("<br>%1<br>").arg(sDetails));
     sBody.append(QStringLiteral("Photos: %1<br>").arg(slPhotos.count()));
@@ -451,6 +453,26 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
 
 QString BadooWrapper::getLastError() {
     return sLastError;
+}
+
+bool BadooWrapper::getLoggedInProfile(BadooUserProfile &bupUser) {
+    bool    bResult=false;
+    QString sError;
+    sError.clear();
+    if(this->isLoggedIn()) {
+        bupUser=bupSelf;
+        bResult=true;
+    }
+    else
+        sError=QStringLiteral("Not logged in");
+    if(!bResult)
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    sLastError=sError;
+    return bResult;
+}
+
+void BadooWrapper::getPeopleNearbySettings(PeopleNearbySettings &pnsSettings) {
+    pnsSettings=pnsPeopleNearby;
 }
 
 void BadooWrapper::getSessionDetails(SessionDetails &sdDetails) {

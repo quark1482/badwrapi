@@ -43,10 +43,10 @@ public:
     bool    downloadMultiMediaResources(QStringList,QList<T> &,int=3);
     bool    getEncounters(BadooUserProfileList &,bool=false);
     void    getEncountersSettings(EncountersSettings &);
-    bool    getLoggedInProfile(BadooUserProfile &);
-    void    getPeopleNearbySettings(PeopleNearbySettings &);
     QString getHTMLFromProfile(BadooUserProfile,bool=false,QString=QString(),QByteArrayList={},QByteArrayList={});
     QString getLastError();
+    bool    getLoggedInProfile(BadooUserProfile &);
+    void    getPeopleNearbySettings(PeopleNearbySettings &);
     void    getSessionDetails(SessionDetails &);
     bool    isLoggedIn();
     bool    loadSearchSettings();
