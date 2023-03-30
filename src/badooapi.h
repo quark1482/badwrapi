@@ -51,6 +51,8 @@ typedef struct {
     int         iAge;
     int         iGender;
     bool        bIsVerified;
+    bool        bIsMatch;
+    bool        bIsFavorite;
     bool        bHasQuickChat;
     QString     sCountry;
     QString     sRegion;

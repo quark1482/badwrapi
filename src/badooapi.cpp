@@ -44,6 +44,8 @@ BadooUserFieldList buflProjection={
     USER_FIELD_TIW_IDEA,           // "Open to chat" / "To date" / "Ready for a relationship".
     USER_FIELD_MY_VOTE,
     USER_FIELD_THEIR_VOTE,
+    USER_FIELD_IS_MATCH,
+    USER_FIELD_IS_FAVOURITE,
     USER_FIELD_QUICK_CHAT,         // Is free chat possible for the queried profile?
     USER_FIELD_MOOD_STATUS,        // 'Make me laugh', 'Looking for love', 'Thinking long-term', etc.
 };
@@ -757,6 +759,8 @@ void BadooAPI::clearUserProfile(BadooUserProfile &bupProfile) {
     bupProfile.iAge=0;
     bupProfile.iGender=SEX_TYPE_UNKNOWN;
     bupProfile.bIsVerified=false;
+    bupProfile.bIsMatch=false;
+    bupProfile.bIsFavorite=false;
     bupProfile.bHasQuickChat=false;
     bupProfile.sCountry.clear();
     bupProfile.sRegion.clear();
@@ -1182,6 +1186,8 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     bupUser.iAge=jsnUser.value(QStringLiteral("age")).toInt();
     bupUser.iGender=jsnUser.value(QStringLiteral("gender")).toInt();
     bupUser.bIsVerified=jsnUser.value(QStringLiteral("is_verified")).toBool();
+    bupUser.bIsMatch=jsnUser.value(QStringLiteral("is_match")).toBool();
+    bupUser.bIsFavorite=jsnUser.value(QStringLiteral("is_favourite")).toBool();
     bupUser.bHasQuickChat=jsnUser.value(QStringLiteral("quick_chat")).isObject();
     if(jsnUser.value(QStringLiteral("country")).isObject()) {
         jsnObj=jsnUser.value(QStringLiteral("country")).toObject();

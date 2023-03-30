@@ -1133,6 +1133,25 @@ void PlayEncountersDialog::updateProfileInfo() {
         lblBadge->setToolTip(QStringLiteral("Verifed profile"));
         ui->hblInfo->addWidget(lblBadge);
     }
+    // Not happening in encounters, but it's gonna be useful with other folders.
+    if(buplEncounters.at(iCurrentProfileIndex).bIsMatch) {
+        pxmBadge.load(QStringLiteral(":img/badge-match.svg"));
+        lblBadge=new QLabel;
+        lblBadge->setMaximumSize(sizBadge);
+        lblBadge->setPixmap(pxmBadge);
+        lblBadge->setScaledContents(true);
+        lblBadge->setToolTip(QStringLiteral("It's a match!"));
+        ui->hblInfo->addWidget(lblBadge);
+    }
+    if(buplEncounters.at(iCurrentProfileIndex).bIsFavorite) {
+        pxmBadge.load(QStringLiteral(":img/badge-favorite.svg"));
+        lblBadge=new QLabel;
+        lblBadge->setMaximumSize(sizBadge);
+        lblBadge->setPixmap(pxmBadge);
+        lblBadge->setScaledContents(true);
+        lblBadge->setToolTip(QStringLiteral("Your favorite"));
+        ui->hblInfo->addWidget(lblBadge);
+    }
     if(buplEncounters.at(iCurrentProfileIndex).bHasQuickChat) {
         pxmBadge.load(QStringLiteral(":img/badge-quick-chat.svg"));
         lblBadge=new QLabel;
