@@ -16,6 +16,7 @@ class PlayEncountersDialog:public QDialog {
 public:
     PlayEncountersDialog(BadooWrapper *,QWidget * =nullptr);
     ~PlayEncountersDialog();
+    bool isReady();
 protected:
     bool eventFilter(QObject *,QEvent *) override;
     void resizeEvent(QResizeEvent *) override;
@@ -46,7 +47,8 @@ private slots:
     void videoMouseHover(QPoint);
 private:
     Ui::PlayEncountersDialog *ui;
-    bool                     bVideoPausedByUser;
+    bool                     bDialogReady,
+                             bVideoPausedByUser;
     int                      iCurrentProfileIndex,
                              iCurrentPhotoIndex,
                              iCurrentVideoIndex;

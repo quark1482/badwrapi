@@ -44,6 +44,7 @@
 PlayEncountersDialog::PlayEncountersDialog(BadooWrapper *bwParent,
                                            QWidget      *wgtParent):
     QDialog(wgtParent),ui(new Ui::PlayEncountersDialog) {
+    bDialogReady=false;
     bVideoPausedByUser=false;
     iCurrentProfileIndex=0;
     iCurrentPhotoIndex=0;
@@ -55,15 +56,6 @@ PlayEncountersDialog::PlayEncountersDialog(BadooWrapper *bwParent,
     mvwVideo=new MediaViewer(MEDIA_TYPE_VIDEO);
     mctPhotoControls=new MediaControls(mvwPhoto);
     mctVideoControls=new MediaControls(mvwVideo,true);
-    if(!this->getNewBatch(true)) {
-        QTimer::singleShot(
-            0,
-            [=]() {
-                this->reject();
-            }
-        );
-        return;
-    }
     ui->setupUi(this);
     this->getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
     this->getFullFileContents(QStringLiteral(":img/video-placeholder.mp4"),abtPlaceholderVideo);
@@ -234,12 +226,16 @@ PlayEncountersDialog::PlayEncountersDialog(BadooWrapper *bwParent,
         this,
         &PlayEncountersDialog::galleryTabWidgetChanged
     );
-    QTimer::singleShot(
-        0,
-        [=]() {
-            this->resetProfileWidgets();
-        }
-    );
+
+    if(this->getNewBatch(true)) {
+        bDialogReady=true;
+        QTimer::singleShot(
+            0,
+            [=]() {
+                this->resetProfileWidgets();
+            }
+        );
+    }
 }
 
 PlayEncountersDialog::~PlayEncountersDialog() {
@@ -248,6 +244,10 @@ PlayEncountersDialog::~PlayEncountersDialog() {
     delete mvwPhoto;
     delete mvwVideo;
     delete ui;
+}
+
+bool PlayEncountersDialog::isReady() {
+    return bDialogReady;
 }
 
 bool PlayEncountersDialog::eventFilter(QObject *objO,QEvent *evnE) {
@@ -287,8 +287,7 @@ bool PlayEncountersDialog::eventFilter(QObject *objO,QEvent *evnE) {
 }
 
 void PlayEncountersDialog::resizeEvent(QResizeEvent *) {
-    if(this->isVisible())
-        tmrDelayedResize.start(500);
+    tmrDelayedResize.start(500);
 }
 
 void PlayEncountersDialog::delayedResizeTimeout() {

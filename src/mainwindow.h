@@ -20,6 +20,7 @@ public:
 protected:
     void closeEvent(QCloseEvent *) override;
 private slots:
+    void dialogEncountersDestroyed();
     void menuPlayEncountersTriggered(bool);
     void menuLoginTriggered(bool);
     void menuLogoutTriggered(bool);
@@ -27,8 +28,11 @@ private slots:
     void menuPeopleNearbySettingsTriggered(bool);
     void wrapperStatusChanged(QString);
 private:
-    Ui::MainWindow *ui;
-    BadooWrapper   bwMain;
+    Ui::MainWindow       *ui;
+    PlayEncountersDialog *dlgEncounters;
+    QMdiArea             mdiArea;
+    BadooWrapper         bwMain;
+    bool anyChildrenActive();
     void showSettings(BadooSettingsContextType);
 };
 #endif // MAINWINDOW_H
