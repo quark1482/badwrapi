@@ -654,7 +654,9 @@ bool PlayEncountersDialog::getNewBatch(bool bReset) {
     iCurrentVideoIndex=0;
     mchPhotoContents.clear();
     mchVideoContents.clear();
+    this->setEnabled(false);
     this->setCursor(Qt::CursorShape::BusyCursor);
+    QApplication::processEvents();
     while(true) {
         if(bwEncounters->getEncounters(buplEncounters,bReset)) {
             int               iPhotoCounter,
@@ -704,6 +706,7 @@ bool PlayEncountersDialog::getNewBatch(bool bReset) {
         }
     }
     this->unsetCursor();
+    this->setEnabled(true);
     return bResult;
 }
 
@@ -854,8 +857,8 @@ void PlayEncountersDialog::showMatch(QString    sName,
         [lblText](int iSize) {
             while(true)
                 if(lblText->isVisible()) {
-                    // Animates a pulsating QMessageBox text by changing the font size ...
-                    // up and down within the dialog area (the reason of the complex ...
+                    // Animates the QMessageBox text by changing the font size up and ...
+                    // ... down within the dialog area (the reason behind the complex ...
                     // ... call to QMetaObject::invokeMethod() is to avoid updating ...
                     // ... the UI from this thread and causing havoc as a result; ...
                     // ... and the reason for using setStyleSheet() for changing ...
