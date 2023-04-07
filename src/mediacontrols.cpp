@@ -167,6 +167,29 @@ void MediaControls::setAlignment(Qt::AlignmentFlag alnHNew,
     }
 }
 
+void MediaControls::setButtonsEnabling(int iIndex,
+                                       int iTotal) {
+    btnFirst.setEnabled(false);
+    btnPrevious.setEnabled(false);
+    btnNext.setEnabled(false);
+    btnLast.setEnabled(false);
+    btnPause.setEnabled(false);
+    btnMute.setEnabled(false);
+    if(0<iTotal)
+        if(0<=iIndex&&iIndex<iTotal) {
+            btnPause.setEnabled(true);
+            btnMute.setEnabled(true);
+            if(iIndex) {
+                btnFirst.setEnabled(true);
+                btnPrevious.setEnabled(true);
+            }
+            if(iIndex<iTotal-1) {
+                btnNext.setEnabled(true);
+                btnLast.setEnabled(true);
+            }
+        }
+}
+
 void MediaControls::setButtonSizeRatio(qreal rNewButtonSizeRatio) {
     rButtonSizeRatio=rNewButtonSizeRatio;
     for(const auto b:this->findChildren<QPushButton *>()) {

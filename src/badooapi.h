@@ -110,6 +110,7 @@ extern BadooCAPTCHASolver *bcsCAPTCHASolver;
 
 class BadooAPI {
 public:
+    static void clearUserProfile(BadooUserProfile &);
     static bool downloadMediaResource(QString,QString,QByteArray &,QString &);
     static bool downloadMediaResource(QString,QString,QString &,QString &);
     static bool getPreLoginParameters(QString &,QString &,QString &);
@@ -127,7 +128,6 @@ private:
     static bool    CAPTCHAHandler(QString,BadooAPIError &);
     static void    clearError(BadooAPIError &);
     static void    clearSearchSettings(BadooSearchSettings &);
-    static void    clearUserProfile(BadooUserProfile &);
     static QString fixURL(QString);
     static bool    getResponse(BadooMessagePair,QString,QJsonObject,QJsonObject &,BadooAPIError &);
     static bool    getResponse(BadooMessageType,QString,QJsonObject,BadooMessageResponseHash &,BadooAPIError &);

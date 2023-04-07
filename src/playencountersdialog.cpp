@@ -1,9 +1,6 @@
 #include "playencountersdialog.h"
-#include "ui_playencountersdialog.h"
 
 #define DIALOG_TITLE "Play Encounters"
-
-#define THUMBNAIL_SIZE 100
 
 #define FILTER_HTML_FILES "HTML files (*.html;*.htm)"
 
@@ -42,262 +39,157 @@
 )"
 
 PlayEncountersDialog::PlayEncountersDialog(BadooWrapper *bwParent,
-                                           QWidget      *wgtParent):
-    QDialog(wgtParent),ui(new Ui::PlayEncountersDialog) {
+                                           QWidget      *wgtParent):QDialog(wgtParent) {
     bDialogReady=false;
-    bVideoPausedByUser=false;
-    iCurrentProfileIndex=0;
-    iCurrentPhotoIndex=0;
-    iCurrentVideoIndex=0;
+    iCurrentProfileIndex=-1;
     mchPhotoContents.clear();
     mchVideoContents.clear();
     bwEncounters=bwParent;
-    mvwPhoto=new MediaViewer;
-    mvwVideo=new MediaViewer(MEDIA_TYPE_VIDEO);
-    mctPhotoControls=new MediaControls(mvwPhoto);
-    mctVideoControls=new MediaControls(mvwVideo,true);
-    ui->setupUi(this);
-    this->getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
-    this->getFullFileContents(QStringLiteral(":img/video-placeholder.mp4"),abtPlaceholderVideo);
+    pvCurrentProfile=new ProfileViewer(this);
+    vblMain.addWidget(pvCurrentProfile);
     this->loadMyProfile();
-    this->toggleMediaViewersIndependence();
-    ui->grvPhotoGallery->setAlignment(Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop);
-    ui->grvPhotoGallery->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
-    ui->grvPhotoGallery->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
-    ui->grvPhotoGallery->setSizeAdjustPolicy(QGraphicsView::SizeAdjustPolicy::AdjustIgnored);
-    ui->grvPhotoGallery->setScene(&grsPhotoGallery);
-    ui->grvVideoGallery->setAlignment(Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop);
-    ui->grvVideoGallery->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
-    ui->grvVideoGallery->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
-    ui->grvVideoGallery->setSizeAdjustPolicy(QGraphicsView::SizeAdjustPolicy::AdjustIgnored);
-    ui->grvVideoGallery->setScene(&grsVideoGallery);
-    grsPhotoGallery.installEventFilter(this);
-    grsVideoGallery.installEventFilter(this);
-    this->installEventFilter(this);
-    this->setWindowTitle(QStringLiteral(DIALOG_TITLE));
+    this->setGeometry(0,0,640,480);
+    this->setLayout(&vblMain);
+    this->setMinimumSize(400,300);
     connect(
-        &tmrDelayedResize,
-        &QTimer::timeout,
+        pvCurrentProfile,
+        &ProfileViewer::buttonClicked,
         this,
-        &PlayEncountersDialog::delayedResizeTimeout
+        &PlayEncountersDialog::buttonClicked
     );
-
-    connect(
-        ui->btnCopyURL,
-        &QPushButton::clicked,
-        this,
-        &PlayEncountersDialog::copyURLButtonClicked
-    );
-    connect(
-        ui->btnDownloadProfile,
-        &QPushButton::clicked,
-        this,
-        &PlayEncountersDialog::downloadProfileButtonClicked
-    );
-
-    connect(
-        ui->btnBack,
-        &QPushButton::clicked,
-        this,
-        &PlayEncountersDialog::backButtonClicked
-    );
-    connect(
-        ui->btnNope,
-        &QPushButton::clicked,
-        this,
-        &PlayEncountersDialog::nopeButtonClicked
-    );
-    connect(
-        ui->btnLike,
-        &QPushButton::clicked,
-        this,
-        &PlayEncountersDialog::likeButtonClicked
-    );
-    connect(
-        ui->btnSkip,
-        &QPushButton::clicked,
-        this,
-        &PlayEncountersDialog::skipButtonClicked
-    );
-
-    connect(
-        mctPhotoControls,
-        &MediaControls::first,
-        this,
-        &PlayEncountersDialog::firstPhotoButtonClicked
-    );
-    connect(
-        mctPhotoControls,
-        &MediaControls::previous,
-        this,
-        &PlayEncountersDialog::previousPhotoButtonClicked
-    );
-    connect(
-        mctPhotoControls,
-        &MediaControls::next,
-        this,
-        &PlayEncountersDialog::nextPhotoButtonClicked
-    );
-    connect(
-        mctPhotoControls,
-        &MediaControls::last,
-        this,
-        &PlayEncountersDialog::lastPhotoButtonClicked
-    );
-
-    connect(
-        mctVideoControls,
-        &MediaControls::first,
-        this,
-        &PlayEncountersDialog::firstVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::previous,
-        this,
-        &PlayEncountersDialog::previousVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::next,
-        this,
-        &PlayEncountersDialog::nextVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::last,
-        this,
-        &PlayEncountersDialog::lastVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::pause,
-        this,
-        &PlayEncountersDialog::pauseVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::mute,
-        this,
-        &PlayEncountersDialog::muteVideoButtonClicked
-    );
-
-    connect(
-        mvwPhoto,
-        &MediaViewer::doubleClick,
-        this,
-        &PlayEncountersDialog::photoDoubleClicked
-    );
-    connect(
-        mvwPhoto,
-        &MediaViewer::keyPress,
-        this,
-        &PlayEncountersDialog::photoKeyPressed
-    );
-    connect(
-        mvwPhoto,
-        &MediaViewer::hover,
-        this,
-        &PlayEncountersDialog::photoMouseHover
-    );
-
-    connect(
-        mvwVideo,
-        &MediaViewer::doubleClick,
-        this,
-        &PlayEncountersDialog::videoDoubleClicked
-    );
-    connect(
-        mvwVideo,
-        &MediaViewer::keyPress,
-        this,
-        &PlayEncountersDialog::videoKeyPressed
-    );
-    connect(
-        mvwVideo,
-        &MediaViewer::hover,
-        this,
-        &PlayEncountersDialog::videoMouseHover
-    );
-
-    connect(
-        ui->tbwGalleries,
-        &QTabWidget::currentChanged,
-        this,
-        &PlayEncountersDialog::galleryTabWidgetChanged
-    );
-
     if(this->getNewBatch(true)) {
         bDialogReady=true;
         QTimer::singleShot(
             0,
             [=]() {
-                this->resetProfileWidgets();
+                this->showCurrentProfile();
             }
         );
     }
 }
 
 PlayEncountersDialog::~PlayEncountersDialog() {
-    delete mctPhotoControls;
-    delete mctVideoControls;
-    delete mvwPhoto;
-    delete mvwVideo;
-    delete ui;
+    delete pvCurrentProfile;
 }
 
 bool PlayEncountersDialog::isReady() {
     return bDialogReady;
 }
 
-bool PlayEncountersDialog::eventFilter(QObject *objO,QEvent *evnE) {
-    if(QEvent::Type::GraphicsSceneMousePress==evnE->type()||
-       QEvent::Type::GraphicsSceneMouseDoubleClick==evnE->type()) {
-        QGraphicsSceneMouseEvent *mevEvent=static_cast<QGraphicsSceneMouseEvent *>(evnE);
-        QGraphicsScene           *grsScene=qobject_cast<QGraphicsScene *>(objO);
-        QGraphicsItem            *griPhoto=grsScene->itemAt(
-            mevEvent->scenePos().toPoint(),
-            QTransform()
-        );
-        if(nullptr!=griPhoto) {
-            if(griPhoto->data(0).isValid()) {
-                if(griPhoto->data(1).isValid()) {
-                    int iItemIndex=griPhoto->data(0).toInt(),
-                        iItemType=griPhoto->data(1).toInt();
-                    if(0==iItemType) {
-                        iCurrentPhotoIndex=iItemIndex;
-                        this->updateMediaTitle();
-                        if(QEvent::Type::GraphicsSceneMouseDoubleClick==evnE->type())
-                            this->toggleMediaViewersIndependence();
-                        this->updatePhotoContent();
-                    }
-                    else if(1==iItemType) {
-                        iCurrentVideoIndex=iItemIndex;
-                        this->updateMediaTitle();
-                        if(QEvent::Type::GraphicsSceneMouseDoubleClick==evnE->type())
-                            this->toggleMediaViewersIndependence();
-                        this->updateVideoContent();
-                    }
+void PlayEncountersDialog::buttonClicked(ProfileViewerButton pvbButton) {
+    switch(pvbButton) {
+        case PROFILE_VIEWER_BUTTON_COPY_URL:
+            this->handleCopyURLButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_DOWNLOAD:
+            this->handleDownloadProfileButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_BACK:
+            this->handleBackButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_NOPE:
+            this->handleNopeButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_LIKE:
+            this->handleLikeButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_SKIP:
+            this->handleSkipButtonClick();
+            break;
+    }
+}
+
+QString PlayEncountersDialog::getCurrentProfileId() {
+    QString sResult;
+    sResult.clear();
+    if(-1<iCurrentProfileIndex)
+        sResult=buplEncounters.at(iCurrentProfileIndex).sUserId;
+    return sResult;
+}
+
+bool PlayEncountersDialog::getNewBatch(bool bReset) {
+    bool                 bResult=false;
+    int                  iBackupProfileIndex;
+    QString              sError;
+    BadooUserProfileList buplBackupEcounters;
+    MediaContentsHash    mchBackupPhotoContents,
+                         mchBackupVideoContents;
+    iBackupProfileIndex=iCurrentProfileIndex;
+    buplBackupEcounters=buplEncounters;
+    mchBackupPhotoContents=mchPhotoContents;
+    mchBackupVideoContents=mchVideoContents;
+    iCurrentProfileIndex=0;
+    mchPhotoContents.clear();
+    mchVideoContents.clear();
+    this->setEnabled(false);
+    this->setCursor(Qt::CursorShape::BusyCursor);
+    QApplication::processEvents();
+    while(true) {
+        sError.clear();
+        if(bwEncounters->getEncounters(buplEncounters,bReset))
+            if(buplEncounters.count()) {
+                int               iPhotoCounter,
+                                  iVideoCounter;
+                QStringList       slPhotoURLs,
+                                  slVideoURLs;
+                QByteArrayList    abtlPhotoContents,
+                                  abtlVideoContents;
+                slPhotoURLs.clear();
+                for(const auto &u:buplEncounters) {
+                    mchPhotoContents.insert(u.sUserId,{});
+                    mchVideoContents.insert(u.sUserId,{});
+                    slPhotoURLs.append(u.slPhotos);
+                    slVideoURLs.append(u.slVideos);
                 }
+                if(bwEncounters->downloadMultiMediaResources<QByteArray>(
+                    slPhotoURLs,
+                    abtlPhotoContents
+                ))
+                    if(bwEncounters->downloadMultiMediaResources<QByteArray>(
+                        slVideoURLs,
+                        abtlVideoContents
+                    )) {
+                        iPhotoCounter=iVideoCounter=0;
+                        for(const auto &u:buplEncounters) {
+                            for(const auto &p:u.slPhotos)
+                                mchPhotoContents[u.sUserId].append(
+                                    abtlPhotoContents[iPhotoCounter++]
+                                );
+                            for(const auto &v:u.slVideos)
+                                mchVideoContents[u.sUserId].append(
+                                    abtlVideoContents[iVideoCounter++]
+                                );
+                        }
+                        bResult=true;
+                        break;
+                    }
             }
-            return true;
+            else
+                sError=QStringLiteral("No available profiles were\n"
+                                      "found to play Encounters");
+        else
+            sError=bwEncounters->getLastError();
+        if(QMessageBox::StandardButton::Cancel==QMessageBox::question(
+            this,
+            QStringLiteral("Error"),
+            sError,
+            QMessageBox::StandardButton::Retry|QMessageBox::StandardButton::Cancel
+        )) {
+            iCurrentProfileIndex=iBackupProfileIndex;
+            buplEncounters=buplBackupEcounters;
+            mchPhotoContents=mchBackupPhotoContents;
+            mchVideoContents=mchBackupVideoContents;
+            break;
         }
     }
-    return QDialog::eventFilter(objO,evnE);
+    this->unsetCursor();
+    this->setEnabled(true);
+    return bResult;
 }
 
-void PlayEncountersDialog::resizeEvent(QResizeEvent *) {
-    tmrDelayedResize.start(500);
-}
-
-void PlayEncountersDialog::delayedResizeTimeout() {
-    tmrDelayedResize.stop();
-    this->updateMediaWidgets();
-}
-
-void PlayEncountersDialog::copyURLButtonClicked() {
+void PlayEncountersDialog::handleCopyURLButtonClick() {
     emit statusChanged(QString());
-    if(buplEncounters.count()) {
+    if(-1<iCurrentProfileIndex) {
         QString sURL=QStringLiteral("%1/profile/0%2").
                      arg(ENDPOINT_BASE).
                      arg(this->getCurrentProfileId());
@@ -306,9 +198,9 @@ void PlayEncountersDialog::copyURLButtonClicked() {
     }
 }
 
-void PlayEncountersDialog::downloadProfileButtonClicked() {
+void PlayEncountersDialog::handleDownloadProfileButtonClick() {
     emit statusChanged(QString());
-    if(buplEncounters.count()) {
+    if(-1<iCurrentProfileIndex) {
         QString sDefaultFolder,
                 sTempPath,
                 sHTML;
@@ -352,24 +244,24 @@ void PlayEncountersDialog::downloadProfileButtonClicked() {
     }
 }
 
-void PlayEncountersDialog::backButtonClicked() {
+void PlayEncountersDialog::handleBackButtonClick() {
     bool bUpdate=false;
     emit statusChanged(QString());
-    if(iCurrentProfileIndex) {
-        iCurrentProfileIndex--;
-        bUpdate=true;
-    }
-    else
-        emit statusChanged(QStringLiteral("Already at first profile"));
+    if(-1<iCurrentProfileIndex)
+        if(iCurrentProfileIndex) {
+            iCurrentProfileIndex--;
+            bUpdate=true;
+        }
+        else
+            emit statusChanged(QStringLiteral("Already at first profile"));
     if(bUpdate)
-        this->resetProfileWidgets();
+        this->showCurrentProfile();
 }
 
-void PlayEncountersDialog::nopeButtonClicked() {
+void PlayEncountersDialog::handleNopeButtonClick() {
     emit statusChanged(QString());
-    if(buplEncounters.count()) {
+    if(-1<iCurrentProfileIndex) {
         bool bMatch;
-        this->showVote(false);
         if(bwEncounters->vote(this->getCurrentProfileId(),false,bMatch)) {
             mchPhotoContents.remove(this->getCurrentProfileId());
             mchVideoContents.remove(this->getCurrentProfileId());
@@ -385,15 +277,14 @@ void PlayEncountersDialog::nopeButtonClicked() {
                 QStringLiteral("Error"),
                 bwEncounters->getLastError()
             );
-        this->resetProfileWidgets();
+        this->showCurrentProfile();
     }
 }
 
-void PlayEncountersDialog::likeButtonClicked() {
+void PlayEncountersDialog::handleLikeButtonClick() {
     emit statusChanged(QString());
-    if(buplEncounters.count()) {
+    if(-1<iCurrentProfileIndex) {
         bool bMatch;
-        this->showVote(true);
         if(bwEncounters->vote(this->getCurrentProfileId(),true,bMatch)) {
             if(bMatch)
                 this->showMatch(
@@ -415,11 +306,11 @@ void PlayEncountersDialog::likeButtonClicked() {
                 QStringLiteral("Error"),
                 bwEncounters->getLastError()
             );
-        this->resetProfileWidgets();
+        this->showCurrentProfile();
     }
 }
 
-void PlayEncountersDialog::skipButtonClicked() {
+void PlayEncountersDialog::handleSkipButtonClick() {
     bool bUpdate=false;
     emit statusChanged(QString());
     if(iCurrentProfileIndex<buplEncounters.count()-1) {
@@ -429,308 +320,49 @@ void PlayEncountersDialog::skipButtonClicked() {
     else
         bUpdate=this->getNewBatch();
     if(bUpdate)
-        this->resetProfileWidgets();
-}
-
-void PlayEncountersDialog::firstPhotoButtonClicked() {
-    emit statusChanged(QString());
-    if(iCurrentPhotoIndex>0) {
-        iCurrentPhotoIndex=0;
-        this->updateMediaTitle();
-        this->updatePhotoContent();
-    }
-}
-
-void PlayEncountersDialog::previousPhotoButtonClicked() {
-    emit statusChanged(QString());
-    if(iCurrentPhotoIndex>0) {
-        iCurrentPhotoIndex--;
-        this->updateMediaTitle();
-        this->updatePhotoContent();
-    }
-    else
-        emit statusChanged(QStringLiteral("Already at first photo"));
-}
-
-void PlayEncountersDialog::nextPhotoButtonClicked() {
-    emit statusChanged(QString());
-    if(iCurrentPhotoIndex<mchPhotoContents.value(this->getCurrentProfileId()).count()-1) {
-        iCurrentPhotoIndex++;
-        this->updateMediaTitle();
-        this->updatePhotoContent();
-    }
-    else
-        emit statusChanged(QStringLiteral("Already at last photo"));
-}
-
-void PlayEncountersDialog::lastPhotoButtonClicked() {
-    emit statusChanged(QString());
-    if(iCurrentPhotoIndex<mchPhotoContents.value(this->getCurrentProfileId()).count()-1) {
-        iCurrentPhotoIndex=mchPhotoContents.value(this->getCurrentProfileId()).count()-1;
-        this->updateMediaTitle();
-        this->updatePhotoContent();
-    }
-}
-
-void PlayEncountersDialog::firstVideoButtonClicked() {
-    emit statusChanged(QString());
-    if(iCurrentVideoIndex>0) {
-        iCurrentVideoIndex=0;
-        this->updateMediaTitle();
-        this->updateVideoContent();
-    }
-}
-
-void PlayEncountersDialog::previousVideoButtonClicked() {
-    emit statusChanged(QString());
-    if(iCurrentVideoIndex>0) {
-        iCurrentVideoIndex--;
-        this->updateMediaTitle();
-        this->updateVideoContent();
-    }
-    else
-        emit statusChanged(QStringLiteral("Already at first video"));
-}
-
-void PlayEncountersDialog::nextVideoButtonClicked() {
-    emit statusChanged(QString());
-    if(iCurrentVideoIndex<mchVideoContents.value(this->getCurrentProfileId()).count()-1) {
-        iCurrentVideoIndex++;
-        this->updateMediaTitle();
-        this->updateVideoContent();
-    }
-    else
-        emit statusChanged(QStringLiteral("Already at last video"));
-}
-
-void PlayEncountersDialog::lastVideoButtonClicked() {
-    emit statusChanged(QString());
-    if(iCurrentVideoIndex<mchVideoContents.value(this->getCurrentProfileId()).count()-1) {
-        iCurrentVideoIndex=mchVideoContents.value(this->getCurrentProfileId()).count()-1;
-        this->updateMediaTitle();
-        this->updateVideoContent();
-    }
-}
-
-void PlayEncountersDialog::pauseVideoButtonClicked(bool bPause) {
-    bVideoPausedByUser=bPause;
-    if(bVideoPausedByUser)
-        mvwVideo->pauseVideo();
-    else
-        mvwVideo->playVideo();
-}
-
-void PlayEncountersDialog::muteVideoButtonClicked(bool bMute) {
-    mvwVideo->muteVideo(bMute);
-}
-
-void PlayEncountersDialog::galleryTabWidgetChanged(int iIndex) {
-    if(iIndex==ui->tbwGalleries->indexOf(ui->wgtPhotoGallery)) {
-        mvwVideo->pauseVideo();
-        ui->stwMediaContent->setCurrentWidget(ui->wgtPhoto);
-        this->updateMediaTitle();
-    }
-    else if(iIndex==ui->tbwGalleries->indexOf(ui->wgtVideoGallery)) {
-        if(!bVideoPausedByUser)
-            mvwVideo->playVideo();
-        ui->stwMediaContent->setCurrentWidget(ui->wgtVideo);
-        this->updateMediaTitle();
-    }
-}
-
-void PlayEncountersDialog::photoDoubleClicked() {
-    this->toggleMediaViewersIndependence();
-    this->updatePhotoContent();
-}
-
-void PlayEncountersDialog::photoKeyPressed(int iKey) {
-    switch(iKey) {
-        case Qt::Key::Key_Escape:
-            this->toggleMediaViewersIndependence();
-            this->updatePhotoContent();
-            break;
-        case Qt::Key::Key_Up:
-            this->firstPhotoButtonClicked();
-            break;
-        case Qt::Key::Key_Down:
-            this->lastPhotoButtonClicked();
-            break;
-        case Qt::Key::Key_Left:
-            this->previousPhotoButtonClicked();
-            break;
-        case Qt::Key::Key_Right:
-            this->nextPhotoButtonClicked();
-            break;
-    }
-}
-
-void PlayEncountersDialog::photoMouseHover(QPoint pntP) {
-    if(mvwPhoto->isWindow())
-        mctPhotoControls->setVisible(
-            pntP.y()>=mctPhotoControls->y()&&
-            pntP.y()<=mctPhotoControls->y()+mctPhotoControls->height()&&
-            pntP.x()>=mctPhotoControls->x()&&
-            pntP.x()<=mctPhotoControls->x()+mctPhotoControls->width()
-        );
-    else
-        mctPhotoControls->setVisible(true);
-}
-
-void PlayEncountersDialog::videoDoubleClicked() {
-    this->toggleMediaViewersIndependence();
-    this->updateVideoContent();
-}
-
-void PlayEncountersDialog::videoKeyPressed(int iKey) {
-    switch(iKey) {
-        case Qt::Key::Key_Escape:
-            this->toggleMediaViewersIndependence();
-            this->updateVideoContent();
-            break;
-        case Qt::Key::Key_Space:
-            this->pauseVideoButtonClicked(!bVideoPausedByUser);
-            mctVideoControls->setPauseButtonState(bVideoPausedByUser);
-            break;
-        case Qt::Key::Key_Up:
-            this->firstVideoButtonClicked();
-            break;
-        case Qt::Key::Key_Down:
-            this->lastVideoButtonClicked();
-            break;
-        case Qt::Key::Key_Left:
-            this->previousVideoButtonClicked();
-            break;
-        case Qt::Key::Key_Right:
-            this->nextVideoButtonClicked();
-            break;
-    }
-}
-
-void PlayEncountersDialog::videoMouseHover(QPoint pntP) {
-    if(mvwVideo->isWindow())
-        mctVideoControls->setVisible(
-            pntP.y()>=mctVideoControls->y()&&
-            pntP.y()<=mctVideoControls->y()+mctVideoControls->height()&&
-            pntP.x()>=mctVideoControls->x()&&
-            pntP.x()<=mctVideoControls->x()+mctVideoControls->width()
-        );
-    else
-        mctVideoControls->setVisible(true);
-}
-
-QString PlayEncountersDialog::getCurrentProfileId() {
-    return buplEncounters.at(iCurrentProfileIndex).sUserId;
-}
-
-void PlayEncountersDialog::getFullFileContents(QString    sPath,
-                                               QByteArray &abtContents) {
-    QFile   fFile;
-    QBuffer bufContents;
-    abtContents.clear();
-    fFile.setFileName(sPath);
-    if(fFile.open(QFile::OpenModeFlag::ReadOnly)) {
-        bufContents.setBuffer(&abtContents);
-        bufContents.open(QBuffer::OpenModeFlag::WriteOnly);
-        bufContents.write(fFile.readAll());
-        bufContents.close();
-        fFile.close();
-    }
-}
-
-bool PlayEncountersDialog::getNewBatch(bool bReset) {
-    bool              bResult=false;
-    int               iBackupProfileIndex,
-                      iBackupPhotoIndex,
-                      iBackupVideoIndex;
-    MediaContentsHash mchBackupPhotoContents,
-                      mchBackupVideoContents;
-    iBackupProfileIndex=iCurrentProfileIndex;
-    iBackupPhotoIndex=iCurrentPhotoIndex;
-    iBackupVideoIndex=iCurrentVideoIndex;
-    mchBackupPhotoContents=mchPhotoContents;
-    mchBackupVideoContents=mchVideoContents;
-    iCurrentProfileIndex=0;
-    iCurrentPhotoIndex=0;
-    iCurrentVideoIndex=0;
-    mchPhotoContents.clear();
-    mchVideoContents.clear();
-    this->setEnabled(false);
-    this->setCursor(Qt::CursorShape::BusyCursor);
-    QApplication::processEvents();
-    while(true) {
-        if(bwEncounters->getEncounters(buplEncounters,bReset)) {
-            int               iPhotoCounter,
-                              iVideoCounter;
-            QStringList       slPhotoURLs,
-                              slVideoURLs;
-            QByteArrayList    abtlPhotoContents,
-                              abtlVideoContents;
-            slPhotoURLs.clear();
-            for(const auto &u:buplEncounters) {
-                mchPhotoContents.insert(u.sUserId,{});
-                mchVideoContents.insert(u.sUserId,{});
-                slPhotoURLs.append(u.slPhotos);
-                slVideoURLs.append(u.slVideos);
-            }
-            if(bwEncounters->downloadMultiMediaResources<QByteArray>(
-                slPhotoURLs,
-                abtlPhotoContents
-            ))
-                if(bwEncounters->downloadMultiMediaResources<QByteArray>(
-                    slVideoURLs,
-                    abtlVideoContents
-                )) {
-                    iPhotoCounter=iVideoCounter=0;
-                    for(const auto &u:buplEncounters) {
-                        for(const auto &p:u.slPhotos)
-                            mchPhotoContents[u.sUserId].append(abtlPhotoContents[iPhotoCounter++]);
-                        for(const auto &v:u.slVideos)
-                            mchVideoContents[u.sUserId].append(abtlVideoContents[iVideoCounter++]);
-                    }
-                    bResult=true;
-                    break;
-                }
-        }
-        if(QMessageBox::StandardButton::Cancel==QMessageBox::question(
-            this,
-            QStringLiteral("Error"),
-            bwEncounters->getLastError(),
-            QMessageBox::StandardButton::Retry|QMessageBox::StandardButton::Cancel
-        )) {
-            iCurrentProfileIndex=iBackupProfileIndex;
-            iCurrentPhotoIndex=iBackupPhotoIndex;
-            iCurrentVideoIndex=iBackupVideoIndex;
-            mchPhotoContents=mchBackupPhotoContents;
-            mchVideoContents=mchBackupVideoContents;
-            break;
-        }
-    }
-    this->unsetCursor();
-    this->setEnabled(true);
-    return bResult;
+        this->showCurrentProfile();
 }
 
 void PlayEncountersDialog::loadMyProfile() {
+    BadooUserProfile bupMyProfile;
     if(bwEncounters->getLoggedInProfile(bupMyProfile)) {
         QStringList    slResources={bupMyProfile.sProfilePhotoURL};
         QByteArrayList abtlContents;
         if(bwEncounters->downloadMultiMediaResources(slResources,abtlContents))
             abtMyProfilePhoto=abtlContents.first();
-        else
-            abtMyProfilePhoto=abtPlaceholderPhoto;
+        else {
+            QByteArray abtPlaceholder;
+            pvCurrentProfile->getPlaceholderPhoto(abtPlaceholder);
+            abtMyProfilePhoto=abtPlaceholder;
+        }
     }
 }
 
-void PlayEncountersDialog::resetProfileWidgets(int iGoToPhotoIndex,
-                                               int iGoToVideoIndex) {
-    iCurrentPhotoIndex=iGoToPhotoIndex;
-    iCurrentVideoIndex=iGoToVideoIndex;
-    ui->tbwGalleries->setCurrentWidget(ui->wgtPhotoGallery);
-    ui->stwMediaContent->setCurrentWidget(ui->wgtPhoto);
-    this->updateProfileTitle();
-    this->updateProfileInfo();
-    this->updateMediaTitle();
-    this->updateMediaWidgets();
+void PlayEncountersDialog::showCurrentProfile() {
+    BadooUserProfile  buplCurrentProfile;
+    QByteArrayList    abtlCurrentPhotos,
+                      abtlCurrentVideos;
+    BadooAPI::clearUserProfile(buplCurrentProfile);
+    abtlCurrentPhotos.clear();
+    abtlCurrentVideos.clear();
+    if(-1<iCurrentProfileIndex) {
+        buplCurrentProfile=buplEncounters.at(iCurrentProfileIndex);
+        abtlCurrentPhotos=mchPhotoContents.value(this->getCurrentProfileId());
+        abtlCurrentVideos=mchVideoContents.value(this->getCurrentProfileId());
+        this->setWindowTitle(
+            QStringLiteral("%1 - Profile %2 of %3").
+            arg(QStringLiteral(DIALOG_TITLE)).
+            arg(iCurrentProfileIndex+1).
+            arg(buplEncounters.count())
+        );
+    }
+    else
+        this->setWindowTitle(QStringLiteral(DIALOG_TITLE));
+    pvCurrentProfile->load(
+        buplCurrentProfile,
+        abtlCurrentPhotos,
+        abtlCurrentVideos
+    );
 }
 
 void PlayEncountersDialog::showMatch(QString    sName,
@@ -899,409 +531,4 @@ void PlayEncountersDialog::showMatch(QString    sName,
     );
     thMatch->start();
     mbMatch.exec();
-}
-
-void PlayEncountersDialog::showVote(bool bVote) {
-    const QString asVotes[]={
-        QStringLiteral("LIKE"),
-        QStringLiteral("NOPE")
-    };
-    int           iVoteWidthSize,
-                  iMaxFontSize;
-    QString       sImageFormat;
-    QByteArray    abtNormalImage,
-                  abtVotedImage;
-    QImageReader  imrImage;
-    QBuffer       bufImage;
-    QRect         recText;
-    QPixmap       pxmVoted;
-    QPainter      pntVoted;
-    QFont         fntText;
-
-    iVoteWidthSize=QFontMetrics(fntText).boundingRect(asVotes[0]).width()-
-                   QFontMetrics(fntText).boundingRect(asVotes[1]).width();
-    if(mchPhotoContents.value(this->getCurrentProfileId()).count())
-        abtNormalImage=mchPhotoContents.value(this->getCurrentProfileId()).at(iCurrentPhotoIndex);
-    else
-        abtNormalImage=abtPlaceholderPhoto;
-    bufImage.setBuffer(&abtNormalImage);
-    imrImage.setDevice(&bufImage);
-    bufImage.open(QBuffer::OpenModeFlag::ReadOnly);
-    sImageFormat=imrImage.format();
-    bufImage.close();
-    pxmVoted=QPixmap::fromImage(
-        QImage::fromData(abtNormalImage)
-    );
-
-    fntText.setFamily(QStringLiteral("Arial"));
-    fntText.setBold(true);
-    iMaxFontSize=0;
-    while(true) {
-        fntText.setPointSize(iMaxFontSize+1);
-        recText=QFontMetrics(fntText,&pxmVoted).boundingRect(
-            pxmVoted.rect(),
-            0,
-            iVoteWidthSize<0?asVotes[1]:asVotes[0]
-        );
-        if(pxmVoted.width()<recText.width())
-            break;
-        iMaxFontSize++;
-    }
-    recText.moveTo(pxmVoted.rect().center()-recText.center());
-    fntText.setPointSize(iMaxFontSize);
-
-    pntVoted.begin(&pxmVoted);
-    pntVoted.setFont(fntText);
-    pntVoted.setPen(QPen(bVote?QColor(Qt::GlobalColor::green):QColor(Qt::GlobalColor::red),5));
-    pntVoted.translate(pxmVoted.rect().center());
-    pntVoted.rotate(-45);
-    pntVoted.translate(-pxmVoted.rect().center());
-    pntVoted.drawRect(recText);
-    pntVoted.drawText(recText,Qt::AlignmentFlag::AlignCenter,bVote?asVotes[0]:asVotes[1]);
-    pntVoted.end();
-
-    bufImage.setBuffer(&abtVotedImage);
-    bufImage.open(QBuffer::OpenModeFlag::WriteOnly);
-    pxmVoted.save(&bufImage,sImageFormat.toUtf8());
-    bufImage.close();
-
-    ui->tbwGalleries->setCurrentWidget(ui->wgtPhotoGallery);
-    mvwPhoto->showPhoto(abtVotedImage);
-}
-
-void PlayEncountersDialog::toggleMediaViewersIndependence() {
-    if(mvwPhoto->isWindow()) {
-        ui->wgtPhoto->layout()->addWidget(mvwPhoto);
-        mctPhotoControls->setButtonSizeRatio(0.25);
-        mctPhotoControls->setVisible(true);
-    }
-    else {
-        ui->wgtPhoto->layout()->removeWidget(mvwPhoto);
-        mvwPhoto->setParent(nullptr);
-        mctPhotoControls->setButtonSizeRatio(0.5);
-        mctPhotoControls->setVisible(false);
-    }
-    if(mvwVideo->isWindow()) {
-        ui->wgtVideo->layout()->addWidget(mvwVideo);
-        mctVideoControls->setButtonSizeRatio(0.25);
-        mctVideoControls->setVisible(true);
-    }
-    else {
-        ui->wgtVideo->layout()->removeWidget(mvwVideo);
-        mvwVideo->setParent(nullptr);
-        mctVideoControls->setButtonSizeRatio(0.5);
-        mctVideoControls->setVisible(false);
-    }
-}
-
-void PlayEncountersDialog::updateMediaTitle() {
-    if(ui->tbwGalleries->currentWidget()==ui->wgtPhotoGallery)
-        if(mchPhotoContents.value(this->getCurrentProfileId()).count())
-            ui->lblMediaTitle->setText(
-                QStringLiteral("Photo %1 of %2").
-                arg(iCurrentPhotoIndex+1).
-                arg(mchPhotoContents.value(this->getCurrentProfileId()).count())
-            );
-        else
-            ui->lblMediaTitle->setText(QStringLiteral("No available photos"));
-    else if(ui->tbwGalleries->currentWidget()==ui->wgtVideoGallery)
-        if(mchVideoContents.value(this->getCurrentProfileId()).count())
-            ui->lblMediaTitle->setText(
-                QStringLiteral("Video %1 of %2").
-                arg(iCurrentVideoIndex+1).
-                arg(mchVideoContents.value(this->getCurrentProfileId()).count())
-            );
-        else
-            ui->lblMediaTitle->setText(QStringLiteral("No available videos"));
-}
-
-void PlayEncountersDialog::updateMediaWidgets() {
-    // There seems to be a problem with QGraphicsView when it's covered ...
-    // ... behind another widget. Automatic resizing inherited from its ...
-    // ... container is ignored. So here we force the resizing from the ...
-    // ... visible counterpart.
-    if(ui->wgtPhotoGallery==ui->tbwGalleries->currentWidget()) {
-        mvwVideo->resize(mvwPhoto->size());
-        ui->grvVideoGallery->resize(ui->grvPhotoGallery->size());
-    }
-    else if(ui->wgtVideoGallery==ui->tbwGalleries->currentWidget()) {
-        mvwPhoto->resize(mvwVideo->size());
-        ui->grvPhotoGallery->resize(ui->grvVideoGallery->size());
-    }
-    this->updatePhotoContent();
-    this->updateVideoContent();
-    this->updatePhotoGallery();
-    this->updateVideoGallery();
-}
-
-void PlayEncountersDialog::updatePhotoContent() {
-    QByteArray abtContent;
-    if(mchPhotoContents.value(this->getCurrentProfileId()).count())
-        abtContent=mchPhotoContents.value(this->getCurrentProfileId()).at(iCurrentPhotoIndex);
-    else
-        abtContent=abtPlaceholderPhoto;
-    mvwPhoto->showPhoto(abtContent);
-    mctPhotoControls->resetVisualStatus();
-}
-
-void PlayEncountersDialog::updatePhotoGallery() {
-    int iRow=0,
-        iCol=0,
-        iTRows,
-        iTCols;
-    ui->tbwGalleries->setTabText(
-        ui->tbwGalleries->indexOf(ui->wgtPhotoGallery),
-        QStringLiteral("Photos (%1)").arg(mchPhotoContents.value(this->getCurrentProfileId()).count())
-    );
-    iTCols=ui->grvPhotoGallery->width()/THUMBNAIL_SIZE;
-    if(!iTCols)
-        iTCols++;
-    iTRows=mchPhotoContents.value(this->getCurrentProfileId()).count()/iTCols;
-    if(mchPhotoContents.value(this->getCurrentProfileId()).count()%iTCols)
-        iTRows++;
-    int iWidth=iTCols*THUMBNAIL_SIZE;
-    int iHeight=iTRows*THUMBNAIL_SIZE;
-    grsPhotoGallery.clear();
-    grsPhotoGallery.setSceneRect(0,0,iWidth,iHeight);
-    for(const auto &p:mchPhotoContents.value(this->getCurrentProfileId())) {
-        QPixmap             pxmPhoto;
-        QGraphicsPixmapItem *grpiPhoto=grsPhotoGallery.addPixmap(QPixmap());
-        pxmPhoto.loadFromData(p);
-        if(!pxmPhoto.isNull()) {
-            grpiPhoto->setCursor(Qt::CursorShape::PointingHandCursor);
-            grpiPhoto->setPixmap(
-                pxmPhoto.scaled(
-                    THUMBNAIL_SIZE,
-                    THUMBNAIL_SIZE,
-                    Qt::AspectRatioMode::KeepAspectRatio,
-                    Qt::TransformationMode::SmoothTransformation
-                )
-            );
-            grpiPhoto->setPos(
-                iCol*THUMBNAIL_SIZE+THUMBNAIL_SIZE/2.0-grpiPhoto->pixmap().width()/2.0,
-                iRow*THUMBNAIL_SIZE+THUMBNAIL_SIZE/2.0-grpiPhoto->pixmap().height()/2.0
-            );
-        }
-        grpiPhoto->setData(0,iRow*iTCols+iCol);
-        grpiPhoto->setData(1,0);
-        if(++iCol==iTCols) {
-            iCol=0;
-            iRow++;
-        }
-    }
-    ui->grvPhotoGallery->ensureVisible(QRectF());
-}
-
-void PlayEncountersDialog::updateProfileInfo() {
-    int     iGender=buplEncounters.at(iCurrentProfileIndex).iGender;
-    QString sTitle=buplEncounters.at(iCurrentProfileIndex).sName,
-            sLocation=buplEncounters.at(iCurrentProfileIndex).sCity;
-    if(BadooSexType::SEX_TYPE_MALE==iGender||BadooSexType::SEX_TYPE_FEMALE==iGender) {
-        sTitle.append(QStringLiteral(", "));
-        if(BadooSexType::SEX_TYPE_MALE==iGender)
-            sTitle.append(QStringLiteral("Male"));
-        else
-            sTitle.append(QStringLiteral("Female"));
-    }
-    sTitle.append(QStringLiteral(", %1").arg(buplEncounters.at(iCurrentProfileIndex).iAge));
-    if(!buplEncounters.at(iCurrentProfileIndex).sRegion.isEmpty()) {
-        if(!sLocation.isEmpty())
-            sLocation.append(QStringLiteral(", "));
-        sLocation.append(buplEncounters.at(iCurrentProfileIndex).sRegion);
-    }
-    if(!buplEncounters.at(iCurrentProfileIndex).sCountry.isEmpty()) {
-        if(!sLocation.isEmpty())
-            sLocation.append(QStringLiteral(", "));
-        sLocation.append(buplEncounters.at(iCurrentProfileIndex).sCountry);
-    }
-    while(auto i=ui->hblInfo->takeAt(0)) {
-        if(i->widget())
-            delete i->widget();
-        delete i;
-    }
-    QLabel  *lblTitle=new QLabel(sTitle),
-            *lblBadge;
-    QSize   sizBadge;
-    QPixmap pxmBadge;
-    sizBadge.setHeight(lblTitle->fontMetrics().height());
-    sizBadge.setWidth(sizBadge.height());
-    ui->hblInfo->addWidget(lblTitle);
-    if(buplEncounters.at(iCurrentProfileIndex).bIsVerified) {
-        pxmBadge.load(QStringLiteral(":img/badge-verification.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("Verifed profile"));
-        ui->hblInfo->addWidget(lblBadge);
-    }
-    // Not happening in encounters, but it's gonna be useful with other folders.
-    if(buplEncounters.at(iCurrentProfileIndex).bIsMatch) {
-        pxmBadge.load(QStringLiteral(":img/badge-match.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("It's a match!"));
-        ui->hblInfo->addWidget(lblBadge);
-    }
-    if(buplEncounters.at(iCurrentProfileIndex).bIsFavorite) {
-        pxmBadge.load(QStringLiteral(":img/badge-favorite.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("Your favorite"));
-        ui->hblInfo->addWidget(lblBadge);
-    }
-    if(buplEncounters.at(iCurrentProfileIndex).bHasQuickChat) {
-        pxmBadge.load(QStringLiteral(":img/badge-quick-chat.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("Quick-chat enabled!"));
-        ui->hblInfo->addWidget(lblBadge);
-    }
-    if(BadooVote::VOTE_YES==buplEncounters.at(iCurrentProfileIndex).bvTheirVote) {
-        pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("They already liked you!"));
-        ui->hblInfo->addWidget(lblBadge);
-    }
-    ui->hblInfo->addStretch();
-    while(ui->fmlInfo->rowCount())
-        ui->fmlInfo->removeRow(0);
-    QTextEdit *txtAbout=new QTextEdit(buplEncounters.at(iCurrentProfileIndex).sAbout);
-    txtAbout->setReadOnly(true);
-    txtAbout->setSizeAdjustPolicy(QAbstractScrollArea::SizeAdjustPolicy::AdjustToContents);
-    txtAbout->viewport()->setAutoFillBackground(false);
-    ui->fmlInfo->addRow(
-        QStringLiteral("About me:"),
-        txtAbout
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("Relationship:"),
-        new QLabel(buplEncounters.at(iCurrentProfileIndex).sRelationshipStatus)
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("Sexuality:"),
-        new QLabel(buplEncounters.at(iCurrentProfileIndex).sSexuality)
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("Appearance:"),
-        new QLabel(buplEncounters.at(iCurrentProfileIndex).sAppearance)
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("I'm here to:"),
-        new QLabel(buplEncounters.at(iCurrentProfileIndex).sIntent)
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("Mood:"),
-        new QLabel(buplEncounters.at(iCurrentProfileIndex).sMood)
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("Kids:"),
-        new QLabel(buplEncounters.at(iCurrentProfileIndex).sChildren)
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("Smoking:"),
-        new QLabel(buplEncounters.at(iCurrentProfileIndex).sSmoking)
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("Drinking:"),
-        new QLabel(buplEncounters.at(iCurrentProfileIndex).sDrinking)
-    );
-    ui->fmlInfo->addRow(
-        QStringLiteral("Location:"),
-        new QLabel(sLocation)
-    );
-    ui->scaInfo->ensureVisible(0,0);
-}
-
-void PlayEncountersDialog::updateProfileTitle() {
-    if(buplEncounters.count())
-        ui->lblProfileTitle->setText(
-            QStringLiteral("Profile %1 of %2").
-            arg(iCurrentProfileIndex+1).arg(buplEncounters.count())
-        );
-    else
-        ui->lblProfileTitle->setText(QStringLiteral("No available profiles"));
-}
-
-void PlayEncountersDialog::updateVideoContent() {
-    static int     iPreviousVideoIndex=-1;
-    static QString sPreviousProfileId;
-    // Avoids unnecessarily reloading (and restarting) the video.
-    if(sPreviousProfileId!=this->getCurrentProfileId()||iPreviousVideoIndex!=iCurrentVideoIndex) {
-        QByteArray abtContent;
-        if(mchVideoContents.value(this->getCurrentProfileId()).count())
-            abtContent=mchVideoContents.value(this->getCurrentProfileId()).at(iCurrentVideoIndex);
-        else
-            abtContent=abtPlaceholderVideo;
-        mvwVideo->loadVideo(abtContent);
-        mvwVideo->playVideo();
-        sPreviousProfileId=this->getCurrentProfileId();
-        iPreviousVideoIndex=iCurrentVideoIndex;
-    }
-    else
-        mvwVideo->showVideo();
-    if(ui->wgtPhotoGallery==ui->tbwGalleries->currentWidget())
-        mvwVideo->pauseVideo();
-    else if(ui->wgtVideoGallery==ui->tbwGalleries->currentWidget())
-        if(bVideoPausedByUser)
-            mvwVideo->pauseVideo();
-    mctVideoControls->resetVisualStatus();
-}
-
-void PlayEncountersDialog::updateVideoGallery() {
-    int iRow=0,
-        iCol=0,
-        iTRows,
-        iTCols;
-    ui->tbwGalleries->setTabText(
-        ui->tbwGalleries->indexOf(ui->wgtVideoGallery),
-        QStringLiteral("Videos (%1)").arg(mchVideoContents.value(this->getCurrentProfileId()).count())
-    );
-    iTCols=ui->grvVideoGallery->width()/THUMBNAIL_SIZE;
-    if(!iTCols)
-        iTCols++;
-    iTRows=mchVideoContents.value(this->getCurrentProfileId()).count()/iTCols;
-    if(mchVideoContents.value(this->getCurrentProfileId()).count()%iTCols)
-        iTRows++;
-    int iWidth=iTCols*THUMBNAIL_SIZE;
-    int iHeight=iTRows*THUMBNAIL_SIZE;
-    grsVideoGallery.clear();
-    grsVideoGallery.setSceneRect(0,0,iWidth,iHeight);
-    int iK=0;
-    for(const auto &p:mchVideoContents.value(this->getCurrentProfileId())) {
-        QPixmap             pxmVideo;
-        QGraphicsPixmapItem *grpiVideo=grsVideoGallery.addPixmap(QPixmap());
-        MediaViewer::getFrame(p,pxmVideo);
-        if(!pxmVideo.isNull()) {
-            grpiVideo->setCursor(Qt::CursorShape::PointingHandCursor);
-            grpiVideo->setPixmap(
-                pxmVideo.scaled(
-                    THUMBNAIL_SIZE,
-                    THUMBNAIL_SIZE,
-                    Qt::AspectRatioMode::KeepAspectRatio,
-                    Qt::TransformationMode::SmoothTransformation
-                )
-            );
-            grpiVideo->setPos(
-                iCol*THUMBNAIL_SIZE+THUMBNAIL_SIZE/2.0-grpiVideo->pixmap().width()/2.0,
-                iRow*THUMBNAIL_SIZE+THUMBNAIL_SIZE/2.0-grpiVideo->pixmap().height()/2.0
-            );
-        }
-        grpiVideo->setData(0,iRow*iTCols+iCol);
-        grpiVideo->setData(1,1);
-        if(++iCol==iTCols) {
-            iCol=0;
-            iRow++;
-        }
-    }
-    ui->grvVideoGallery->ensureVisible(QRectF());
 }

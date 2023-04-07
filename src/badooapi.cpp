@@ -77,6 +77,36 @@ BadooMinorFeatureList bmflMinorFeatures {
 
 BadooCAPTCHASolver *bcsCAPTCHASolver=nullptr;
 
+void BadooAPI::clearUserProfile(BadooUserProfile &bupProfile) {
+    bupProfile.sUserId.clear();
+    bupProfile.sName.clear();
+    bupProfile.iAge=0;
+    bupProfile.iGender=SEX_TYPE_UNKNOWN;
+    bupProfile.bIsVerified=false;
+    bupProfile.bIsMatch=false;
+    bupProfile.bIsFavorite=false;
+    bupProfile.bHasQuickChat=false;
+    bupProfile.sCountry.clear();
+    bupProfile.sRegion.clear();
+    bupProfile.sCity.clear();
+    bupProfile.sOnlineStatus.clear();
+    bupProfile.sProfilePhotoURL.clear();
+    bupProfile.slPhotos.clear();
+    bupProfile.slVideos.clear();
+    bupProfile.sIntent.clear();
+    bupProfile.sMood.clear();
+    bupProfile.bvMyVote=VOTE_UNKNOWN;
+    bupProfile.bvTheirVote=VOTE_UNKNOWN;
+    bupProfile.sAbout.clear();
+    bupProfile.sRelationshipStatus.clear();
+    bupProfile.sSexuality.clear();
+    bupProfile.sAppearance.clear();
+    bupProfile.sLiving.clear();
+    bupProfile.sChildren.clear();
+    bupProfile.sSmoking.clear();
+    bupProfile.sDrinking.clear();
+}
+
 bool BadooAPI::downloadMediaResource(QString    sSessionId,
                                      QString    sResourceURL,
                                      QByteArray &abtResourceData,
@@ -751,36 +781,6 @@ void BadooAPI::clearSearchSettings(BadooSearchSettings &bssSettings) {
     bssSettings.iDistanceAway=0;
     bssSettings.sDistanceCode.clear();
     bssSettings.iOwnIntentId=0;
-}
-
-void BadooAPI::clearUserProfile(BadooUserProfile &bupProfile) {
-    bupProfile.sUserId.clear();
-    bupProfile.sName.clear();
-    bupProfile.iAge=0;
-    bupProfile.iGender=SEX_TYPE_UNKNOWN;
-    bupProfile.bIsVerified=false;
-    bupProfile.bIsMatch=false;
-    bupProfile.bIsFavorite=false;
-    bupProfile.bHasQuickChat=false;
-    bupProfile.sCountry.clear();
-    bupProfile.sRegion.clear();
-    bupProfile.sCity.clear();
-    bupProfile.sOnlineStatus.clear();
-    bupProfile.sProfilePhotoURL.clear();
-    bupProfile.slPhotos.clear();
-    bupProfile.slVideos.clear();
-    bupProfile.sIntent.clear();
-    bupProfile.sMood.clear();
-    bupProfile.bvMyVote=VOTE_UNKNOWN;
-    bupProfile.bvTheirVote=VOTE_UNKNOWN;
-    bupProfile.sAbout.clear();
-    bupProfile.sRelationshipStatus.clear();
-    bupProfile.sSexuality.clear();
-    bupProfile.sAppearance.clear();
-    bupProfile.sLiving.clear();
-    bupProfile.sChildren.clear();
-    bupProfile.sSmoking.clear();
-    bupProfile.sDrinking.clear();
 }
 
 QString BadooAPI::fixURL(QString sURL) {

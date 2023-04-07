@@ -17,7 +17,8 @@ prepend(SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}
         mainwindow.cpp mainwindow.h mainwindow.ui
         mediacontrols.h mediacontrols.cpp
         mediaviewer.h mediaviewer.cpp
-        playencountersdialog.h playencountersdialog.cpp playencountersdialog.ui
+        playencountersdialog.h playencountersdialog.cpp
+        profileviewer.h profileviewer.cpp profileviewer.ui
         badwrapi.rc
 )
 

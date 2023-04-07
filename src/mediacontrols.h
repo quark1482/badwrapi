@@ -9,6 +9,7 @@ class MediaControls:public QWidget {
 public:
     MediaControls(QWidget * =nullptr,bool=false,Qt::Orientation=Qt::Orientation::Horizontal);
     void setAlignment(Qt::AlignmentFlag,Qt::AlignmentFlag);
+    void setButtonsEnabling(int=-1,int=0);
     void setButtonSizeRatio(qreal);
     void setPauseButtonState(bool);
     void setMuteButtonState(bool);
