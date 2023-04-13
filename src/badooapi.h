@@ -94,6 +94,8 @@ typedef QList<BadooSearchLocation> BadooSearchLocationList;
 
 typedef QList<BadooUserField> BadooUserFieldList;
 
+typedef QList<BadooListFilter> BadooListFilterList;
+
 typedef QList<BadooAlbumType> BadooAlbumTypeList;
 
 typedef QList<BadooFeatureType> BadooFeatureTypeList;
@@ -113,13 +115,16 @@ public:
     static void clearUserProfile(BadooUserProfile &);
     static bool downloadMediaResource(QString,QString,QByteArray &,QString &);
     static bool downloadMediaResource(QString,QString,QString &,QString &);
+    static void getFullFileContents(QString,QByteArray &);
     static bool getPreLoginParameters(QString &,QString &,QString &);
     static bool getPostLoginParameters(QString,QString &,QString &);
+    static bool searchListSectionIdByType(QString,BadooFolderType,BadooListSectionType,QString &,QString &,BadooAPIError &);
     static bool sendCAPTCHAAttempt(QString,QString,QString,QString,bool &,BadooAPIError &);
     static bool sendEncountersVote(QString,QString,bool,bool &,BadooAPIError &);
     static bool sendGetCAPTCHA(QString,QString,QString &,BadooAPIError &);
     static bool sendGetEncounters(QString,QString,int,BadooUserProfileList &,BadooAPIError &);
     static bool sendGetSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
+    static bool sendGetUserList(QString,BadooListFilterList,BadooFolderType,QString,int,int,BadooUserProfileList &,int &,BadooAPIError &);
     static bool sendLogin(QString,QString,QString,QString &,BadooAPIError &);
     static bool sendSaveSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
     static bool sendSearchLocations(QString,QString,BadooSearchLocationList &,BadooAPIError &);

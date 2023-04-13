@@ -116,7 +116,7 @@ bool BadooWrapper::downloadMultiMediaResources<QByteArray>(QStringList,QByteArra
 template<typename T>
 bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
                                                QList<T>    &tlResourceContents,
-                                               int         iMaximumTriesPerResource) {
+                                               int         iMaxTriesPerResource) {
     bool             bResult=false;
     int              iR,
                      iW,
@@ -140,7 +140,7 @@ bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
     // ... for every resource.
     for(iR=0;iR<iTotalResources;iR++) {
         blResourceDownload.append(false);
-        ilResourceTries.append(iMaximumTriesPerResource);
+        ilResourceTries.append(iMaxTriesPerResource);
         tlResourceContents.append(T());
     }
     // Sets the most efficient value for the number of worker threads to use.
@@ -296,6 +296,63 @@ bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
     return bResult;
 }
 
+bool BadooWrapper::downloadMultiProfileResources(BadooUserProfileList buplProfiles,
+                                                 MediaContentsHash    &mchPhotoContents,
+                                                 MediaContentsHash    &mchVideoContents,
+                                                 int                  iMaxTriesPerResource) {
+    bool           bResult=false;
+    QString        sError;
+    QStringList    slPhotoURLs,
+                   slVideoURLs;
+    QByteArrayList abtlPhotoContents,
+                   abtlVideoContents;
+    sError.clear();
+    slPhotoURLs.clear();
+    slVideoURLs.clear();
+    mchPhotoContents.clear();
+    mchVideoContents.clear();
+    for(const auto &u:buplProfiles) {
+        mchPhotoContents.insert(u.sUserId,{});
+        mchVideoContents.insert(u.sUserId,{});
+        slPhotoURLs.append(u.slPhotos);
+        slVideoURLs.append(u.slVideos);
+    }
+    if(this->downloadMultiMediaResources<QByteArray>(
+        slPhotoURLs,
+        abtlPhotoContents,
+        iMaxTriesPerResource
+    ))
+        if(this->downloadMultiMediaResources<QByteArray>(
+            slVideoURLs,
+            abtlVideoContents,
+            iMaxTriesPerResource
+        )) {
+            int iPhotoCounter=0,
+                iVideoCounter=0;
+            for(const auto &u:buplProfiles) {
+                for(const auto &p:u.slPhotos)
+                    mchPhotoContents[u.sUserId].append(
+                        abtlPhotoContents[iPhotoCounter++]
+                    );
+                for(const auto &v:u.slVideos)
+                    mchVideoContents[u.sUserId].append(
+                        abtlVideoContents[iVideoCounter++]
+                    );
+            }
+        }
+        else
+            sError=this->getLastError();
+    else
+        sError=this->getLastError();
+    bResult=true;
+    if(!sError.isEmpty()) {
+        bResult=false;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
 bool BadooWrapper::getEncounters(BadooUserProfileList &buplEncounters,
                                  bool                 bReset) {
     bool          bResult=false;
@@ -330,6 +387,105 @@ bool BadooWrapper::getEncounters(BadooUserProfileList &buplEncounters,
 
 void BadooWrapper::getEncountersSettings(EncountersSettings &esSettings) {
     esSettings=esEncounters;
+}
+
+QString BadooWrapper::getFolderName(FolderType ftType) {
+    QString sResult;
+    sResult.clear();
+    switch(ftType) {
+        case FOLDER_TYPE_FAVORITES:
+            sResult=QStringLiteral("Favorites");
+            break;
+        case FOLDER_TYPE_LIKES:
+            sResult=QStringLiteral("Likes");
+            break;
+        case FOLDER_TYPE_MATCHES:
+            sResult=QStringLiteral("Matches");
+            break;
+        case FOLDER_TYPE_PEOPLE_NEARBY:
+            sResult=QStringLiteral("People nearby");
+            break;
+        case FOLDER_TYPE_VISITORS:
+            sResult=QStringLiteral("Visitors");
+            break;
+    }
+    return sResult;
+}
+
+bool BadooWrapper::getFolderPage(FolderType           ftType,
+                                 int                  iPage,
+                                 BadooUserProfileList &buplProfilesInPage,
+                                 int                  &iTotalPagesInFolder,
+                                 int                  &iTotalProfilesInFolder,
+                                 int                  &iMaxProfilesByPage) {
+    bool                 bResult=false;
+    QString              sError,
+                         sSectionId,
+                         sSectionName;
+    BadooAPIError        baeError;
+    BadooFolderType      bftFolder;
+    BadooListSectionType blstSection;
+    BadooListFilterList  blflFilter={};
+    sError.clear();
+    buplProfilesInPage.clear();
+    iTotalPagesInFolder=0;
+    iTotalProfilesInFolder=0;
+    iMaxProfilesByPage=MAX_USERS_BY_REQUEST;
+    emit statusChanged(QStringLiteral("Loading folder page #%1...").arg(iPage+1));
+    switch(ftType) {
+        case FOLDER_TYPE_FAVORITES:
+            bftFolder=FAVOURITES;
+            blstSection=LIST_SECTION_TYPE_FAVORITES;
+            break;
+        case FOLDER_TYPE_LIKES:
+            bftFolder=WANT_TO_MEET_YOU;
+            blstSection=LIST_SECTION_TYPE_WANT_TO_MEET_YOU_UNVOTED;
+            break;
+        case FOLDER_TYPE_MATCHES:
+            bftFolder=MATCHES;
+            blstSection=LIST_SECTION_TYPE_UNKNOWN;
+            break;
+        case FOLDER_TYPE_PEOPLE_NEARBY:
+            bftFolder=NEARBY_PEOPLE_WEB;
+            blstSection=LIST_SECTION_TYPE_UNKNOWN;
+            break;
+        case FOLDER_TYPE_VISITORS:
+            bftFolder=PROFILE_VISITORS;
+            blstSection=LIST_SECTION_TYPE_PROFILE_VISITORS;
+            break;
+    }
+    if(BadooAPI::searchListSectionIdByType(
+        sdSession.sSessionId,
+        bftFolder,
+        blstSection,
+        sSectionId,
+        sSectionName,
+        baeError
+    ))
+        if(BadooAPI::sendGetUserList(
+            sdSession.sSessionId,
+            blflFilter,
+            bftFolder,
+            sSectionId,
+            iPage*iMaxProfilesByPage,
+            iMaxProfilesByPage,
+            buplProfilesInPage,
+            iTotalProfilesInFolder,
+            baeError
+        )) {
+            iTotalPagesInFolder=iTotalProfilesInFolder/iMaxProfilesByPage;
+            if(iTotalProfilesInFolder%iMaxProfilesByPage)
+                iTotalPagesInFolder++;
+            bResult=true;
+        }
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
 }
 
 QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
@@ -459,6 +615,7 @@ bool BadooWrapper::getLoggedInProfile(BadooUserProfile &bupUser) {
     bool    bResult=false;
     QString sError;
     sError.clear();
+    BadooAPI::clearUserProfile(bupUser);
     if(this->isLoggedIn()) {
         bupUser=bupSelf;
         bResult=true;
@@ -738,7 +895,7 @@ bool BadooWrapper::showLogin() {
         sError=QStringLiteral("Dialog canceled by user");
     if(!bResult) {
         if(sError.isEmpty())
-            sError=sLastError;
+            sError=this->getLastError();
         sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
     }
     sLastError=sError;
@@ -756,7 +913,7 @@ bool BadooWrapper::showSearchSettings(BadooSettingsContextType bsctContext) {
         sError=QStringLiteral("Dialog canceled by user");
     if(!bResult) {
         if(sError.isEmpty())
-            sError=sLastError;
+            sError=this->getLastError();
         sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
     }
     sLastError=sError;

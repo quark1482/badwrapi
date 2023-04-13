@@ -15,13 +15,12 @@ private slots:
 private:
     bool                 bDialogReady;
     int                  iCurrentProfileIndex;
-    QByteArray           abtMyProfilePhoto;
     BadooWrapper         *bwEncounters;
     BadooUserProfileList buplEncounters;
     MediaContentsHash    mchPhotoContents,
                          mchVideoContents;
     ProfileViewer        *pvCurrentProfile;
-    QVBoxLayout          vblMain;
+    QVBoxLayout          vblLayout;
     QString getCurrentProfileId();
     bool    getNewBatch(bool=false);
     void    handleCopyURLButtonClick();
@@ -32,7 +31,6 @@ private:
     void    handleSkipButtonClick();
     void    loadMyProfile();
     void    showCurrentProfile();
-    void    showMatch(QString,QByteArray,QByteArray,int=640);
 signals:
     void statusChanged(QString);
 };

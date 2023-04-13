@@ -1,6 +1,7 @@
 #include "mediaviewer.h"
 
-MediaViewer::MediaViewer(MediaType mtNew,QWidget *wgtParent):QWidget(wgtParent) {
+MediaViewer::MediaViewer(MediaType mtNew,
+                         QWidget *wgtParent):QWidget(wgtParent) {
     bAutoHideOverlay=false;
     wgtOverlay=nullptr;
     mtType=mtNew;

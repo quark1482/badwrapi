@@ -29,7 +29,7 @@ ToDo's
 
 - [ ] Show "People nearby".
 - [ ] Show "Likes".
-- [ ] Show "Matches".
+- [x] Show "Matches".
 - [ ] Show "Favorites".
 - [ ] Implement chat.
 
@@ -41,6 +41,12 @@ I'm open to criticism and suggestions. Feel free to [send me](mailto:quark1482@p
 
 To code purists, I advocate for standards and code conventions. But I also love\
 structured code **with all my heart**.
+
+
+Acknowledgements
+----------------
+
+This program uses a set of nice icons created by ['bqlqn'](https://www.flaticon.com/authors/bqlqn).
 
 
 _Notice_

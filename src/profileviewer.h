@@ -1,7 +1,6 @@
 #ifndef PROFILEVIEWER_H
 #define PROFILEVIEWER_H
 
-#include <QWidget>
 #include "badoowrapper.h"
 #include "mediaviewer.h"
 #include "mediacontrols.h"
@@ -22,10 +21,11 @@ typedef enum {
 class ProfileViewer:public QWidget {
     Q_OBJECT
 public:
-    ProfileViewer(QWidget * =nullptr);
+    ProfileViewer(BadooWrapper *,QWidget * =nullptr);
     ~ProfileViewer();
     void getPlaceholderPhoto(QByteArray &);
     void getPlaceholderVideo(QByteArray &);
+    void setOwnProfilePhoto(QByteArray);
     void load(BadooUserProfile,QByteArrayList,QByteArrayList);
 protected:
     bool eventFilter(QObject *,QEvent *) override;
@@ -60,22 +60,25 @@ private:
     bool              bVideoPausedByUser;
     int               iCurrentPhotoIndex,
                       iCurrentVideoIndex;
-    QByteArray        abtPlaceholderPhoto,
+    QByteArray        abtOwnProfilePhoto,
+                      abtPlaceholderPhoto,
                       abtPlaceholderVideo;
-    QByteArrayList    abtProfilePhotos,
-                      abtProfileVideos;
+    QByteArrayList    abtlProfilePhotos,
+                      abtlProfileVideos;
     QTimer            tmrDelayedResize;
     QGraphicsScene    grsPhotoGallery,
                       grsVideoGallery;
+    BadooWrapper      *bwProfile;
     MediaViewer       *mvwPhoto,
                       *mvwVideo;
     MediaControls     *mctPhotoControls,
                       *mctVideoControls;
     BadooUserProfile  bupProfileDetails;
-    void    getFullFileContents(QString,QByteArray &);
     void    resetProfileWidgets(int=0,int=0);
+    void    showMatch(QString,QByteArray,QByteArray,int=640);
     void    showVote(bool);
     void    toggleMediaViewersIndependence();
+    void    updateActionButtons();
     void    updateMediaButtons();
     void    updateMediaTitle();
     void    updateMediaWidgets();

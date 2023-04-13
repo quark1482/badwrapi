@@ -829,7 +829,7 @@ typedef enum {
     SEX_TYPE_FEMALE=2,
     SEX_TYPE_UNKNOWN=3,
     SEX_TYPE_OTHER=4
-} BadooSexType; // Values preceded with "SEX_TYPE_" for better code reading.
+} BadooSexType; // Values preceded with 'SEX_TYPE_' for better code reading.
 
 typedef enum {
     SETTINGS_CONTEXT_TYPE_ENCOUNTERS=1,    // I totally made up these names because I couldn't find ...
@@ -842,6 +842,83 @@ typedef enum {
     LOCATION_TYPE_REGION=2,
     LOCATION_TYPE_CITY=3
 } BadooLocationType;
+
+typedef enum {
+    ALL_MESSAGES=0,
+    FRIENDS=3,                               // Does not work
+    FAVOURITES=4,                            // Tested
+    WANT_TO_MEET_YOU=6,                      // Tested
+    YOU_WANT_TO_MEET=7,                      // Tested
+    PROFILE_VISITORS=8,                      // Tested
+    BLOCKED=9,
+    NEARBY_PEOPLE=10,                        // Tested
+    PRIVATE_ALBUM_ACCESS=11,
+    SPOTLIGHT=13,
+    MATCHES=15,                              // Tested
+    NEARBY_PEOPLE_4=16,                      // Tested (apparently, same as NEARBY_PEOPLE)
+    RATED_ME=17,                             // Does not work
+    PROFILE_SEARCH=20,
+    NEARBY_PEOPLE_WEB=25,                    // Tested (used by web app)
+    VERIFICATION_ACCESS=27,
+    FOLDER_TYPE_COMBINED_CONNECTIONS_ALL=31, // From here down, untested
+    FOLDER_TYPE_BELL=32,
+    FOLDER_TYPE_LIVESTREAMERS=33,
+    FOLDER_TYPE_LIVESTREAM_SUBSCRIPTIONS=34,
+    FOLDER_TYPE_LIVESTREAM_FOLLOWERS=35,
+    FOLDER_TYPE_LIVESTREAM_VIEWERS=36,
+    FOLDER_TYPE_CHAT_REQUEST_LIST=41,
+    FOLDER_TYPE_JOINED_GROUP_CHATS=44,
+    FOLDER_TYPE_AVAILABLE_GROUP_CHATS=45,
+    FOLDER_TYPE_NO_VOTES=46,
+    FOLDER_TYPE_GROUP_CHAT_MEMBERS=48,
+    FOLDER_TYPE_MATCH_BAR=49,
+    FOLDER_TYPE_ARCHIVED=50,
+    FOLDER_TYPE_FAVOURITED_ME=51,
+    FOLDER_TYPE_FAVOURITED_BY_ME=52,
+    FOLDER_TYPE_ACTIVITY=53,
+    FOLDER_TYPE_CONVERSATIONS=54,
+    FOLDER_TYPE_CRUSHES=55,
+    FOLDER_TYPE_MESSAGES_AND_ACTIVITY=56,
+    FOLDER_TYPE_BEST_BETS=57,
+    FOLDER_TYPE_BFF_CONTACTS=58
+} BadooFolderType;
+
+typedef enum {
+    LIST_SECTION_TYPE_UNKNOWN=0, // Added this value for use in folders with no sections
+    LIST_SECTION_TYPE_GENERAL=1,
+    LIST_SECTION_TYPE_TEMPORAL_MATCH=2,
+    LIST_SECTION_TYPE_BUMPED_INTO=3,
+    LIST_SECTION_TYPE_ALL_MESSAGES=4,
+    LIST_SECTION_TYPE_FAVORITES=5,
+    LIST_SECTION_TYPE_FAVORITED_YOU=6,
+    LIST_SECTION_TYPE_FAVORITES_MUTUAL=7,
+    LIST_SECTION_TYPE_WANT_TO_MEET_YOU_UNVOTED=8,
+    LIST_SECTION_TYPE_WANT_TO_MEET_YOU_MUTUAL=9,
+    LIST_SECTION_TYPE_WANT_TO_MEET_YOU_REJECTED=10,
+    LIST_SECTION_TYPE_PROFILE_VISITORS=11,
+    LIST_SECTION_TYPE_BLOCKED=12,
+    LIST_SECTION_TYPE_PRIVATE_ALBUM_ACCESS=13,
+    LIST_SECTION_TYPE_SPOTLIGHT=14,
+    LIST_SECTION_TYPE_PROFILE_SEARCH=15,
+    LIST_SECTION_TYPE_COMMON_PLACE=17,
+    LIST_SECTION_TYPE_PEOPLE_NEARBY=18,
+    LIST_SECTION_TYPE_FRIENDS=19,
+    LIST_SECTION_TYPE_MESSENGER_MINI_GAME=22,
+    LIST_SECTION_TYPE_COMBINED_CONNECTIONS_ALL=23,
+    LIST_SECTION_TYPE_TOP_LIVESTREAMERS=25,
+    LIST_SECTION_TYPE_POPULAR_LIVESTREAMERS=26,
+    LIST_SECTION_TYPE_TOP_SPENDERS=27,
+    LIST_SECTION_TYPE_BEELINE_IN_RANGE=29,
+    LIST_SECTION_TYPE_BEELINE_OUT_OF_RANGE=30,
+    LIST_SECTION_TYPE_LIVESTREAM_FOLLOWING=31,
+    LIST_SECTION_TYPE_LOCKED=32,
+    LIST_SECTION_TYPE_ACTIVITY=33,
+    LIST_SECTION_TYPE_ACTIVITY_HIGHLIGHTS=34,
+    LIST_SECTION_TYPE_BEELINE_ALL=35,
+    LIST_SECTION_TYPE_BEELINE_NEW=36,
+    LIST_SECTION_TYPE_BEELINE_NEARBY=37,
+    LIST_SECTION_TYPE_BEELINE_RECENTLY_ACTIVE=38
+} BadooListSectionType;
 
 typedef enum {
     USER_FIELD_EMAIL=10,
@@ -1110,6 +1187,23 @@ typedef enum {
     PROFILE_OPTION_TYPE_PREFERRED_LANGUAGES=39,
     PROFILE_OPTION_TYPE_VOICE_PROMPTS=40
 } BadooProfileOptionType;
+
+typedef enum {
+    LIST_FILTER_ONLINE=0,
+    LIST_FILTER_NEW=1,
+    LIST_FILTER_UNREAD=2,
+    LIST_FILTER_CONVERSATIONS=3,
+    LIST_FILTER_ACTIVE_USERS=4,
+    LIST_FILTER_NEARBY=5,
+    LIST_FILTER_FAVOURITES=6,
+    LIST_FILTER_MATCHED=7,
+    LIST_FILTER_MATCH_MODE=8,
+    LIST_FILTER_UNREPLIED=9,
+    LIST_FILTER_MESSENGER_MINI_GAME=10,
+    LIST_FILTER_HOT=11,
+    LIST_FILTER_STREAMING=12,
+    LIST_FILTER_ENCOUNTERS=13
+} BadooListFilter;
 
 typedef enum {
     ALBUM_TYPE_WITH_ID=1,
@@ -2410,11 +2504,11 @@ typedef enum {
     VOTE_SKIP=5,    // Same as NONE
     VOTE_SUPER=6,   // Not working (silently fails with no error)
     VOTE_CRUSH=7    // Needs credits (silently fails with no error)
-} BadooVote;        // Values preceded with "VOTE_" for better code reading.
+} BadooVote;        // Values preceded with 'VOTE_' for better code reading.
 
 typedef enum {
     GAME_START=1,  // Definitely, I am not sure if these are the right constant names to compare with ...
-    GAME_FAILED=2, // ... "vote_response_type" in the response of the message SERVER_ENCOUNTERS_VOTE.
+    GAME_FAILED=2, // ... 'vote_response_type' in the response of the message SERVER_ENCOUNTERS_VOTE.
     GAME_SUCCESS=3 // I am just using GAME_SUCCESS to verify if there was a match or not.
 } BadooGame;
 

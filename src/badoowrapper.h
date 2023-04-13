@@ -5,6 +5,16 @@
 #include "badoologindialog.h"
 #include "badoosearchsettingsdialog.h"
 
+#define MAX_DOWNLOAD_TRIES 3
+
+typedef enum {
+    FOLDER_TYPE_FAVORITES,
+    FOLDER_TYPE_LIKES,
+    FOLDER_TYPE_MATCHES,
+    FOLDER_TYPE_PEOPLE_NEARBY,
+    FOLDER_TYPE_VISITORS
+} FolderType;
+
 typedef QHash<QString,QByteArrayList> MediaContentsHash;
 
 typedef struct {
@@ -40,9 +50,12 @@ class BadooWrapper:public QObject {
 public:
     BadooWrapper();
     template<typename T>
-    bool    downloadMultiMediaResources(QStringList,QList<T> &,int=3);
+    bool    downloadMultiMediaResources(QStringList,QList<T> &,int=MAX_DOWNLOAD_TRIES);
+    bool    downloadMultiProfileResources(BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int=MAX_DOWNLOAD_TRIES);
     bool    getEncounters(BadooUserProfileList &,bool=false);
     void    getEncountersSettings(EncountersSettings &);
+    QString getFolderName(FolderType);
+    bool    getFolderPage(FolderType,int,BadooUserProfileList &,int &,int &,int &);
     QString getHTMLFromProfile(BadooUserProfile,bool=false,QString=QString(),QByteArrayList={},QByteArrayList={});
     QString getLastError();
     bool    getLoggedInProfile(BadooUserProfile &);

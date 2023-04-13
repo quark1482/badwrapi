@@ -1,37 +1,77 @@
 #include "profileviewer.h"
 #include "ui_profileviewer.h"
 
-#define THUMBNAIL_SIZE 100
+#define THUMBNAIL_SIDE 100
 
-ProfileViewer::ProfileViewer(QWidget *wgtParent):
+#define FILTER_HTML_FILES "HTML files (*.html;*.htm)"
+
+#define EXTENSION_HTML ".html"
+
+#define HTML_STYLE_PROFILE R"(
+<style type='text/css'>
+    th {
+        border-radius: 15px;
+        background-color: #6e3eff;
+        color: white;
+        font-weight: bold;
+        padding: 5px;
+    }
+    td {
+        border-radius: 15px;
+        background-color: #ffbbd0;
+        padding: 5px;
+    }
+    img {
+        width: 100px;
+        height: 100px;
+        border-radius: 10px;
+        background-color: black;
+        object-fit: contain;
+        cursor: pointer;
+    }
+    video {
+        width: 100px;
+        height: 100px;
+        border-radius: 10px;
+        background-color: black;
+        cursor: pointer;
+    }
+</style>
+)"
+
+ProfileViewer::ProfileViewer(BadooWrapper *bwParent,
+                             QWidget *wgtParent):
     QWidget(wgtParent),ui(new Ui::ProfileViewer) {
     bVideoPausedByUser=false;
     iCurrentPhotoIndex=-1;
     iCurrentVideoIndex=-1;
-    abtProfilePhotos.clear();
-    abtProfileVideos.clear();
+    abtOwnProfilePhoto.clear();
+    abtlProfilePhotos.clear();
+    abtlProfileVideos.clear();
     BadooAPI::clearUserProfile(bupProfileDetails);
+    BadooAPI::getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
+    BadooAPI::getFullFileContents(QStringLiteral(":img/video-placeholder.mp4"),abtPlaceholderVideo);
+    bwProfile=bwParent;
     mvwPhoto=new MediaViewer;
     mvwVideo=new MediaViewer(MEDIA_TYPE_VIDEO);
     mctPhotoControls=new MediaControls(mvwPhoto);
     mctVideoControls=new MediaControls(mvwVideo,true);
     ui->setupUi(this);
-    this->getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
-    this->getFullFileContents(QStringLiteral(":img/video-placeholder.mp4"),abtPlaceholderVideo);
     this->toggleMediaViewersIndependence();
     ui->grvPhotoGallery->setAlignment(Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop);
     ui->grvPhotoGallery->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
     ui->grvPhotoGallery->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+    ui->grvPhotoGallery->setFrameShape(QFrame::Shape::NoFrame);
     ui->grvPhotoGallery->setSizeAdjustPolicy(QGraphicsView::SizeAdjustPolicy::AdjustIgnored);
     ui->grvPhotoGallery->setScene(&grsPhotoGallery);
     ui->grvVideoGallery->setAlignment(Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop);
     ui->grvVideoGallery->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
     ui->grvVideoGallery->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+    ui->grvVideoGallery->setFrameShape(QFrame::Shape::NoFrame);
     ui->grvVideoGallery->setSizeAdjustPolicy(QGraphicsView::SizeAdjustPolicy::AdjustIgnored);
     ui->grvVideoGallery->setScene(&grsVideoGallery);
     grsPhotoGallery.installEventFilter(this);
     grsVideoGallery.installEventFilter(this);
-    this->installEventFilter(this);
 
     connect(
         &tmrDelayedResize,
@@ -194,23 +234,6 @@ ProfileViewer::~ProfileViewer() {
     delete ui;
 }
 
-void ProfileViewer::getPlaceholderPhoto(QByteArray &abtPlaceholder) {
-    abtPlaceholder=abtPlaceholderPhoto;
-}
-
-void ProfileViewer::getPlaceholderVideo(QByteArray &abtPlaceholder) {
-    abtPlaceholder=abtPlaceholderVideo;
-}
-
-void ProfileViewer::load(BadooUserProfile bupProfile,
-                         QByteArrayList   abtlPhotos,
-                         QByteArrayList   abtlVideos) {
-    bupProfileDetails=bupProfile;
-    abtProfilePhotos=abtlPhotos;
-    abtProfileVideos=abtlVideos;
-    this->resetProfileWidgets();
-}
-
 bool ProfileViewer::eventFilter(QObject *objO,
                                 QEvent  *evnE) {
     if(QEvent::Type::GraphicsSceneMousePress==evnE->type()||
@@ -254,19 +277,79 @@ void ProfileViewer::resizeEvent(QResizeEvent *) {
     tmrDelayedResize.start(500);
 }
 
+void ProfileViewer::getPlaceholderPhoto(QByteArray &abtPlaceholder) {
+    abtPlaceholder=abtPlaceholderPhoto;
+}
+
+void ProfileViewer::getPlaceholderVideo(QByteArray &abtPlaceholder) {
+    abtPlaceholder=abtPlaceholderVideo;
+}
+
+void ProfileViewer::setOwnProfilePhoto(QByteArray abtPhoto) {
+    abtOwnProfilePhoto=abtPhoto;
+}
+
+void ProfileViewer::load(BadooUserProfile bupProfile,
+                         QByteArrayList   abtlPhotos,
+                         QByteArrayList   abtlVideos) {
+    bupProfileDetails=bupProfile;
+    abtlProfilePhotos=abtlPhotos;
+    abtlProfileVideos=abtlVideos;
+    this->resetProfileWidgets();
+}
+
 void ProfileViewer::delayedResizeTimeout() {
     tmrDelayedResize.stop();
     this->updateMediaWidgets();
 }
 
 void ProfileViewer::copyURLButtonClicked() {
-    if(!bupProfileDetails.sUserId.isEmpty())
+    if(!bupProfileDetails.sUserId.isEmpty()) {
+        QString sURL=QStringLiteral("%1/profile/0%2").
+                     arg(ENDPOINT_BASE).
+                     arg(bupProfileDetails.sUserId);
+        QGuiApplication::clipboard()->setText(sURL);
         emit buttonClicked(PROFILE_VIEWER_BUTTON_COPY_URL);
+    }
 }
 
 void ProfileViewer::downloadProfileButtonClicked() {
-    if(!bupProfileDetails.sUserId.isEmpty())
-        emit buttonClicked(PROFILE_VIEWER_BUTTON_DOWNLOAD);
+    if(!bupProfileDetails.sUserId.isEmpty()) {
+        QString sDefaultFolder,
+                sTempPath,
+                sHTML;
+        QFile   fFile;
+        sDefaultFolder=QStandardPaths::standardLocations(
+            QStandardPaths::StandardLocation::DownloadLocation
+        ).at(0);
+        sTempPath=QFileDialog::getSaveFileName(
+            this,
+            QStringLiteral("Save profile as HTML"),
+            sDefaultFolder,
+            QStringLiteral(FILTER_HTML_FILES)
+        );
+        if(!sTempPath.isEmpty()) {
+            sHTML=bwProfile->getHTMLFromProfile(
+                bupProfileDetails,
+                true,
+                QStringLiteral(HTML_STYLE_PROFILE),
+                abtlProfilePhotos,
+                abtlProfileVideos
+            );
+            if(QFileInfo(sTempPath).suffix().isEmpty())
+                sTempPath.append(QStringLiteral(EXTENSION_HTML));
+            fFile.setFileName(sTempPath);
+            if(fFile.open(QFile::OpenModeFlag::WriteOnly))
+                if(-1!=fFile.write(sHTML.toUtf8()))
+                    emit buttonClicked(PROFILE_VIEWER_BUTTON_DOWNLOAD);
+            if(QFile::FileError::NoError!=fFile.error())
+                QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    fFile.errorString()
+                );
+        }
+    }
 }
 
 void ProfileViewer::backButtonClicked() {
@@ -276,15 +359,38 @@ void ProfileViewer::backButtonClicked() {
 
 void ProfileViewer::nopeButtonClicked() {
     if(!bupProfileDetails.sUserId.isEmpty()) {
+        bool bMatch;
         this->showVote(false);
-        emit buttonClicked(PROFILE_VIEWER_BUTTON_NOPE);
+        if(bwProfile->vote(bupProfileDetails.sUserId,false,bMatch))
+            emit buttonClicked(PROFILE_VIEWER_BUTTON_NOPE);
+        else
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Error"),
+                bwProfile->getLastError()
+            );
     }
 }
 
 void ProfileViewer::likeButtonClicked() {
     if(!bupProfileDetails.sUserId.isEmpty()) {
+        bool bMatch;
         this->showVote(true);
-        emit buttonClicked(PROFILE_VIEWER_BUTTON_LIKE);
+        if(bwProfile->vote(bupProfileDetails.sUserId,true,bMatch)) {
+            if(bMatch)
+                this->showMatch(
+                    bupProfileDetails.sName,
+                    abtlProfilePhotos.first(),
+                    abtOwnProfilePhoto
+                );
+            emit buttonClicked(PROFILE_VIEWER_BUTTON_LIKE);
+        }
+        else
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Error"),
+                bwProfile->getLastError()
+            );
     }
 }
 
@@ -312,7 +418,7 @@ void ProfileViewer::previousPhotoButtonClicked() {
 }
 
 void ProfileViewer::nextPhotoButtonClicked() {
-    if(iCurrentPhotoIndex<abtProfilePhotos.count()-1) {
+    if(iCurrentPhotoIndex<abtlProfilePhotos.count()-1) {
         iCurrentPhotoIndex++;
         this->updateMediaButtons();
         this->updateMediaTitle();
@@ -321,8 +427,8 @@ void ProfileViewer::nextPhotoButtonClicked() {
 }
 
 void ProfileViewer::lastPhotoButtonClicked() {
-    if(iCurrentPhotoIndex<abtProfilePhotos.count()-1) {
-        iCurrentPhotoIndex=abtProfilePhotos.count()-1;
+    if(iCurrentPhotoIndex<abtlProfilePhotos.count()-1) {
+        iCurrentPhotoIndex=abtlProfilePhotos.count()-1;
         this->updateMediaButtons();
         this->updateMediaTitle();
         this->updatePhotoContent();
@@ -348,7 +454,7 @@ void ProfileViewer::previousVideoButtonClicked() {
 }
 
 void ProfileViewer::nextVideoButtonClicked() {
-    if(iCurrentVideoIndex<abtProfileVideos.count()-1) {
+    if(iCurrentVideoIndex<abtlProfileVideos.count()-1) {
         iCurrentVideoIndex++;
         this->updateMediaButtons();
         this->updateMediaTitle();
@@ -357,8 +463,8 @@ void ProfileViewer::nextVideoButtonClicked() {
 }
 
 void ProfileViewer::lastVideoButtonClicked() {
-    if(iCurrentVideoIndex<abtProfileVideos.count()-1) {
-        iCurrentVideoIndex=abtProfileVideos.count()-1;
+    if(iCurrentVideoIndex<abtlProfileVideos.count()-1) {
+        iCurrentVideoIndex=abtlProfileVideos.count()-1;
         this->updateMediaButtons();
         this->updateMediaTitle();
         this->updateVideoContent();
@@ -471,26 +577,11 @@ void ProfileViewer::videoMouseHover(QPoint pntP) {
         mctVideoControls->setVisible(true);
 }
 
-void ProfileViewer::getFullFileContents(QString    sPath,
-                                        QByteArray &abtContents) {
-    QFile   fFile;
-    QBuffer bufContents;
-    abtContents.clear();
-    fFile.setFileName(sPath);
-    if(fFile.open(QFile::OpenModeFlag::ReadOnly)) {
-        bufContents.setBuffer(&abtContents);
-        bufContents.open(QBuffer::OpenModeFlag::WriteOnly);
-        bufContents.write(fFile.readAll());
-        bufContents.close();
-        fFile.close();
-    }
-}
-
 void ProfileViewer::resetProfileWidgets(int iGoToPhotoIndex,
                                         int iGoToVideoIndex) {
-    if(abtProfilePhotos.count())
+    if(abtlProfilePhotos.count())
         iCurrentPhotoIndex=iGoToPhotoIndex;
-    if(abtProfileVideos.count())
+    if(abtlProfileVideos.count())
         iCurrentVideoIndex=iGoToVideoIndex;
     ui->tbwGalleries->setCurrentWidget(ui->wgtPhotoGallery);
     ui->stwMediaContent->setCurrentWidget(ui->wgtPhoto);
@@ -498,6 +589,175 @@ void ProfileViewer::resetProfileWidgets(int iGoToPhotoIndex,
     this->updateMediaButtons();
     this->updateMediaTitle();
     this->updateMediaWidgets();
+    this->updateActionButtons();
+}
+
+void ProfileViewer::showMatch(QString    sName,
+                              QByteArray abtPhoto1,
+                              QByteArray abtPhoto2,
+                              int        iCanvasHeight) {
+    int         iPhotoSide=iCanvasHeight/4,
+                iMatchTextFlags=Qt::TextFlag::TextWordWrap|Qt::TextFlag::TextJustificationForced,
+                iMaxFontSize;
+    QString     sMatchText;
+    QMessageBox mbMatch;
+    QPixmap     pxmMatch(iCanvasHeight*0.75,iCanvasHeight),
+                pxmPhoto1=QPixmap::fromImage(
+                    QImage::fromData(abtPhoto1)
+                ).scaled(iPhotoSide,iPhotoSide,Qt::AspectRatioMode::KeepAspectRatio),
+                pxmPhoto2=QPixmap::fromImage(
+                    QImage::fromData(abtPhoto2)
+                ).scaled(iPhotoSide,iPhotoSide,Qt::AspectRatioMode::KeepAspectRatio),
+                pxmPhotoBox1(iPhotoSide,iPhotoSide),
+                pxmPhotoBox2(iPhotoSide,iPhotoSide);
+    QPainter    pntMatch;
+    QFont       fntText;
+    QPointF     ptfPhotosTopLeft(
+                    pxmMatch.width()/2-iPhotoSide,
+                    pxmMatch.height()/2-iPhotoSide
+                ),
+                ptfPhoto1Center(
+                    ptfPhotosTopLeft.x()+iPhotoSide/2,
+                    ptfPhotosTopLeft.y()+iPhotoSide/2
+                ),
+                ptfPhoto2Center(
+                    ptfPhotosTopLeft.x()+iPhotoSide+iPhotoSide/2,
+                    ptfPhotosTopLeft.y()+iPhotoSide/2
+                );
+    QRectF      rcfMatchTextArea(
+                    ptfPhotosTopLeft.x(),
+                    pxmMatch.height()-ptfPhotosTopLeft.y()-iPhotoSide/2,
+                    iPhotoSide*2,
+                    iPhotoSide
+                );
+    sMatchText=QStringLiteral("%1 likes you too! Will you be the one to make the first move?").
+               arg(sName);
+    fntText.setFamily(QStringLiteral("Arial"));
+    fntText.setBold(true);
+    iMaxFontSize=0;
+    while(true) {
+        fntText.setPointSize(iMaxFontSize+1);
+        int iNewHeight=QFontMetrics(fntText,&pxmMatch).boundingRect(
+            rcfMatchTextArea.toRect(),
+            iMatchTextFlags,
+            sMatchText
+        ).height();
+        if(rcfMatchTextArea.height()<iNewHeight)
+            break;
+        iMaxFontSize++;
+    }
+    fntText.setPointSize(iMaxFontSize);
+
+    pntMatch.begin(&pxmPhotoBox1);
+    pntMatch.fillRect(
+        pxmPhotoBox1.rect(),
+        Qt::GlobalColor::black
+    );
+    pntMatch.drawPixmap(
+        iPhotoSide/2-pxmPhoto1.width()/2,
+        iPhotoSide/2-pxmPhoto1.height()/2,
+        pxmPhoto1
+    );
+    pntMatch.end();
+
+    pntMatch.begin(&pxmPhotoBox2);
+    pntMatch.fillRect(
+        pxmPhotoBox2.rect(),
+        Qt::GlobalColor::black
+    );
+    pntMatch.drawPixmap(
+        iPhotoSide/2-pxmPhoto2.width()/2,
+        iPhotoSide/2-pxmPhoto2.height()/2,
+        pxmPhoto2
+    );
+    pntMatch.end();
+
+    pntMatch.begin(&pxmMatch);
+    pntMatch.fillRect(pxmMatch.rect(),QColor(QStringLiteral("#6e3eff")));
+    pntMatch.setFont(fntText);
+    pntMatch.setPen(Qt::GlobalColor::white);
+    pntMatch.save();
+    pntMatch.translate(ptfPhoto2Center);
+    pntMatch.rotate(25);
+    pntMatch.translate(-ptfPhoto2Center);
+    pntMatch.drawPixmap(ptfPhotosTopLeft+QPointF(iPhotoSide,0),pxmPhotoBox2);
+    pntMatch.restore();
+    pntMatch.save();
+    pntMatch.translate(ptfPhoto1Center);
+    pntMatch.rotate(-25);
+    pntMatch.translate(-ptfPhoto1Center);
+    pntMatch.drawPixmap(ptfPhotosTopLeft,pxmPhotoBox1);
+    pntMatch.restore();
+    pntMatch.drawText(rcfMatchTextArea,iMatchTextFlags,sMatchText);
+    pntMatch.end();
+
+    mbMatch.setIconPixmap(pxmMatch);
+    mbMatch.setText(QStringLiteral("It's a match!"));
+    mbMatch.setWindowTitle(mbMatch.text());
+    QGridLayout *glyLayout=qobject_cast<QGridLayout *>(mbMatch.layout());
+    QLayoutItem *lyiItem=glyLayout->takeAt(2);
+    QLabel      *lblText=qobject_cast<QLabel *>(lyiItem->widget());
+    QPalette    palText;
+    palText.setColor(QPalette::ColorRole::WindowText,Qt::GlobalColor::green);
+    lblText->setAlignment(Qt::AlignmentFlag::AlignCenter);
+    lblText->setFont(fntText);
+    lblText->setPalette(palText);
+    glyLayout->addItem(lyiItem,0,1);
+    glyLayout->addItem(glyLayout->takeAt(0),0,1);
+    iMaxFontSize=0;
+    while(true) {
+        fntText.setPointSize(iMaxFontSize+1);
+        if(pxmMatch.width()*0.9<QFontMetrics(fntText).boundingRect(mbMatch.text()).width())
+            break;
+        iMaxFontSize++;
+    }
+
+    QThread *thMatch=QThread::create(
+        [lblText](int iSize) {
+            while(true)
+                if(lblText->isVisible()) {
+                    // Animates the QMessageBox text by changing the font size up and ...
+                    // ... down within the dialog area (the reason behind the complex ...
+                    // ... call to QMetaObject::invokeMethod() is to avoid updating ...
+                    // ... the UI from this thread and causing havoc as a result; ...
+                    // ... and the reason for using setStyleSheet() for changing ...
+                    // ... the font size instead of setFont(), is because the ...
+                    // ... former is a slot. i.e., Q_INVOKABLE).
+                    QString sFamily=lblText->font().family();
+                    for(int iK=iSize/2;iK<=iSize;iK++) {
+                        QString sStyle=QStringLiteral("font-family: \"%1\"; font-size: %2pt;").
+                                       arg(sFamily).arg(iK);
+                        QMetaObject::invokeMethod(
+                            lblText,
+                            QStringLiteral("setStyleSheet").toUtf8(),
+                            Q_ARG(QString,sStyle)
+                        );
+                        QThread::msleep(10);
+                    }
+                    for(int iK=iSize;iK>=iSize/2;iK--) {
+                        QString sStyle=QStringLiteral("font-family: \"%1\"; font-size: %2pt;").
+                                       arg(sFamily).arg(iK);
+                        QMetaObject::invokeMethod(
+                            lblText,
+                            QStringLiteral("setStyleSheet").toUtf8(),
+                            Q_ARG(QString,sStyle)
+                        );
+                        QThread::msleep(10);
+                    }
+                }
+        },
+        iMaxFontSize
+    );
+    QObject::connect(
+        &mbMatch,
+        &QMessageBox::finished,
+        [thMatch](int) {
+            thMatch->terminate();
+            thMatch->wait();
+        }
+    );
+    thMatch->start();
+    mbMatch.exec();
 }
 
 void ProfileViewer::showVote(bool bVote) {
@@ -519,8 +779,8 @@ void ProfileViewer::showVote(bool bVote) {
 
     iVoteWidthSize=QFontMetrics(fntText).boundingRect(asVotes[0]).width()-
                    QFontMetrics(fntText).boundingRect(asVotes[1]).width();
-    if(abtProfilePhotos.count())
-        abtNormalImage=abtProfilePhotos.at(iCurrentPhotoIndex);
+    if(abtlProfilePhotos.count())
+        abtNormalImage=abtlProfilePhotos.at(iCurrentPhotoIndex);
     else
         abtNormalImage=abtPlaceholderPhoto;
     bufImage.setBuffer(&abtNormalImage);
@@ -593,27 +853,33 @@ void ProfileViewer::toggleMediaViewersIndependence() {
     }
 }
 
+void ProfileViewer::updateActionButtons() {
+    bool bVoteEnabled=VOTE_NONE==bupProfileDetails.bvMyVote;
+    ui->btnNope->setEnabled(bVoteEnabled);
+    ui->btnLike->setEnabled(bVoteEnabled);
+}
+
 void ProfileViewer::updateMediaButtons() {
-    mctPhotoControls->setButtonsEnabling(iCurrentPhotoIndex,abtProfilePhotos.count());
-    mctVideoControls->setButtonsEnabling(iCurrentVideoIndex,abtProfileVideos.count());
+    mctPhotoControls->setButtonsEnabling(iCurrentPhotoIndex,abtlProfilePhotos.count());
+    mctVideoControls->setButtonsEnabling(iCurrentVideoIndex,abtlProfileVideos.count());
 }
 
 void ProfileViewer::updateMediaTitle() {
     if(ui->tbwGalleries->currentWidget()==ui->wgtPhotoGallery)
-        if(abtProfilePhotos.count())
+        if(abtlProfilePhotos.count())
             ui->lblMediaTitle->setText(
                 QStringLiteral("Photo %1 of %2").
                 arg(iCurrentPhotoIndex+1).
-                arg(abtProfilePhotos.count())
+                arg(abtlProfilePhotos.count())
             );
         else
             ui->lblMediaTitle->setText(QStringLiteral("No available photos"));
     else if(ui->tbwGalleries->currentWidget()==ui->wgtVideoGallery)
-        if(abtProfileVideos.count())
+        if(abtlProfileVideos.count())
             ui->lblMediaTitle->setText(
                 QStringLiteral("Video %1 of %2").
                 arg(iCurrentVideoIndex+1).
-                arg(abtProfileVideos.count())
+                arg(abtlProfileVideos.count())
             );
         else
             ui->lblMediaTitle->setText(QStringLiteral("No available videos"));
@@ -640,8 +906,8 @@ void ProfileViewer::updateMediaWidgets() {
 
 void ProfileViewer::updatePhotoContent() {
     QByteArray abtContent;
-    if(abtProfilePhotos.count())
-        abtContent=abtProfilePhotos.at(iCurrentPhotoIndex);
+    if(abtlProfilePhotos.count())
+        abtContent=abtlProfilePhotos.at(iCurrentPhotoIndex);
     else
         abtContent=abtPlaceholderPhoto;
     mvwPhoto->showPhoto(abtContent);
@@ -655,19 +921,19 @@ void ProfileViewer::updatePhotoGallery() {
         iTCols;
     ui->tbwGalleries->setTabText(
         ui->tbwGalleries->indexOf(ui->wgtPhotoGallery),
-        QStringLiteral("Photos (%1)").arg(abtProfilePhotos.count())
+        QStringLiteral("Photos (%1)").arg(abtlProfilePhotos.count())
     );
-    iTCols=ui->grvPhotoGallery->width()/THUMBNAIL_SIZE;
+    iTCols=ui->grvPhotoGallery->width()/THUMBNAIL_SIDE;
     if(!iTCols)
         iTCols++;
-    iTRows=abtProfilePhotos.count()/iTCols;
-    if(abtProfilePhotos.count()%iTCols)
+    iTRows=abtlProfilePhotos.count()/iTCols;
+    if(abtlProfilePhotos.count()%iTCols)
         iTRows++;
-    int iWidth=iTCols*THUMBNAIL_SIZE;
-    int iHeight=iTRows*THUMBNAIL_SIZE;
+    int iWidth=iTCols*THUMBNAIL_SIDE;
+    int iHeight=iTRows*THUMBNAIL_SIDE;
     grsPhotoGallery.clear();
     grsPhotoGallery.setSceneRect(0,0,iWidth,iHeight);
-    for(const auto &p:abtProfilePhotos) {
+    for(const auto &p:abtlProfilePhotos) {
         QPixmap             pxmPhoto;
         QGraphicsPixmapItem *grpiPhoto=grsPhotoGallery.addPixmap(QPixmap());
         pxmPhoto.loadFromData(p);
@@ -675,15 +941,15 @@ void ProfileViewer::updatePhotoGallery() {
             grpiPhoto->setCursor(Qt::CursorShape::PointingHandCursor);
             grpiPhoto->setPixmap(
                 pxmPhoto.scaled(
-                    THUMBNAIL_SIZE,
-                    THUMBNAIL_SIZE,
+                    THUMBNAIL_SIDE,
+                    THUMBNAIL_SIDE,
                     Qt::AspectRatioMode::KeepAspectRatio,
                     Qt::TransformationMode::SmoothTransformation
                 )
             );
             grpiPhoto->setPos(
-                iCol*THUMBNAIL_SIZE+THUMBNAIL_SIZE/2.0-grpiPhoto->pixmap().width()/2.0,
-                iRow*THUMBNAIL_SIZE+THUMBNAIL_SIZE/2.0-grpiPhoto->pixmap().height()/2.0
+                iCol*THUMBNAIL_SIDE+THUMBNAIL_SIDE/2.0-grpiPhoto->pixmap().width()/2.0,
+                iRow*THUMBNAIL_SIDE+THUMBNAIL_SIDE/2.0-grpiPhoto->pixmap().height()/2.0
             );
         }
         grpiPhoto->setData(0,iRow*iTCols+iCol);
@@ -749,6 +1015,15 @@ void ProfileViewer::updateProfileInfo() {
         lblBadge->setToolTip(QStringLiteral("It's a match!"));
         ui->hblInfo->addWidget(lblBadge);
     }
+    else if(BadooVote::VOTE_YES==bupProfileDetails.bvTheirVote) {
+        pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
+        lblBadge=new QLabel;
+        lblBadge->setMaximumSize(sizBadge);
+        lblBadge->setPixmap(pxmBadge);
+        lblBadge->setScaledContents(true);
+        lblBadge->setToolTip(QStringLiteral("They already liked you!"));
+        ui->hblInfo->addWidget(lblBadge);
+    }
     if(bupProfileDetails.bIsFavorite) {
         pxmBadge.load(QStringLiteral(":img/badge-favorite.svg"));
         lblBadge=new QLabel;
@@ -765,15 +1040,6 @@ void ProfileViewer::updateProfileInfo() {
         lblBadge->setPixmap(pxmBadge);
         lblBadge->setScaledContents(true);
         lblBadge->setToolTip(QStringLiteral("Quick-chat enabled!"));
-        ui->hblInfo->addWidget(lblBadge);
-    }
-    if(BadooVote::VOTE_YES==bupProfileDetails.bvTheirVote) {
-        pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("They already liked you!"));
         ui->hblInfo->addWidget(lblBadge);
     }
     ui->hblInfo->addStretch();
@@ -832,8 +1098,8 @@ void ProfileViewer::updateVideoContent() {
     // Avoids unnecessarily reloading (and restarting) the video.
     if(sPreviousProfileId!=bupProfileDetails.sUserId||iPreviousVideoIndex!=iCurrentVideoIndex) {
         QByteArray abtContent;
-        if(abtProfileVideos.count())
-            abtContent=abtProfileVideos.at(iCurrentVideoIndex);
+        if(abtlProfileVideos.count())
+            abtContent=abtlProfileVideos.at(iCurrentVideoIndex);
         else
             abtContent=abtPlaceholderVideo;
         mvwVideo->loadVideo(abtContent);
@@ -858,20 +1124,20 @@ void ProfileViewer::updateVideoGallery() {
         iTCols;
     ui->tbwGalleries->setTabText(
         ui->tbwGalleries->indexOf(ui->wgtVideoGallery),
-        QStringLiteral("Videos (%1)").arg(abtProfileVideos.count())
+        QStringLiteral("Videos (%1)").arg(abtlProfileVideos.count())
     );
-    iTCols=ui->grvVideoGallery->width()/THUMBNAIL_SIZE;
+    iTCols=ui->grvVideoGallery->width()/THUMBNAIL_SIDE;
     if(!iTCols)
         iTCols++;
-    iTRows=abtProfileVideos.count()/iTCols;
-    if(abtProfileVideos.count()%iTCols)
+    iTRows=abtlProfileVideos.count()/iTCols;
+    if(abtlProfileVideos.count()%iTCols)
         iTRows++;
-    int iWidth=iTCols*THUMBNAIL_SIZE;
-    int iHeight=iTRows*THUMBNAIL_SIZE;
+    int iWidth=iTCols*THUMBNAIL_SIDE;
+    int iHeight=iTRows*THUMBNAIL_SIDE;
     grsVideoGallery.clear();
     grsVideoGallery.setSceneRect(0,0,iWidth,iHeight);
     int iK=0;
-    for(const auto &p:abtProfileVideos) {
+    for(const auto &p:abtlProfileVideos) {
         QPixmap             pxmVideo;
         QGraphicsPixmapItem *grpiVideo=grsVideoGallery.addPixmap(QPixmap());
         MediaViewer::getFrame(p,pxmVideo);
@@ -879,15 +1145,15 @@ void ProfileViewer::updateVideoGallery() {
             grpiVideo->setCursor(Qt::CursorShape::PointingHandCursor);
             grpiVideo->setPixmap(
                 pxmVideo.scaled(
-                    THUMBNAIL_SIZE,
-                    THUMBNAIL_SIZE,
+                    THUMBNAIL_SIDE,
+                    THUMBNAIL_SIDE,
                     Qt::AspectRatioMode::KeepAspectRatio,
                     Qt::TransformationMode::SmoothTransformation
                 )
             );
             grpiVideo->setPos(
-                iCol*THUMBNAIL_SIZE+THUMBNAIL_SIZE/2.0-grpiVideo->pixmap().width()/2.0,
-                iRow*THUMBNAIL_SIZE+THUMBNAIL_SIZE/2.0-grpiVideo->pixmap().height()/2.0
+                iCol*THUMBNAIL_SIDE+THUMBNAIL_SIDE/2.0-grpiVideo->pixmap().width()/2.0,
+                iRow*THUMBNAIL_SIDE+THUMBNAIL_SIDE/2.0-grpiVideo->pixmap().height()/2.0
             );
         }
         grpiVideo->setData(0,iRow*iTCols+iCol);

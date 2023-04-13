@@ -16,6 +16,8 @@ BadooMessageNameHash bmnhMessages={
     {SERVER_GET_ENCOUNTERS,QStringLiteral("server_get_encounters")},
     {CLIENT_NO_MORE_ENCOUNTERS,QStringLiteral("no_more_search_results")},
     {CLIENT_ENCOUNTERS,QStringLiteral("client_encounters")},
+    {SERVER_GET_USER_LIST,QStringLiteral("server_get_user_list")},
+    {CLIENT_USER_LIST,QStringLiteral("client_user_list")},
     {SERVER_GET_CAPTCHA,QStringLiteral("server_get_captcha")},
     {CLIENT_GET_CAPTCHA,QStringLiteral("client_get_captcha")},
     {SERVER_CAPTCHA_ATTEMPT,QStringLiteral("server_captcha_attempt")},
@@ -192,6 +194,21 @@ bool BadooAPI::downloadMediaResource(QString sSessionId,
     return bResult;
 }
 
+void BadooAPI::getFullFileContents(QString    sPath,
+                                   QByteArray &abtContents) {
+    QFile   fFile;
+    QBuffer bufContents;
+    abtContents.clear();
+    fFile.setFileName(sPath);
+    if(fFile.open(QFile::OpenModeFlag::ReadOnly)) {
+        bufContents.setBuffer(&abtContents);
+        bufContents.open(QBuffer::OpenModeFlag::WriteOnly);
+        bufContents.write(fFile.readAll());
+        bufContents.close();
+        fFile.close();
+    }
+}
+
 bool BadooAPI::getPreLoginParameters(QString &sAnonSessionId,
                                      QString &sDeviceId,
                                      QString &sError) {
@@ -304,6 +321,47 @@ bool BadooAPI::getPostLoginParameters(QString sSessionId,
         if(sError.isEmpty())
             sError=QStringLiteral(DEFAULT_ERROR_MESSAGE);
         sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    return bResult;
+}
+
+bool BadooAPI::searchListSectionIdByType(QString              sSessionId,
+                                         BadooFolderType      bftFolder,
+                                         BadooListSectionType blstSectionType,
+                                         QString              &sSectionId,
+                                         QString              &sSectionName,
+                                         BadooAPIError        &baeError) {
+    bool        bResult=false;
+    QJsonObject jsnMessage,
+                jsnResponse;
+    sSectionId.clear();
+    sSectionName.clear();
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
+    const BadooMessagePair bmpMessage={SERVER_GET_USER_LIST,CLIENT_USER_LIST};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+        if(jsnResponse.value(QStringLiteral("section")).isArray()) {
+            QJsonObject jsnObj;
+            QJsonArray  jsnSection;
+            jsnSection=jsnResponse.value(QStringLiteral("section")).toArray();
+            for(const auto &o:qAsConst(jsnSection))
+                if(o.isObject()) {
+                    jsnObj=o.toObject();
+                    if(jsnObj.value(QStringLiteral("section_type")).isDouble()) {
+                        if(jsnObj.value(QStringLiteral("section_type")).toInt()==blstSectionType) {
+                            sSectionId=jsnObj.value(QStringLiteral("section_id")).toString();
+                            sSectionName=jsnObj.value(QStringLiteral("name")).toString();
+                            break;
+                        }
+                    }
+                }
+        }
+        bResult=true;
+    }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
     }
     return bResult;
 }
@@ -487,6 +545,87 @@ bool BadooAPI::sendGetSearchSettings(QString                  sSessionId,
             biksvhIntentHash
         );
         bResult=true;
+    }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
+bool BadooAPI::sendGetUserList(QString              sSessionId,
+                               BadooListFilterList  blflListFilter,
+                               BadooFolderType      bftFolder,
+                               QString              sSectionId,
+                               int                  iOffset,
+                               int                  iCount,
+                               BadooUserProfileList &buplUsers,
+                               int                  &iTotal,
+                               BadooAPIError        &baeError) {
+    bool        bResult=false;
+    QJsonObject jsnMessage,
+                jsnResponse,
+                jsnFieldFilter;
+    QJsonArray  jsnProjection,
+                jsnAlbums,
+                jsnListFilter;
+    buplUsers.clear();
+    iTotal=0;
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
+    for(const auto &f:buflProjection)
+        jsnProjection.append(f);
+    jsnFieldFilter.insert(QStringLiteral("projection"),jsnProjection);
+    for(const auto &t:batlAlbums) {
+        QJsonObject jsnObj;
+        jsnObj.insert(QStringLiteral("album_type"),t);
+        jsnAlbums.append(jsnObj);
+    }
+    jsnFieldFilter.insert(QStringLiteral("request_albums"),jsnAlbums);
+    jsnMessage.insert(QStringLiteral("user_field_filter"),jsnFieldFilter);
+    if(!sSectionId.isEmpty())
+        jsnMessage.insert(QStringLiteral("section_id"),sSectionId);
+    jsnMessage.insert(QStringLiteral("offset"),iOffset);
+    jsnMessage.insert(QStringLiteral("preferred_count"),iCount);
+    for(const auto &f:blflListFilter)
+        jsnListFilter.append(f);
+    jsnMessage.insert(QStringLiteral("filter"),jsnListFilter);
+    const BadooMessagePair bmpMessage={SERVER_GET_USER_LIST,CLIENT_USER_LIST};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+        if(jsnResponse.value(QStringLiteral("total_count")).isDouble()) {
+            if(jsnResponse.value(QStringLiteral("section")).isArray()) {
+                QJsonObject      jsnSection;
+                QJsonArray       jsnSections,
+                                 jsnUsers;
+                BadooUserProfile bupUser;
+                // Joins the users contained in each section found in the response ...
+                // ... in case a specific Section Id has not been supplied.
+                // Warning: I've not found a correct way of using the Offset parameter ...
+                // ... to provide partial results (beyond the frst call) when multiple ...
+                // ... sections are included in the response.
+                // Neither the web app nor the mobile one deal with these cases, and they ...
+                // ... make little sense in the end. So be specific and pass a Section Id  ...
+                // ... when the required Folder may have one (see BadooListSectionType) ...
+                // ... and use the helper function searchListSectionIdByType() to find ...
+                // ... the correct value.
+                jsnSections=jsnResponse.value(QStringLiteral("section")).toArray();
+                for(const auto &o:qAsConst(jsnSections))
+                    if(o.isObject()) {
+                        jsnSection=o.toObject();
+                        if(jsnSection.value(QStringLiteral("users")).isArray()) {
+                            jsnUsers=jsnSection.value(QStringLiteral("users")).toArray();
+                            for(const auto &u:qAsConst(jsnUsers))
+                                if(u.isObject()) {
+                                    parseUserProfile(u.toObject(),bupUser);
+                                    buplUsers.append(bupUser);
+                                }
+                        }
+                    }
+            }
+            iTotal=jsnResponse.value(QStringLiteral("total_count")).toInt();
+            bResult=true;
+        }
     }
     if(!bResult) {
         if(noError(baeError))

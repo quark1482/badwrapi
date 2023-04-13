@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include "badoowrapper.h"
+#include "browsefolderdialog.h"
 #include "playencountersdialog.h"
 
 QT_BEGIN_NAMESPACE
@@ -20,8 +21,10 @@ public:
 protected:
     void closeEvent(QCloseEvent *) override;
 private slots:
+    void dialogBrowseFolderDestroyed();
     void dialogEncountersDestroyed();
-    void menuPlayEncountersTriggered(bool);
+    void menuEncountersTriggered(bool);
+    void menuMatchesTriggered(bool);
     void menuLoginTriggered(bool);
     void menuLogoutTriggered(bool);
     void menuEncountersSettingsTriggered(bool);
@@ -29,6 +32,7 @@ private slots:
     void wrapperStatusChanged(QString);
 private:
     Ui::MainWindow       *ui;
+    BrowseFolderDialog   *dlgBrowseFolder;
     PlayEncountersDialog *dlgEncounters;
     QMdiArea             mdiArea;
     BadooWrapper         bwMain;

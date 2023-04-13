@@ -24,7 +24,8 @@
     <property name="title">
      <string>Demo</string>
     </property>
-    <addaction name="actPlayEncounters"/>
+    <addaction name="actEncounters"/>
+    <addaction name="actMatches"/>
     <addaction name="separator"/>
     <addaction name="actExit"/>
    </widget>
@@ -68,14 +69,19 @@
     <string>People nearby</string>
    </property>
   </action>
-  <action name="actPlayEncounters">
+  <action name="actEncounters">
    <property name="text">
-    <string>Play encounters</string>
+    <string>Encounters</string>
    </property>
   </action>
   <action name="actExit">
    <property name="text">
     <string>Exit</string>
+   </property>
+  </action>
+  <action name="actMatches">
+   <property name="text">
+    <string>Matches</string>
    </property>
   </action>
  </widget>
