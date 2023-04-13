@@ -27,10 +27,12 @@ Other sign-in options are not suported -yet-.
 ToDo's
 ------
 
-- [ ] Show "People nearby".
+- [ ] Save credentials/session.
+- [x] Show "People nearby".
 - [ ] Show "Likes".
 - [x] Show "Matches".
 - [ ] Show "Favorites".
+- [ ] Show "Visitors".
 - [ ] Implement chat.
 
 
