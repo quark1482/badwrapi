@@ -23,8 +23,8 @@ protected:
 private slots:
     void dialogBrowseFolderDestroyed();
     void dialogEncountersDestroyed();
+    void menuBrowseFolderTriggered(bool);
     void menuEncountersTriggered(bool);
-    void menuMatchesTriggered(bool);
     void menuLoginTriggered(bool);
     void menuLogoutTriggered(bool);
     void menuEncountersSettingsTriggered(bool);
@@ -32,7 +32,8 @@ private slots:
     void wrapperStatusChanged(QString);
 private:
     Ui::MainWindow       *ui;
-    BrowseFolderDialog   *dlgBrowseFolder;
+    BrowseFolderDialog   *dlgBrowseMatches,
+                         *dlgBrowsePeopleNearby;
     PlayEncountersDialog *dlgEncounters;
     QMdiArea             mdiArea;
     BadooWrapper         bwMain;

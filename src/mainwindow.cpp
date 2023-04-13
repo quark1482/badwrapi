@@ -5,23 +5,30 @@
 
 MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindow) {
     ui->setupUi(this);
-    dlgBrowseFolder=nullptr;
+    dlgBrowseMatches=nullptr;
+    dlgBrowsePeopleNearby=nullptr;
     dlgEncounters=nullptr;
     mdiArea.setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     mdiArea.setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     this->setCentralWidget(&mdiArea);
     this->setWindowTitle(QStringLiteral(APP_TITLE));
     connect(
+        ui->actMatches,
+        &QAction::triggered,
+        this,
+        &MainWindow::menuBrowseFolderTriggered
+    );
+    connect(
+        ui->actPeopleNearby,
+        &QAction::triggered,
+        this,
+        &MainWindow::menuBrowseFolderTriggered
+    );
+    connect(
         ui->actEncounters,
         &QAction::triggered,
         this,
         &MainWindow::menuEncountersTriggered
-    );
-    connect(
-        ui->actMatches,
-        &QAction::triggered,
-        this,
-        &MainWindow::menuMatchesTriggered
     );
     connect(
         ui->actExit,
@@ -68,8 +75,10 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent),ui(new Ui::MainWindo
 }
 
 MainWindow::~MainWindow() {
-    if(nullptr!=dlgBrowseFolder)
-        delete dlgBrowseFolder;
+    if(nullptr!=dlgBrowseMatches)
+        delete dlgBrowseMatches;
+    if(nullptr!=dlgBrowsePeopleNearby)
+        delete dlgBrowsePeopleNearby;
     if(nullptr!=dlgEncounters)
         delete dlgEncounters;
     delete ui;
@@ -92,11 +101,90 @@ void MainWindow::closeEvent(QCloseEvent *evnE) {
 }
 
 void MainWindow::dialogBrowseFolderDestroyed() {
-    dlgBrowseFolder=nullptr;
+    if(dlgBrowseMatches==QObject::sender())
+        dlgBrowseMatches=nullptr;
+    else if(dlgBrowsePeopleNearby==QObject::sender())
+        dlgBrowsePeopleNearby=nullptr;
 }
 
 void MainWindow::dialogEncountersDestroyed() {
     dlgEncounters=nullptr;
+}
+
+void MainWindow::menuBrowseFolderTriggered(bool) {
+    BrowseFolderDialog *dlgFolder;
+    FolderType         ftFolder;
+    if(ui->actMatches==QObject::sender()) {
+        dlgFolder=dlgBrowseMatches;
+        ftFolder=FOLDER_TYPE_MATCHES;
+    }
+    else if(ui->actPeopleNearby==QObject::sender()) {
+        dlgFolder=dlgBrowsePeopleNearby;
+        ftFolder=FOLDER_TYPE_PEOPLE_NEARBY;
+    }
+    if(bwMain.isLoggedIn())
+        if(nullptr==dlgFolder) {
+            dlgFolder=new BrowseFolderDialog(ftFolder,&bwMain,this);
+            switch(ftFolder) {
+                case FOLDER_TYPE_FAVORITES:
+                    // ToDo: define this folder dialog.
+                    break;
+                case FOLDER_TYPE_LIKES:
+                    // ToDo: define this folder dialog.
+                    break;
+                case FOLDER_TYPE_MATCHES:
+                    dlgBrowseMatches=dlgFolder;
+                    break;
+                case FOLDER_TYPE_PEOPLE_NEARBY:
+                    dlgBrowsePeopleNearby=dlgFolder;
+                    break;
+                case FOLDER_TYPE_VISITORS:
+                    // ToDo: define this folder dialog.
+                    break;
+            }
+            connect(
+                dlgFolder,
+                &BrowseFolderDialog::statusChanged,
+                this,
+                &MainWindow::wrapperStatusChanged
+            );
+            connect(
+                dlgFolder,
+                &BrowseFolderDialog::destroyed,
+                this,
+                &MainWindow::dialogBrowseFolderDestroyed
+            );
+            // There seems to be a problem when a QDialog belongs to a QMdiArea and ...
+            // ... QDialog::reject() is invoked by pressing the Escape key, causing ...
+            // ... that the dialog remains visible. So, as a straightforward fix we ...
+            // ... can call QMdiArea::closeActiveSubWindow() to close it by force.
+            connect(
+                dlgFolder,
+                &BrowseFolderDialog::rejected,
+                &mdiArea,
+                &QMdiArea::closeActiveSubWindow
+            );
+            dlgFolder->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
+            mdiArea.addSubWindow(dlgFolder)->setWindowFlag(
+                Qt::WindowType::WindowMinMaxButtonsHint
+            );
+            if(dlgFolder->isReady())
+                dlgFolder->exec();
+            else
+                delete dlgFolder;
+        }
+        else
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Error"),
+                QStringLiteral("Already browsing %1").arg(bwMain.getFolderName(ftFolder))
+            );
+    else
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Error"),
+            QStringLiteral("Not logged in")
+        );
 }
 
 void MainWindow::menuEncountersTriggered(bool) {
@@ -148,18 +236,19 @@ void MainWindow::menuEncountersTriggered(bool) {
         );
 }
 
+/*
 void MainWindow::menuMatchesTriggered(bool) {
     if(bwMain.isLoggedIn())
-        if(nullptr==dlgBrowseFolder) {
-            dlgBrowseFolder=new BrowseFolderDialog(FOLDER_TYPE_MATCHES,&bwMain,this);
+        if(nullptr==dlgBrowseMatches) {
+            dlgBrowseMatches=new BrowseFolderDialog(FOLDER_TYPE_MATCHES,&bwMain,this);
             connect(
-                dlgBrowseFolder,
+                dlgBrowseMatches,
                 &BrowseFolderDialog::statusChanged,
                 this,
                 &MainWindow::wrapperStatusChanged
             );
             connect(
-                dlgBrowseFolder,
+                dlgBrowseMatches,
                 &BrowseFolderDialog::destroyed,
                 this,
                 &MainWindow::dialogBrowseFolderDestroyed
@@ -169,22 +258,27 @@ void MainWindow::menuMatchesTriggered(bool) {
             // ... that the dialog remains visible. So, as a straightforward fix we ...
             // ... call QMdiArea::closeActiveSubWindow() to close it by force.
             connect(
-                dlgBrowseFolder,
+                dlgBrowseMatches,
                 &BrowseFolderDialog::rejected,
                 &mdiArea,
                 &QMdiArea::closeActiveSubWindow
             );
-            dlgBrowseFolder->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
-            mdiArea.addSubWindow(dlgBrowseFolder)->setWindowFlag(
+            dlgBrowseMatches->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
+            mdiArea.addSubWindow(dlgBrowseMatches)->setWindowFlag(
                 Qt::WindowType::WindowMinMaxButtonsHint
             );
-            if(dlgBrowseFolder->isReady())
-                dlgBrowseFolder->exec();
+            if(dlgBrowseMatches->isReady())
+                dlgBrowseMatches->exec();
             else
-                delete dlgBrowseFolder;
+                delete dlgBrowseMatches;
         }
         else
-            ; // ToDo: Browsing folders of distinct types should be possible.
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Error"),
+                QStringLiteral("Already browsing %1").
+                arg(bwMain.getFolderName(FOLDER_TYPE_MATCHES))
+            );
     else
         QMessageBox::critical(
             this,
@@ -192,6 +286,57 @@ void MainWindow::menuMatchesTriggered(bool) {
             QStringLiteral("Not logged in")
         );
 }
+
+void MainWindow::menuPeopleNearbyTriggered(bool) {
+    if(bwMain.isLoggedIn())
+        if(nullptr==dlgBrowsePeopleNearby) {
+            dlgBrowsePeopleNearby=new BrowseFolderDialog(FOLDER_TYPE_PEOPLE_NEARBY,&bwMain,this);
+            connect(
+                dlgBrowsePeopleNearby,
+                &BrowseFolderDialog::statusChanged,
+                this,
+                &MainWindow::wrapperStatusChanged
+            );
+            connect(
+                dlgBrowsePeopleNearby,
+                &BrowseFolderDialog::destroyed,
+                this,
+                &MainWindow::dialogBrowseFolderDestroyed
+            );
+            // There seems to be a problem when a QDialog belongs to a QMdiArea and ...
+            // ... QDialog::reject() is invoked by pressing the Escape key, causing ...
+            // ... that the dialog remains visible. So, as a straightforward fix we ...
+            // ... call QMdiArea::closeActiveSubWindow() to close it by force.
+            connect(
+                dlgBrowsePeopleNearby,
+                &BrowseFolderDialog::rejected,
+                &mdiArea,
+                &QMdiArea::closeActiveSubWindow
+            );
+            dlgBrowsePeopleNearby->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
+            mdiArea.addSubWindow(dlgBrowsePeopleNearby)->setWindowFlag(
+                Qt::WindowType::WindowMinMaxButtonsHint
+            );
+            if(dlgBrowsePeopleNearby->isReady())
+                dlgBrowsePeopleNearby->exec();
+            else
+                delete dlgBrowsePeopleNearby;
+        }
+        else
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Error"),
+                QStringLiteral("Already browsing %1").
+                arg(bwMain.getFolderName(FOLDER_TYPE_PEOPLE_NEARBY))
+            );
+    else
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Error"),
+            QStringLiteral("Not logged in")
+        );
+}
+*/
 
 void MainWindow::menuLoginTriggered(bool) {
     if(bwMain.isLoggedIn())
@@ -247,7 +392,9 @@ void MainWindow::wrapperStatusChanged(QString sStatus) {
 
 bool MainWindow::anyChildrenActive() {
     // Checks for any (||) active dialog.
-    return nullptr!=dlgBrowseFolder||nullptr!=dlgEncounters;
+    return nullptr!=dlgBrowseMatches||
+           nullptr!=dlgBrowsePeopleNearby||
+           nullptr!=dlgEncounters;
 }
 
 void MainWindow::showSettings(BadooSettingsContextType bsctContext) {

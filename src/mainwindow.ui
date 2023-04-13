@@ -26,6 +26,7 @@
     </property>
     <addaction name="actEncounters"/>
     <addaction name="actMatches"/>
+    <addaction name="actPeopleNearby"/>
     <addaction name="separator"/>
     <addaction name="actExit"/>
    </widget>
@@ -82,6 +83,11 @@
   <action name="actMatches">
    <property name="text">
     <string>Matches</string>
+   </property>
+  </action>
+  <action name="actPeopleNearby">
+   <property name="text">
+    <string>People nearby</string>
    </property>
   </action>
  </widget>

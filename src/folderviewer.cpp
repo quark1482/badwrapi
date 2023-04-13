@@ -193,9 +193,13 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                     break;
                 case PROFILE_VIEWER_BUTTON_NOPE:
                     // ToDo: force updating of the page, if required.
+                    buplPageDetails[iIndex].bvMyVote=VOTE_NO;
+                    bUpdate=true;
                     break;
                 case PROFILE_VIEWER_BUTTON_LIKE:
                     // ToDo: force updating of the page, if required.
+                    buplPageDetails[iIndex].bvMyVote=VOTE_YES;
+                    bUpdate=true;
                     break;
                 case PROFILE_VIEWER_BUTTON_SKIP:
                     if(-1<iIndex)
@@ -332,29 +336,36 @@ void FolderViewer::updateProfileBadges(QRect recBadges,
     int            iXOffset;
     QPixmap        pxmBadge;
     QList<QPixmap> pxmlBadges;
+    QStringList    slBadgeToolTips;
     if(bQuickChat) {
         pxmBadge.load(QStringLiteral(":img/badge-quick-chat.svg"));
         pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(QStringLiteral("Quick-chat enabled!"));
     }
     if(bFavorite) {
         pxmBadge.load(QStringLiteral(":img/badge-favorite.svg"));
         pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(QStringLiteral("Your favorite"));
     }
     if(bMatch) {
         pxmBadge.load(QStringLiteral(":img/badge-match.svg"));
         pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(QStringLiteral("It's a match!"));
     }
     else if(bLikedYou) {
         pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
         pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(QStringLiteral("They already liked you!"));
     }
     if(bVerified) {
         pxmBadge.load(QStringLiteral(":img/badge-verification.svg"));
         pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(QStringLiteral("Verifed profile"));
     }
     iXOffset=-recBadges.height();
     for(const auto &b:pxmlBadges) {
         QGraphicsPixmapItem *grpiBadge=grsScene.addPixmap(QPixmap());
+        grpiBadge->setToolTip(slBadgeToolTips.takeFirst());
         if(!b.isNull()) {
             grpiBadge->setPixmap(
                 b.scaled(
@@ -375,16 +386,18 @@ void FolderViewer::updateProfileBadges(QRect recBadges,
 void FolderViewer::updateProfileMediaCounters(QRect recMediaInfo,
                                               int   iTotalPhotos,
                                               int   iTotalVideos) {
-    std::function<int(int,int,QRect,QString)> fnUpdateMediaCounter=
+    std::function<int(int,int,QRect,QString,QString)> fnUpdateMediaCounter=
         [this](int     iCount,
                int     iXOffset,
                QRect   recWorkArea,
-               QString sIconPath) {
+               QString sIconPath,
+               QString sToolTip) {
             QString             sMediaCount;
             QPixmap             pxmMediaCountIcon;
             QRect               recMediaCount;
             QGraphicsTextItem   *grtiInfo=grsScene.addText(QString());
             QGraphicsPixmapItem *grpiInfo=grsScene.addPixmap(QPixmap());
+            grpiInfo->setToolTip(sToolTip);
             pxmMediaCountIcon.load(sIconPath);
             if(!pxmMediaCountIcon.isNull()) {
                 grpiInfo->setPixmap(
@@ -419,14 +432,16 @@ void FolderViewer::updateProfileMediaCounters(QRect recMediaInfo,
             iTotalPhotos,
             iX,
             recMediaInfo,
-            QStringLiteral(":img/info-photo.svg")
+            QStringLiteral(":img/info-photo.svg"),
+            QStringLiteral("Total photos")
         );
     if(iTotalVideos)
         iX=fnUpdateMediaCounter(
             iTotalVideos,
             iX,
             recMediaInfo,
-            QStringLiteral(":img/info-video.svg")
+            QStringLiteral(":img/info-video.svg"),
+            QStringLiteral("Total videos")
         );
 }
 
