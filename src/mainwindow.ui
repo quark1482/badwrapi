@@ -25,6 +25,7 @@
      <string>Demo</string>
     </property>
     <addaction name="actEncounters"/>
+    <addaction name="actLikes"/>
     <addaction name="actMatches"/>
     <addaction name="actPeopleNearby"/>
     <addaction name="separator"/>
@@ -88,6 +89,11 @@
   <action name="actPeopleNearby">
    <property name="text">
     <string>People nearby</string>
+   </property>
+  </action>
+  <action name="actLikes">
+   <property name="text">
+    <string>Likes</string>
    </property>
   </action>
  </widget>

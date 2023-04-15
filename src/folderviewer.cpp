@@ -7,7 +7,7 @@
 #define SEPARATOR_WIDTH 10 // Empty space the profiles are separated with.
 
 FolderViewer::FolderViewer(BadooWrapper *bwParent,
-                           QWidget *wgtParent):QWidget(wgtParent) {
+                           QWidget      *wgtParent):QWidget(wgtParent) {
     bwFolder=bwParent;
     buplPageDetails.clear();
     mchPagePhotos.clear();
@@ -171,7 +171,8 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
         pvProfile,
         &ProfileViewer::buttonClicked,
         [&](ProfileViewerButton pvbButton) {
-            bool    bUpdate=false;
+            bool    bUpdateProfile=false,
+                    bUpdatePage=false;
             QString sMessage=QString();
             switch(pvbButton) {
                 case PROFILE_VIEWER_BUTTON_COPY_URL:
@@ -186,26 +187,30 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                     if(-1<iIndex)
                         if(iIndex) {
                             iIndex--;
-                            bUpdate=true;
+                            bUpdateProfile=true;
                         }
                         else
                             sMessage=QStringLiteral("Already at page's first profile");
                     break;
                 case PROFILE_VIEWER_BUTTON_NOPE:
-                    // ToDo: force updating of the page, if required.
+                    // ToDo: remove profile from the page, if required.
                     buplPageDetails[iIndex].bvMyVote=VOTE_NO;
-                    bUpdate=true;
+                    bUpdateProfile=true;
                     break;
                 case PROFILE_VIEWER_BUTTON_LIKE:
-                    // ToDo: force updating of the page, if required.
+                    // ToDo: remove profile from the page, if required.
                     buplPageDetails[iIndex].bvMyVote=VOTE_YES;
-                    bUpdate=true;
+                    bUpdateProfile=true;
+                    if(VOTE_YES==buplPageDetails.at(iIndex).bvTheirVote) {
+                        buplPageDetails[iIndex].bIsMatch=true;
+                        bUpdatePage=true;
+                    }
                     break;
                 case PROFILE_VIEWER_BUTTON_SKIP:
                     if(-1<iIndex)
                         if(iIndex<buplPageDetails.count()-1) {
                             iIndex++;
-                            bUpdate=true;
+                            bUpdateProfile=true;
                         }
                         else
                             sMessage=QStringLiteral("Already at page's last profile");
@@ -215,12 +220,14 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                 stbProfile->clearMessage();
             else
                 stbProfile->showMessage(sMessage);
-            if(bUpdate) {
+            if(bUpdateProfile) {
                 pvProfile->load(
                     buplPageDetails.at(iIndex),
                     mchPagePhotos.value(buplPageDetails.at(iIndex).sUserId),
                     mchPageVideos.value(buplPageDetails.at(iIndex).sUserId)
                 );
+                if(bUpdatePage)
+                    this->updatePageWidgets();
             }
         }
     );
@@ -312,6 +319,7 @@ void FolderViewer::updatePageGallery() {
             p.bIsVerified,
             p.bIsMatch,
             BadooVote::VOTE_YES==p.bvTheirVote,
+            BadooVote::VOTE_NO==p.bvTheirVote,
             p.bIsFavorite,
             p.bHasQuickChat
         );
@@ -331,6 +339,7 @@ void FolderViewer::updateProfileBadges(QRect recBadges,
                                        bool  bVerified,
                                        bool  bMatch,
                                        bool  bLikedYou,
+                                       bool  bDislikedYou,
                                        bool  bFavorite,
                                        bool  bQuickChat) {
     int            iXOffset;
@@ -356,6 +365,11 @@ void FolderViewer::updateProfileBadges(QRect recBadges,
         pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
         pxmlBadges.append(pxmBadge);
         slBadgeToolTips.append(QStringLiteral("They already liked you!"));
+    }
+    else if(bDislikedYou) {
+        pxmBadge.load(QStringLiteral(":img/badge-disliked-you.svg"));
+        pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(QStringLiteral("They voted against you"));
     }
     if(bVerified) {
         pxmBadge.load(QStringLiteral(":img/badge-verification.svg"));

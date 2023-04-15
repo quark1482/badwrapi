@@ -23,9 +23,6 @@ class ProfileViewer:public QWidget {
 public:
     ProfileViewer(BadooWrapper *,QWidget * =nullptr);
     ~ProfileViewer();
-    void getPlaceholderPhoto(QByteArray &);
-    void getPlaceholderVideo(QByteArray &);
-    void setOwnProfilePhoto(QByteArray);
     void load(BadooUserProfile,QByteArrayList,QByteArrayList);
 protected:
     bool eventFilter(QObject *,QEvent *) override;
@@ -60,9 +57,9 @@ private:
     bool              bVideoPausedByUser;
     int               iCurrentPhotoIndex,
                       iCurrentVideoIndex;
-    QByteArray        abtOwnProfilePhoto,
-                      abtPlaceholderPhoto,
-                      abtPlaceholderVideo;
+    QByteArray        abtPlaceholderPhoto,
+                      abtPlaceholderVideo,
+                      abtOwnProfilePhoto;
     QByteArrayList    abtlProfilePhotos,
                       abtlProfileVideos;
     QTimer            tmrDelayedResize;

@@ -12,7 +12,6 @@ PlayEncountersDialog::PlayEncountersDialog(BadooWrapper *bwParent,
     bwEncounters=bwParent;
     pvCurrentProfile=new ProfileViewer(bwEncounters,this);
     vblLayout.addWidget(pvCurrentProfile);
-    this->loadMyProfile();
     this->setGeometry(0,0,640,480);
     this->setLayout(&vblLayout);
     this->setMinimumSize(400,300);
@@ -93,7 +92,7 @@ bool PlayEncountersDialog::getNewBatch(bool bReset) {
         sError.clear();
         if(bwEncounters->getEncounters(buplEncounters,bReset))
             if(buplEncounters.count())
-                if(bwEncounters->downloadMultiProfileResources(
+                if(bwEncounters->downloadMultiProfileResources<QByteArray>(
                     buplEncounters,
                     mchPhotoContents,
                     mchVideoContents
@@ -192,19 +191,6 @@ void PlayEncountersDialog::handleSkipButtonClick() {
             bUpdate=this->getNewBatch();
     if(bUpdate)
         this->showCurrentProfile();
-}
-
-void PlayEncountersDialog::loadMyProfile() {
-    QByteArray       abtMyProfilePhoto;
-    BadooUserProfile bupMyProfile;
-    pvCurrentProfile->getPlaceholderPhoto(abtMyProfilePhoto);
-    if(bwEncounters->getLoggedInProfile(bupMyProfile)) {
-        QStringList    slResources={bupMyProfile.sProfilePhotoURL};
-        QByteArrayList abtlContents;
-        if(bwEncounters->downloadMultiMediaResources(slResources,abtlContents))
-            abtMyProfilePhoto=abtlContents.first();
-    }
-    pvCurrentProfile->setOwnProfilePhoto(abtMyProfilePhoto);
 }
 
 void PlayEncountersDialog::showCurrentProfile() {

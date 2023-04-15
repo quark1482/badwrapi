@@ -29,7 +29,7 @@ ToDo's
 
 - [ ] Save credentials/session.
 - [x] Show "People nearby".
-- [ ] Show "Likes".
+- [x] Show "Likes".
 - [x] Show "Matches".
 - [ ] Show "Favorites".
 - [ ] Show "Visitors".

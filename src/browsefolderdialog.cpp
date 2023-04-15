@@ -100,7 +100,7 @@ bool BrowseFolderDialog::getNewPage(bool bReset) {
             iMaxPageProfiles
         ))
             if(buplBrowse.count())
-                if(bwBrowse->downloadMultiProfileResources(
+                if(bwBrowse->downloadMultiProfileResources<QByteArray>(
                     buplBrowse,
                     mchPhotoContents,
                     mchVideoContents

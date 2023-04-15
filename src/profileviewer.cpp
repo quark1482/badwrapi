@@ -45,17 +45,18 @@ ProfileViewer::ProfileViewer(BadooWrapper *bwParent,
     bVideoPausedByUser=false;
     iCurrentPhotoIndex=-1;
     iCurrentVideoIndex=-1;
-    abtOwnProfilePhoto.clear();
-    abtlProfilePhotos.clear();
-    abtlProfileVideos.clear();
-    BadooAPI::clearUserProfile(bupProfileDetails);
     BadooAPI::getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
     BadooAPI::getFullFileContents(QStringLiteral(":img/video-placeholder.mp4"),abtPlaceholderVideo);
+    if(!bwParent->getLoggedInProfilePhoto(abtOwnProfilePhoto))
+        abtOwnProfilePhoto=abtPlaceholderPhoto;
+    abtlProfilePhotos.clear();
+    abtlProfileVideos.clear();
     bwProfile=bwParent;
     mvwPhoto=new MediaViewer;
     mvwVideo=new MediaViewer(MEDIA_TYPE_VIDEO);
     mctPhotoControls=new MediaControls(mvwPhoto);
     mctVideoControls=new MediaControls(mvwVideo,true);
+    BadooAPI::clearUserProfile(bupProfileDetails);
     ui->setupUi(this);
     this->toggleMediaViewersIndependence();
     ui->grvPhotoGallery->setAlignment(Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop);
@@ -275,18 +276,6 @@ bool ProfileViewer::eventFilter(QObject *objO,
 
 void ProfileViewer::resizeEvent(QResizeEvent *) {
     tmrDelayedResize.start(500);
-}
-
-void ProfileViewer::getPlaceholderPhoto(QByteArray &abtPlaceholder) {
-    abtPlaceholder=abtPlaceholderPhoto;
-}
-
-void ProfileViewer::getPlaceholderVideo(QByteArray &abtPlaceholder) {
-    abtPlaceholder=abtPlaceholderVideo;
-}
-
-void ProfileViewer::setOwnProfilePhoto(QByteArray abtPhoto) {
-    abtOwnProfilePhoto=abtPhoto;
 }
 
 void ProfileViewer::load(BadooUserProfile bupProfile,
@@ -1022,6 +1011,15 @@ void ProfileViewer::updateProfileInfo() {
         lblBadge->setPixmap(pxmBadge);
         lblBadge->setScaledContents(true);
         lblBadge->setToolTip(QStringLiteral("They already liked you!"));
+        ui->hblInfo->addWidget(lblBadge);
+    }
+    else if(BadooVote::VOTE_NO==bupProfileDetails.bvTheirVote) {
+        pxmBadge.load(QStringLiteral(":img/badge-disliked-you.svg"));
+        lblBadge=new QLabel;
+        lblBadge->setMaximumSize(sizBadge);
+        lblBadge->setPixmap(pxmBadge);
+        lblBadge->setScaledContents(true);
+        lblBadge->setToolTip(QStringLiteral("They voted against you"));
         ui->hblInfo->addWidget(lblBadge);
     }
     if(bupProfileDetails.bIsFavorite) {

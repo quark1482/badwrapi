@@ -51,6 +51,7 @@ public:
     BadooWrapper();
     template<typename T>
     bool    downloadMultiMediaResources(QStringList,QList<T> &,int=MAX_DOWNLOAD_TRIES);
+    template<typename T>
     bool    downloadMultiProfileResources(BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int=MAX_DOWNLOAD_TRIES);
     bool    getEncounters(BadooUserProfileList &,bool=false);
     void    getEncountersSettings(EncountersSettings &);
@@ -59,6 +60,7 @@ public:
     QString getHTMLFromProfile(BadooUserProfile,bool=false,QString=QString(),QByteArrayList={},QByteArrayList={});
     QString getLastError();
     bool    getLoggedInProfile(BadooUserProfile &);
+    bool    getLoggedInProfilePhoto(QByteArray &);
     void    getPeopleNearbySettings(PeopleNearbySettings &);
     void    getSessionDetails(SessionDetails &);
     bool    isLoggedIn();
@@ -74,6 +76,7 @@ public:
 private:
     QString              sLastError,
                          sLastEncountersId;
+    QByteArray           abtSelfPhoto;
     BadooUserProfile     bupSelf;
     SessionDetails       sdSession;
     EncountersSettings   esEncounters;

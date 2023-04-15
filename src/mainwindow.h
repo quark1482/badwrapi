@@ -32,7 +32,8 @@ private slots:
     void wrapperStatusChanged(QString);
 private:
     Ui::MainWindow       *ui;
-    BrowseFolderDialog   *dlgBrowseMatches,
+    BrowseFolderDialog   *dlgBrowseLikes,
+                         *dlgBrowseMatches,
                          *dlgBrowsePeopleNearby;
     PlayEncountersDialog *dlgEncounters;
     QMdiArea             mdiArea;

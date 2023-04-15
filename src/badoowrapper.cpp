@@ -102,16 +102,20 @@
 BadooWrapper::BadooWrapper() {
     sLastError.clear();
     sLastEncountersId.clear();
+    abtSelfPhoto.clear();
+    BadooAPI::clearUserProfile(bupSelf);
+    this->clearSessionDetails();
     this->clearEncountersSettings();
     this->clearPeopleNearbySettings();
-    this->clearSessionDetails();
 }
 
-template
-bool BadooWrapper::downloadMultiMediaResources<QString>(QStringList,QStringList &,int);
+template bool BadooWrapper::downloadMultiMediaResources<QString>(
+    QStringList,QStringList &,int
+);
 
-template
-bool BadooWrapper::downloadMultiMediaResources<QByteArray>(QStringList,QByteArrayList &,int);
+template bool BadooWrapper::downloadMultiMediaResources<QByteArray>(
+    QStringList,QByteArrayList &,int
+);
 
 template<typename T>
 bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
@@ -296,16 +300,25 @@ bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
     return bResult;
 }
 
+template bool BadooWrapper::downloadMultiProfileResources<QString>(
+    BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int
+);
+
+template bool BadooWrapper::downloadMultiProfileResources<QByteArray>(
+    BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int
+);
+
+template<typename T>
 bool BadooWrapper::downloadMultiProfileResources(BadooUserProfileList buplProfiles,
                                                  MediaContentsHash    &mchPhotoContents,
                                                  MediaContentsHash    &mchVideoContents,
                                                  int                  iMaxTriesPerResource) {
-    bool           bResult=false;
-    QString        sError;
-    QStringList    slPhotoURLs,
-                   slVideoURLs;
-    QByteArrayList abtlPhotoContents,
-                   abtlVideoContents;
+    bool        bResult=false;
+    QString     sError;
+    QStringList slPhotoURLs,
+                slVideoURLs;
+    QList<T>    tlPhotoContents,
+                tlVideoContents;
     sError.clear();
     slPhotoURLs.clear();
     slVideoURLs.clear();
@@ -317,27 +330,35 @@ bool BadooWrapper::downloadMultiProfileResources(BadooUserProfileList buplProfil
         slPhotoURLs.append(u.slPhotos);
         slVideoURLs.append(u.slVideos);
     }
-    if(this->downloadMultiMediaResources<QByteArray>(
+    if(this->downloadMultiMediaResources<T>(
         slPhotoURLs,
-        abtlPhotoContents,
+        tlPhotoContents,
         iMaxTriesPerResource
     ))
-        if(this->downloadMultiMediaResources<QByteArray>(
+        if(this->downloadMultiMediaResources<T>(
             slVideoURLs,
-            abtlVideoContents,
+            tlVideoContents,
             iMaxTriesPerResource
         )) {
-            int iPhotoCounter=0,
-                iVideoCounter=0;
+            int  iPhotoCounter=0,
+                 iVideoCounter=0;
+            // Deals with adding new content to a MediaContentHash, according ...
+            // ... to the type the parent function template was invoked with.
+            // This would allow a future caching of the profiles, since the ...
+            // <QString> version saves the media contents to temporary files.
+            auto appendMCH=[](auto key,
+                              auto &hash,
+                              auto item) {
+                if constexpr(std::is_same_v<decltype(item),QString>)
+                    hash[key].append({item.toUtf8()});
+                else if constexpr(std::is_same_v<decltype(item),QByteArray>)
+                    hash[key].append({item});
+            };
             for(const auto &u:buplProfiles) {
                 for(const auto &p:u.slPhotos)
-                    mchPhotoContents[u.sUserId].append(
-                        abtlPhotoContents[iPhotoCounter++]
-                    );
+                    appendMCH(u.sUserId,mchPhotoContents,tlPhotoContents.at(iPhotoCounter++));
                 for(const auto &v:u.slVideos)
-                    mchVideoContents[u.sUserId].append(
-                        abtlVideoContents[iVideoCounter++]
-                    );
+                    appendMCH(u.sUserId,mchVideoContents,tlVideoContents.at(iVideoCounter++));
             }
         }
         else
@@ -619,6 +640,33 @@ bool BadooWrapper::getLoggedInProfile(BadooUserProfile &bupUser) {
     if(this->isLoggedIn()) {
         bupUser=bupSelf;
         bResult=true;
+    }
+    else
+        sError=QStringLiteral("Not logged in");
+    if(!bResult)
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    sLastError=sError;
+    return bResult;
+}
+
+bool BadooWrapper::getLoggedInProfilePhoto(QByteArray &abtPhoto) {
+    bool    bResult=false;
+    QString sError;
+    sError.clear();
+    abtPhoto.clear();
+    if(this->isLoggedIn()) {
+        if(abtSelfPhoto.isEmpty()) {
+            QStringList    slResources={bupSelf.sProfilePhotoURL};
+            QByteArrayList abtlContents;
+            if(this->downloadMultiMediaResources(slResources,abtlContents))
+                abtSelfPhoto=abtlContents.first();
+            else
+                sError=sLastError;
+        }
+        if(!abtSelfPhoto.isEmpty()) {
+            abtPhoto=abtSelfPhoto;
+            bResult=true;
+        }
     }
     else
         sError=QStringLiteral("Not logged in");

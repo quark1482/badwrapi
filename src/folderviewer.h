@@ -45,7 +45,7 @@ private:
     void showStandaloneProfile(int);
     void updatePageGallery();
     void updatePageWidgets();
-    void updateProfileBadges(QRect,bool,bool,bool,bool,bool);
+    void updateProfileBadges(QRect,bool,bool,bool,bool,bool,bool);
     void updateProfileMediaCounters(QRect,int,int);
     void updateProfilePhoto(QRect,QByteArray,int);
     void updateProfileTitle(QRect,QString,int,QString);

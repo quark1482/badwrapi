@@ -29,7 +29,6 @@ private:
     void    handleNopeButtonClick();
     void    handleLikeButtonClick();
     void    handleSkipButtonClick();
-    void    loadMyProfile();
     void    showCurrentProfile();
 signals:
     void statusChanged(QString);
