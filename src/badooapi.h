@@ -119,13 +119,16 @@ public:
     static bool getPreLoginParameters(QString &,QString &,QString &);
     static bool getPostLoginParameters(QString,QString &,QString &);
     static bool searchListSectionIdByType(QString,BadooFolderType,BadooListSectionType,QString &,QString &,BadooAPIError &);
+    static bool sendAddPersonToFolder(QString,QString,BadooFolderType,BadooAPIError &);
     static bool sendCAPTCHAAttempt(QString,QString,QString,QString,bool &,BadooAPIError &);
     static bool sendEncountersVote(QString,QString,bool,bool &,BadooAPIError &);
     static bool sendGetCAPTCHA(QString,QString,QString &,BadooAPIError &);
     static bool sendGetEncounters(QString,QString,int,BadooUserProfileList &,BadooAPIError &);
     static bool sendGetSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
+    static bool sendGetUser(QString,QString,BadooUserProfile &,BadooAPIError &);
     static bool sendGetUserList(QString,BadooListFilterList,BadooFolderType,QString,int,int,BadooUserProfileList &,int &,BadooAPIError &);
     static bool sendLogin(QString,QString,QString,QString &,BadooAPIError &);
+    static bool sendRemovePersonFromFolder(QString,QString,BadooFolderType,BadooAPIError &);
     static bool sendSaveSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
     static bool sendSearchLocations(QString,QString,BadooSearchLocationList &,BadooAPIError &);
     static bool sendStartup(QString,QString,QString &,BadooUserProfile &,BadooAPIError &);

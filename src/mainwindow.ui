@@ -25,9 +25,11 @@
      <string>Demo</string>
     </property>
     <addaction name="actEncounters"/>
+    <addaction name="actFavorites"/>
     <addaction name="actLikes"/>
     <addaction name="actMatches"/>
     <addaction name="actPeopleNearby"/>
+    <addaction name="actVisitors"/>
     <addaction name="separator"/>
     <addaction name="actExit"/>
    </widget>
@@ -47,7 +49,15 @@
     <addaction name="separator"/>
     <addaction name="mnuSearchSettings"/>
    </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="actCustomFolder"/>
+    <addaction name="actCustomProfile"/>
+   </widget>
    <addaction name="mnuDemo"/>
+   <addaction name="menuTools"/>
    <addaction name="mnuSettings"/>
   </widget>
   <widget class="QStatusBar" name="stbMain"/>
@@ -94,6 +104,26 @@
   <action name="actLikes">
    <property name="text">
     <string>Likes</string>
+   </property>
+  </action>
+  <action name="actVisitors">
+   <property name="text">
+    <string>Visitors</string>
+   </property>
+  </action>
+  <action name="actFavorites">
+   <property name="text">
+    <string>Favorites</string>
+   </property>
+  </action>
+  <action name="actCustomFolder">
+   <property name="text">
+    <string>Browse custom folder</string>
+   </property>
+  </action>
+  <action name="actCustomProfile">
+   <property name="text">
+    <string>Browse custom profile</string>
    </property>
   </action>
  </widget>

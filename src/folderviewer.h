@@ -7,6 +7,7 @@
 typedef enum {
     FOLDER_VIEWER_BUTTON_FIRST,
     FOLDER_VIEWER_BUTTON_PREVIOUS,
+    FOLDER_VIEWER_BUTTON_PAGE,
     FOLDER_VIEWER_BUTTON_NEXT,
     FOLDER_VIEWER_BUTTON_LAST
 } FolderViewerButton;
@@ -23,6 +24,7 @@ protected:
 private slots:
     void firstButtonClicked();
     void previousButtonClicked();
+    void pageButtonClicked();
     void nextButtonClicked();
     void lastButtonClicked();
 private:
@@ -32,6 +34,7 @@ private:
     QLabel               lblPageTitle;
     QPushButton          btnFirst,
                          btnPrevious,
+                         btnPage,
                          btnNext,
                          btnLast;
     QGraphicsView        grvView;

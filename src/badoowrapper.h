@@ -7,7 +7,11 @@
 
 #define MAX_DOWNLOAD_TRIES 3
 
+#define PREFIX_NORMAL_USER_ID    "zAhMAC"
+#define PREFIX_ENCRYPTED_USER_ID "zAgEAC"
+
 typedef enum {
+    FOLDER_TYPE_UNKNOWN,
     FOLDER_TYPE_FAVORITES,
     FOLDER_TYPE_LIKES,
     FOLDER_TYPE_MATCHES,
@@ -49,30 +53,39 @@ class BadooWrapper:public QObject {
     Q_OBJECT
 public:
     BadooWrapper();
+    bool    addToFavorites(QString);
     template<typename T>
     bool    downloadMultiMediaResources(QStringList,QList<T> &,int=MAX_DOWNLOAD_TRIES);
     template<typename T>
     bool    downloadMultiProfileResources(BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int=MAX_DOWNLOAD_TRIES);
     bool    getEncounters(BadooUserProfileList &,bool=false);
     void    getEncountersSettings(EncountersSettings &);
-    QString getFolderName(FolderType);
+    bool    getFolderPage(BadooFolderType,BadooListSectionType,int,BadooUserProfileList &,int &,int &,int &);
     bool    getFolderPage(FolderType,int,BadooUserProfileList &,int &,int &,int &);
-    QString getHTMLFromProfile(BadooUserProfile,bool=false,QString=QString(),QByteArrayList={},QByteArrayList={});
     QString getLastError();
     bool    getLoggedInProfile(BadooUserProfile &);
     bool    getLoggedInProfilePhoto(QByteArray &);
     void    getPeopleNearbySettings(PeopleNearbySettings &);
+    bool    getProfile(QString,BadooUserProfile &);
     void    getSessionDetails(SessionDetails &);
     bool    isLoggedIn();
     bool    loadSearchSettings();
     bool    login(QString,QString);
     bool    logout();
+    bool    removeFromFavorites(QString);
     bool    saveSearchSettings();
     void    setEncountersSettings(EncountersSettings);
     void    setPeopleNearbySettings(PeopleNearbySettings);
     bool    showLogin();
     bool    showSearchSettings(BadooSettingsContextType);
     bool    vote(QString,bool,bool &);
+    static QString getFolderName(FolderType);
+    static QString getHTMLFromProfile(BadooUserProfile,bool=false,QString=QString(),QByteArrayList={},QByteArrayList={});
+    static QString getTextFromBoolean(bool);
+    static QString getTextFromSexType(BadooSexType);
+    static QString getTextFromVote(BadooVote);
+    static bool    isEncryptedUserId(QString);
+    static bool    isValidUserId(QString);
 private:
     QString              sLastError,
                          sLastEncountersId;
@@ -84,9 +97,6 @@ private:
     void    clearEncountersSettings();
     void    clearPeopleNearbySettings();
     void    clearSessionDetails();
-    QString getTextFromBoolean(bool);
-    QString getTextFromSexType(BadooSexType);
-    QString getTextFromVote(BadooVote);
     void    setEncountersSettings(BadooSexTypeList,BadooIntRange,BadooIntRange,BadooIntRange,int);
     void    setPeopleNearbySettings(BadooSexTypeList,BadooIntRange,BadooIntRange,int,QString,BadooStrKeyStrValueHash,QString,BadooIntKeyStrValueHash,int);
     void    setSessionDetails(QString,QString,QString,QString,QString);

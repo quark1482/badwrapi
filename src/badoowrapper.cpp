@@ -109,6 +109,29 @@ BadooWrapper::BadooWrapper() {
     this->clearPeopleNearbySettings();
 }
 
+bool BadooWrapper::addToFavorites(QString sProfileId) {
+    bool          bResult=false;
+    QString       sError;
+    BadooAPIError baeError;
+    sError.clear();
+    emit statusChanged(QStringLiteral("Adding person to favorites..."));
+    if(BadooAPI::sendAddPersonToFolder(
+        sdSession.sSessionId,
+        sProfileId,
+        FAVOURITES,
+        baeError
+    ))
+        bResult=true;
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
 template bool BadooWrapper::downloadMultiMediaResources<QString>(
     QStringList,QStringList &,int
 );
@@ -414,6 +437,9 @@ QString BadooWrapper::getFolderName(FolderType ftType) {
     QString sResult;
     sResult.clear();
     switch(ftType) {
+        case FOLDER_TYPE_UNKNOWN:
+            sResult=QStringLiteral("Unknown folder");
+            break;
         case FOLDER_TYPE_FAVORITES:
             sResult=QStringLiteral("Favorites");
             break;
@@ -433,7 +459,8 @@ QString BadooWrapper::getFolderName(FolderType ftType) {
     return sResult;
 }
 
-bool BadooWrapper::getFolderPage(FolderType           ftType,
+bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
+                                 BadooListSectionType blstSection,
                                  int                  iPage,
                                  BadooUserProfileList &buplProfilesInPage,
                                  int                  &iTotalPagesInFolder,
@@ -444,8 +471,6 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
                          sSectionId,
                          sSectionName;
     BadooAPIError        baeError;
-    BadooFolderType      bftFolder;
-    BadooListSectionType blstSection;
     BadooListFilterList  blflFilter={};
     sError.clear();
     buplProfilesInPage.clear();
@@ -453,28 +478,6 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
     iTotalProfilesInFolder=0;
     iMaxProfilesByPage=MAX_USERS_BY_REQUEST;
     emit statusChanged(QStringLiteral("Loading folder page #%1...").arg(iPage+1));
-    switch(ftType) {
-        case FOLDER_TYPE_FAVORITES:
-            bftFolder=FAVOURITES;
-            blstSection=LIST_SECTION_TYPE_FAVORITES;
-            break;
-        case FOLDER_TYPE_LIKES:
-            bftFolder=WANT_TO_MEET_YOU;
-            blstSection=LIST_SECTION_TYPE_WANT_TO_MEET_YOU_UNVOTED;
-            break;
-        case FOLDER_TYPE_MATCHES:
-            bftFolder=MATCHES;
-            blstSection=LIST_SECTION_TYPE_UNKNOWN;
-            break;
-        case FOLDER_TYPE_PEOPLE_NEARBY:
-            bftFolder=NEARBY_PEOPLE_WEB;
-            blstSection=LIST_SECTION_TYPE_UNKNOWN;
-            break;
-        case FOLDER_TYPE_VISITORS:
-            bftFolder=PROFILE_VISITORS;
-            blstSection=LIST_SECTION_TYPE_PROFILE_VISITORS;
-            break;
-    }
     if(BadooAPI::searchListSectionIdByType(
         sdSession.sSessionId,
         bftFolder,
@@ -509,6 +512,61 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
     return bResult;
 }
 
+bool BadooWrapper::getFolderPage(FolderType           ftType,
+                                 int                  iPage,
+                                 BadooUserProfileList &buplProfilesInPage,
+                                 int                  &iTotalPagesInFolder,
+                                 int                  &iTotalProfilesInFolder,
+                                 int                  &iMaxProfilesByPage) {
+    bool                 bResult=false;
+    QString              sError;
+    BadooAPIError        baeError;
+    BadooFolderType      bftFolder;
+    BadooListSectionType blstSection;
+    sError.clear();
+    switch(ftType) {
+        case FOLDER_TYPE_FAVORITES:
+            bftFolder=FAVOURITES;
+            blstSection=LIST_SECTION_TYPE_FAVORITES;
+            break;
+        case FOLDER_TYPE_LIKES:
+            bftFolder=WANT_TO_MEET_YOU;
+            blstSection=LIST_SECTION_TYPE_WANT_TO_MEET_YOU_UNVOTED;
+            break;
+        case FOLDER_TYPE_MATCHES:
+            bftFolder=MATCHES;
+            blstSection=LIST_SECTION_TYPE_UNKNOWN;
+            break;
+        case FOLDER_TYPE_PEOPLE_NEARBY:
+            bftFolder=NEARBY_PEOPLE_WEB;
+            blstSection=LIST_SECTION_TYPE_UNKNOWN;
+            break;
+        case FOLDER_TYPE_VISITORS:
+            bftFolder=PROFILE_VISITORS;
+            blstSection=LIST_SECTION_TYPE_PROFILE_VISITORS;
+            break;
+    }
+    if(FOLDER_TYPE_UNKNOWN==ftType)
+        sError=QStringLiteral("Unknown folder type");
+    else
+        bResult=BadooWrapper::getFolderPage(
+            bftFolder,
+            blstSection,
+            iPage,
+            buplProfilesInPage,
+            iTotalPagesInFolder,
+            iTotalProfilesInFolder,
+            iMaxProfilesByPage
+        );
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=sLastError;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
 QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
                                          bool              bFullHTML,
                                          QString           sStyle,
@@ -531,7 +589,9 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
     sDetails=QStringLiteral(HTML_TABLE_PROFILE).
              arg(bupUser.sName).arg(bupUser.iAge).arg(bupUser.sAppearance).
              arg(
-                 this->getTextFromSexType(static_cast<BadooSexType>(bupUser.iGender)),
+                 BadooWrapper::getTextFromSexType(
+                     static_cast<BadooSexType>(bupUser.iGender)
+                 ),
                  bupUser.sSexuality
              ).
              arg(
@@ -541,8 +601,8 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
              ).
              arg(
                  bupUser.sOnlineStatus,
-                 this->getTextFromBoolean(bupUser.bIsVerified),
-                 this->getTextFromBoolean(bupUser.bHasQuickChat)
+                 BadooWrapper::getTextFromBoolean(bupUser.bIsVerified),
+                 BadooWrapper::getTextFromBoolean(bupUser.bHasQuickChat)
              ).
              arg(bupUser.sAbout).
              arg(
@@ -556,8 +616,8 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
                  bupUser.sDrinking
              ).
              arg(
-                 this->getTextFromVote(bupUser.bvMyVote),
-                 this->getTextFromVote(bupUser.bvTheirVote)
+                 BadooWrapper::getTextFromVote(bupUser.bvMyVote),
+                 BadooWrapper::getTextFromVote(bupUser.bvTheirVote)
              ).
              arg(QStringLiteral("<a href='%1'>Click to open</a>").arg(sURL));
 
@@ -680,8 +740,106 @@ void BadooWrapper::getPeopleNearbySettings(PeopleNearbySettings &pnsSettings) {
     pnsSettings=pnsPeopleNearby;
 }
 
+bool BadooWrapper::getProfile(QString          sProfileId,
+                              BadooUserProfile &bupUser) {
+    bool          bResult=false;
+    QString       sError;
+    BadooAPIError baeError;
+    sError.clear();
+    BadooAPI::clearUserProfile(bupUser);
+    emit statusChanged(QStringLiteral("Loading profile..."));
+    if(BadooAPI::sendGetUser(sdSession.sSessionId,sProfileId,bupUser,baeError))
+        bResult=true;
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
 void BadooWrapper::getSessionDetails(SessionDetails &sdDetails) {
     sdDetails=sdSession;
+}
+
+QString BadooWrapper::getTextFromBoolean(bool bBoolean) {
+    return bBoolean?QStringLiteral("YES"):QStringLiteral("NO");
+}
+
+QString BadooWrapper::getTextFromSexType(BadooSexType bstSexType) {
+    QString sResult;
+    switch(bstSexType) {
+        case SEX_TYPE_MALE:
+            sResult=QStringLiteral("Male");
+            break;
+        case SEX_TYPE_FEMALE:
+            sResult=QStringLiteral("Female");
+            break;
+        case SEX_TYPE_UNKNOWN:
+            sResult=QStringLiteral("Unknown");
+            break;
+        case SEX_TYPE_OTHER:
+            sResult=QStringLiteral("Other");
+            break;
+    }
+    return sResult;
+}
+
+QString BadooWrapper::getTextFromVote(BadooVote bvVote) {
+    QString sResult;
+    switch(bvVote) {
+        case VOTE_UNKNOWN:
+            sResult=QStringLiteral("UNKOWN");
+            break;
+        case VOTE_NONE:
+            sResult=QStringLiteral("NONE");
+            break;
+        case VOTE_YES:
+            sResult=QStringLiteral("YES");
+            break;
+        case VOTE_NO:
+            sResult=QStringLiteral("NOPE");
+            break;
+        case VOTE_MAYBE:
+            sResult=QStringLiteral("MAYBE");
+            break;
+        case VOTE_SKIP:
+            sResult=QStringLiteral("SKIP");
+            break;
+        case VOTE_SUPER:
+            sResult=QStringLiteral("SUPER");
+            break;
+        case VOTE_CRUSH:
+            sResult=QStringLiteral("CRUSH");
+            break;
+    }
+    return sResult;
+}
+
+bool BadooWrapper::isEncryptedUserId(QString sUserId) {
+    bool bResult=false;
+    if(BadooWrapper::isValidUserId(sUserId))
+        bResult=sUserId.startsWith(QStringLiteral(PREFIX_ENCRYPTED_USER_ID));
+    return bResult;
+}
+
+bool BadooWrapper::isValidUserId(QString sUserId) {
+    bool                    bResult=false;
+    QString                 sPattern;
+    QRegularExpression      rxRegEx;
+    QRegularExpressionMatch rxmMatch;
+    sPattern=QStringLiteral("(%1|%2)[A-Za-z0-9-_]{30,}").
+             arg(
+                 QStringLiteral(PREFIX_NORMAL_USER_ID),
+                 QStringLiteral(PREFIX_ENCRYPTED_USER_ID)
+             );
+    rxRegEx.setPattern(sPattern);
+    rxmMatch=rxRegEx.match(sUserId);
+    if(rxmMatch.hasMatch())
+        bResult=rxmMatch.captured(0)==sUserId;
+    return bResult;
 }
 
 bool BadooWrapper::isLoggedIn() {
@@ -840,6 +998,29 @@ bool BadooWrapper::logout() {
         this->clearSessionDetails();
     else
         sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    sLastError=sError;
+    return bResult;
+}
+
+bool BadooWrapper::removeFromFavorites(QString sProfileId) {
+    bool          bResult=false;
+    QString       sError;
+    BadooAPIError baeError;
+    sError.clear();
+    emit statusChanged(QStringLiteral("Removing person from favorites..."));
+    if(BadooAPI::sendRemovePersonFromFolder(
+        sdSession.sSessionId,
+        sProfileId,
+        FAVOURITES,
+        baeError
+    ))
+        bResult=true;
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
     sLastError=sError;
     return bResult;
 }
@@ -1019,60 +1200,6 @@ void BadooWrapper::clearSessionDetails() {
     sdSession.sUserId.clear();
     sdSession.sAccountId.clear();
     sdSession.sResponseToken.clear();
-}
-
-QString BadooWrapper::getTextFromBoolean(bool bBoolean) {
-    return bBoolean?QStringLiteral("YES"):QStringLiteral("NO");
-}
-
-QString BadooWrapper::getTextFromSexType(BadooSexType bstSexType) {
-    QString sResult;
-    switch(bstSexType) {
-        case SEX_TYPE_MALE:
-            sResult=QStringLiteral("Male");
-            break;
-        case SEX_TYPE_FEMALE:
-            sResult=QStringLiteral("Female");
-            break;
-        case SEX_TYPE_UNKNOWN:
-            sResult=QStringLiteral("Unknown");
-            break;
-        case SEX_TYPE_OTHER:
-            sResult=QStringLiteral("Other");
-            break;
-    }
-    return sResult;
-}
-
-QString BadooWrapper::getTextFromVote(BadooVote bvVote) {
-    QString sResult;
-    switch(bvVote) {
-        case VOTE_UNKNOWN:
-            sResult=QStringLiteral("UNKOWN");
-            break;
-        case VOTE_NONE:
-            sResult=QStringLiteral("NONE");
-            break;
-        case VOTE_YES:
-            sResult=QStringLiteral("YES");
-            break;
-        case VOTE_NO:
-            sResult=QStringLiteral("NOPE");
-            break;
-        case VOTE_MAYBE:
-            sResult=QStringLiteral("MAYBE");
-            break;
-        case VOTE_SKIP:
-            sResult=QStringLiteral("SKIP");
-            break;
-        case VOTE_SUPER:
-            sResult=QStringLiteral("SUPER");
-            break;
-        case VOTE_CRUSH:
-            sResult=QStringLiteral("CRUSH");
-            break;
-    }
-    return sResult;
 }
 
 void BadooWrapper::setEncountersSettings(BadooSexTypeList bstlNewGenders,

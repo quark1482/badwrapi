@@ -27,6 +27,7 @@ private:
     void    handleDownloadProfileButtonClick();
     void    handleBackButtonClick();
     void    handleNopeButtonClick();
+    void    handleFavoriteButtonClick();
     void    handleLikeButtonClick();
     void    handleSkipButtonClick();
     void    showCurrentProfile();

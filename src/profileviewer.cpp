@@ -41,8 +41,9 @@
 
 ProfileViewer::ProfileViewer(BadooWrapper *bwParent,
                              QWidget *wgtParent):
-    QWidget(wgtParent),ui(new Ui::ProfileViewer) {
+QWidget(wgtParent),ui(new Ui::ProfileViewer) {
     bVideoPausedByUser=false;
+    iActiveActionButtons=-1;
     iCurrentPhotoIndex=-1;
     iCurrentVideoIndex=-1;
     BadooAPI::getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
@@ -73,158 +74,165 @@ ProfileViewer::ProfileViewer(BadooWrapper *bwParent,
     ui->grvVideoGallery->setScene(&grsVideoGallery);
     grsPhotoGallery.installEventFilter(this);
     grsVideoGallery.installEventFilter(this);
+    do {
+        connect(
+            &tmrDelayedResize,
+            &QTimer::timeout,
+            this,
+            &ProfileViewer::delayedResizeTimeout
+        );
 
-    connect(
-        &tmrDelayedResize,
-        &QTimer::timeout,
-        this,
-        &ProfileViewer::delayedResizeTimeout
-    );
+        connect(
+            ui->btnCopyURL,
+            &QPushButton::clicked,
+            this,
+            &ProfileViewer::copyURLButtonClicked
+        );
+        connect(
+            ui->btnDownloadProfile,
+            &QPushButton::clicked,
+            this,
+            &ProfileViewer::downloadProfileButtonClicked
+        );
 
-    connect(
-        ui->btnCopyURL,
-        &QPushButton::clicked,
-        this,
-        &ProfileViewer::copyURLButtonClicked
-    );
-    connect(
-        ui->btnDownloadProfile,
-        &QPushButton::clicked,
-        this,
-        &ProfileViewer::downloadProfileButtonClicked
-    );
+        connect(
+            ui->btnBack,
+            &QPushButton::clicked,
+            this,
+            &ProfileViewer::backButtonClicked
+        );
+        connect(
+            ui->btnNope,
+            &QPushButton::clicked,
+            this,
+            &ProfileViewer::nopeButtonClicked
+        );
+        connect(
+            ui->btnFavorite,
+            &QPushButton::clicked,
+            this,
+            &ProfileViewer::favoriteButtonClicked
+        );
+        connect(
+            ui->btnLike,
+            &QPushButton::clicked,
+            this,
+            &ProfileViewer::likeButtonClicked
+        );
+        connect(
+            ui->btnSkip,
+            &QPushButton::clicked,
+            this,
+            &ProfileViewer::skipButtonClicked
+        );
 
-    connect(
-        ui->btnBack,
-        &QPushButton::clicked,
-        this,
-        &ProfileViewer::backButtonClicked
-    );
-    connect(
-        ui->btnNope,
-        &QPushButton::clicked,
-        this,
-        &ProfileViewer::nopeButtonClicked
-    );
-    connect(
-        ui->btnLike,
-        &QPushButton::clicked,
-        this,
-        &ProfileViewer::likeButtonClicked
-    );
-    connect(
-        ui->btnSkip,
-        &QPushButton::clicked,
-        this,
-        &ProfileViewer::skipButtonClicked
-    );
+        connect(
+            mctPhotoControls,
+            &MediaControls::first,
+            this,
+            &ProfileViewer::firstPhotoButtonClicked
+        );
+        connect(
+            mctPhotoControls,
+            &MediaControls::previous,
+            this,
+            &ProfileViewer::previousPhotoButtonClicked
+        );
+        connect(
+            mctPhotoControls,
+            &MediaControls::next,
+            this,
+            &ProfileViewer::nextPhotoButtonClicked
+        );
+        connect(
+            mctPhotoControls,
+            &MediaControls::last,
+            this,
+            &ProfileViewer::lastPhotoButtonClicked
+        );
 
-    connect(
-        mctPhotoControls,
-        &MediaControls::first,
-        this,
-        &ProfileViewer::firstPhotoButtonClicked
-    );
-    connect(
-        mctPhotoControls,
-        &MediaControls::previous,
-        this,
-        &ProfileViewer::previousPhotoButtonClicked
-    );
-    connect(
-        mctPhotoControls,
-        &MediaControls::next,
-        this,
-        &ProfileViewer::nextPhotoButtonClicked
-    );
-    connect(
-        mctPhotoControls,
-        &MediaControls::last,
-        this,
-        &ProfileViewer::lastPhotoButtonClicked
-    );
+        connect(
+            mctVideoControls,
+            &MediaControls::first,
+            this,
+            &ProfileViewer::firstVideoButtonClicked
+        );
+        connect(
+            mctVideoControls,
+            &MediaControls::previous,
+            this,
+            &ProfileViewer::previousVideoButtonClicked
+        );
+        connect(
+            mctVideoControls,
+            &MediaControls::next,
+            this,
+            &ProfileViewer::nextVideoButtonClicked
+        );
+        connect(
+            mctVideoControls,
+            &MediaControls::last,
+            this,
+            &ProfileViewer::lastVideoButtonClicked
+        );
+        connect(
+            mctVideoControls,
+            &MediaControls::pause,
+            this,
+            &ProfileViewer::pauseVideoButtonClicked
+        );
+        connect(
+            mctVideoControls,
+            &MediaControls::mute,
+            this,
+            &ProfileViewer::muteVideoButtonClicked
+        );
 
-    connect(
-        mctVideoControls,
-        &MediaControls::first,
-        this,
-        &ProfileViewer::firstVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::previous,
-        this,
-        &ProfileViewer::previousVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::next,
-        this,
-        &ProfileViewer::nextVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::last,
-        this,
-        &ProfileViewer::lastVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::pause,
-        this,
-        &ProfileViewer::pauseVideoButtonClicked
-    );
-    connect(
-        mctVideoControls,
-        &MediaControls::mute,
-        this,
-        &ProfileViewer::muteVideoButtonClicked
-    );
+        connect(
+            mvwPhoto,
+            &MediaViewer::doubleClick,
+            this,
+            &ProfileViewer::photoDoubleClicked
+        );
+        connect(
+            mvwPhoto,
+            &MediaViewer::keyPress,
+            this,
+            &ProfileViewer::photoKeyPressed
+        );
+        connect(
+            mvwPhoto,
+            &MediaViewer::hover,
+            this,
+            &ProfileViewer::photoMouseHover
+        );
 
-    connect(
-        mvwPhoto,
-        &MediaViewer::doubleClick,
-        this,
-        &ProfileViewer::photoDoubleClicked
-    );
-    connect(
-        mvwPhoto,
-        &MediaViewer::keyPress,
-        this,
-        &ProfileViewer::photoKeyPressed
-    );
-    connect(
-        mvwPhoto,
-        &MediaViewer::hover,
-        this,
-        &ProfileViewer::photoMouseHover
-    );
+        connect(
+            mvwVideo,
+            &MediaViewer::doubleClick,
+            this,
+            &ProfileViewer::videoDoubleClicked
+        );
+        connect(
+            mvwVideo,
+            &MediaViewer::keyPress,
+            this,
+            &ProfileViewer::videoKeyPressed
+        );
+        connect(
+            mvwVideo,
+            &MediaViewer::hover,
+            this,
+            &ProfileViewer::videoMouseHover
+        );
 
-    connect(
-        mvwVideo,
-        &MediaViewer::doubleClick,
-        this,
-        &ProfileViewer::videoDoubleClicked
-    );
-    connect(
-        mvwVideo,
-        &MediaViewer::keyPress,
-        this,
-        &ProfileViewer::videoKeyPressed
-    );
-    connect(
-        mvwVideo,
-        &MediaViewer::hover,
-        this,
-        &ProfileViewer::videoMouseHover
-    );
-
-    connect(
-        ui->tbwGalleries,
-        &QTabWidget::currentChanged,
-        this,
-        &ProfileViewer::galleryTabWidgetChanged
-    );
+        connect(
+            ui->tbwGalleries,
+            &QTabWidget::currentChanged,
+            this,
+            &ProfileViewer::galleryTabWidgetChanged
+        );
+    } while(false);
 }
 
 ProfileViewer::~ProfileViewer() {
@@ -287,6 +295,10 @@ void ProfileViewer::load(BadooUserProfile bupProfile,
     this->resetProfileWidgets();
 }
 
+void ProfileViewer::setActiveActionButtons(int iActive) {
+    iActiveActionButtons=iActive;
+}
+
 void ProfileViewer::delayedResizeTimeout() {
     tmrDelayedResize.stop();
     this->updateMediaWidgets();
@@ -318,7 +330,7 @@ void ProfileViewer::downloadProfileButtonClicked() {
             QStringLiteral(FILTER_HTML_FILES)
         );
         if(!sTempPath.isEmpty()) {
-            sHTML=bwProfile->getHTMLFromProfile(
+            sHTML=BadooWrapper::getHTMLFromProfile(
                 bupProfileDetails,
                 true,
                 QStringLiteral(HTML_STYLE_PROFILE),
@@ -358,6 +370,26 @@ void ProfileViewer::nopeButtonClicked() {
                 QStringLiteral("Error"),
                 bwProfile->getLastError()
             );
+    }
+}
+
+void ProfileViewer::favoriteButtonClicked(bool bFavorite) {
+    if(!bupProfileDetails.sUserId.isEmpty()) {
+        bool bOK;
+        if(bFavorite)
+            bOK=bwProfile->addToFavorites(bupProfileDetails.sUserId);
+        else
+            bOK=bwProfile->removeFromFavorites(bupProfileDetails.sUserId);
+        if(bOK)
+            emit buttonClicked(PROFILE_VIEWER_BUTTON_FAVORITE);
+        else {
+            ui->btnFavorite->setChecked(!bFavorite);
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Error"),
+                bwProfile->getLastError()
+            );
+        }
     }
 }
 
@@ -843,9 +875,36 @@ void ProfileViewer::toggleMediaViewersIndependence() {
 }
 
 void ProfileViewer::updateActionButtons() {
-    bool bVoteEnabled=VOTE_NONE==bupProfileDetails.bvMyVote;
-    ui->btnNope->setEnabled(bVoteEnabled);
-    ui->btnLike->setEnabled(bVoteEnabled);
+    bool bCopyURLEnabled= iActiveActionButtons&PROFILE_VIEWER_BUTTON_COPY_URL,
+         bDownloadEnabled=iActiveActionButtons&PROFILE_VIEWER_BUTTON_DOWNLOAD,
+         bBackEnabled=    iActiveActionButtons&PROFILE_VIEWER_BUTTON_BACK,
+         bNopeEnabled=    iActiveActionButtons&PROFILE_VIEWER_BUTTON_NOPE,
+         bFavoriteEnabled=iActiveActionButtons&PROFILE_VIEWER_BUTTON_FAVORITE,
+         bLikeEnabled=    iActiveActionButtons&PROFILE_VIEWER_BUTTON_LIKE,
+         bSkipEnabled=    iActiveActionButtons&PROFILE_VIEWER_BUTTON_SKIP,
+         bVoteEnabled=    VOTE_NONE==bupProfileDetails.bvMyVote;
+    ui->btnCopyURL->setEnabled(bCopyURLEnabled);
+    ui->btnDownloadProfile->setEnabled(bDownloadEnabled);
+    ui->btnBack->setEnabled(bBackEnabled);
+    ui->btnNope->setEnabled(bVoteEnabled&bNopeEnabled);
+    ui->btnFavorite->setEnabled(bFavoriteEnabled);
+    ui->btnLike->setEnabled(bVoteEnabled&bLikeEnabled);
+    ui->btnSkip->setEnabled(bSkipEnabled);
+    for(const auto &b:this->findChildren<QPushButton *>())
+        if(!b->isEnabled())
+            b->setToolTip(QStringLiteral("Disabled in this mode"));
+    if(!bVoteEnabled) {
+        QString sToolTip=QStringLiteral("You already voted %1 to this profile").
+                         arg(BadooWrapper::getTextFromVote(bupProfileDetails.bvMyVote));
+        ui->btnNope->setToolTip(sToolTip);
+        ui->btnLike->setToolTip(sToolTip);
+    }
+    ui->btnFavorite->setChecked(bupProfileDetails.bIsFavorite);
+    if(bFavoriteEnabled)
+        if(bupProfileDetails.bIsFavorite)
+            ui->btnFavorite->setToolTip(QStringLiteral("Remove from Favorites"));
+        else
+            ui->btnFavorite->setToolTip(QStringLiteral("Add to Favorites"));
 }
 
 void ProfileViewer::updateMediaButtons() {

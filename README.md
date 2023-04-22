@@ -12,7 +12,9 @@ Features
 * Automatically imports the user "search settings" and allows modifications.
 * Plays the "Encounters" game, displaying the -complete- profiles.
 * Allows you to "skip" profiles, for later.
-* Shows a special profile badge for people that already liked you.
+* Shows every other section, "People nearby", "Favorites", "Visitors", etc.
+* Reveal people in the "Liked you" section.
+* Shows a special profile badge for people that have already voted you.
 * Downloads profiles in self-contained single HTML files.
 
 
@@ -31,8 +33,8 @@ ToDo's
 - [x] Show "People nearby".
 - [x] Show "Likes".
 - [x] Show "Matches".
-- [ ] Show "Favorites".
-- [ ] Show "Visitors".
+- [x] Show "Favorites".
+- [x] Show "Visitors".
 - [ ] Implement chat.
 
 

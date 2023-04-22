@@ -10,12 +10,13 @@ class ProfileViewer;
 }
 
 typedef enum {
-    PROFILE_VIEWER_BUTTON_COPY_URL,
-    PROFILE_VIEWER_BUTTON_DOWNLOAD,
-    PROFILE_VIEWER_BUTTON_BACK,
-    PROFILE_VIEWER_BUTTON_NOPE,
-    PROFILE_VIEWER_BUTTON_LIKE,
-    PROFILE_VIEWER_BUTTON_SKIP
+    PROFILE_VIEWER_BUTTON_COPY_URL= 1,
+    PROFILE_VIEWER_BUTTON_DOWNLOAD= 2,
+    PROFILE_VIEWER_BUTTON_BACK    = 4,
+    PROFILE_VIEWER_BUTTON_NOPE    = 8,
+    PROFILE_VIEWER_BUTTON_FAVORITE=16,
+    PROFILE_VIEWER_BUTTON_LIKE    =32,
+    PROFILE_VIEWER_BUTTON_SKIP    =64,
 } ProfileViewerButton;
 
 class ProfileViewer:public QWidget {
@@ -24,6 +25,7 @@ public:
     ProfileViewer(BadooWrapper *,QWidget * =nullptr);
     ~ProfileViewer();
     void load(BadooUserProfile,QByteArrayList,QByteArrayList);
+    void setActiveActionButtons(int);
 protected:
     bool eventFilter(QObject *,QEvent *) override;
     void resizeEvent(QResizeEvent *) override;
@@ -33,6 +35,7 @@ private slots:
     void downloadProfileButtonClicked();
     void backButtonClicked();
     void nopeButtonClicked();
+    void favoriteButtonClicked(bool);
     void likeButtonClicked();
     void skipButtonClicked();
     void firstPhotoButtonClicked();
@@ -55,7 +58,8 @@ private slots:
 private:
     Ui::ProfileViewer *ui;
     bool              bVideoPausedByUser;
-    int               iCurrentPhotoIndex,
+    int               iActiveActionButtons,
+                      iCurrentPhotoIndex,
                       iCurrentVideoIndex;
     QByteArray        abtPlaceholderPhoto,
                       abtPlaceholderVideo,

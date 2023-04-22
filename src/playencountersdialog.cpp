@@ -3,7 +3,8 @@
 #define DIALOG_TITLE "Play Encounters"
 
 PlayEncountersDialog::PlayEncountersDialog(BadooWrapper *bwParent,
-                                           QWidget      *wgtParent):QDialog(wgtParent) {
+                                           QWidget      *wgtParent):
+QDialog(wgtParent) {
     bDialogReady=false;
     iCurrentProfileIndex=-1;
     buplEncounters.clear();
@@ -26,6 +27,7 @@ PlayEncountersDialog::PlayEncountersDialog(BadooWrapper *bwParent,
         QTimer::singleShot(
             0,
             [=]() {
+                pvCurrentProfile->setActiveActionButtons(~PROFILE_VIEWER_BUTTON_FAVORITE);
                 this->showCurrentProfile();
             }
         );
@@ -53,6 +55,9 @@ void PlayEncountersDialog::buttonClicked(ProfileViewerButton pvbButton) {
             break;
         case PROFILE_VIEWER_BUTTON_NOPE:
             this->handleNopeButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_FAVORITE:
+            this->handleFavoriteButtonClick();
             break;
         case PROFILE_VIEWER_BUTTON_LIKE:
             this->handleLikeButtonClick();
@@ -146,7 +151,7 @@ void PlayEncountersDialog::handleBackButtonClick() {
             bUpdate=true;
         }
         else
-            emit statusChanged(QStringLiteral("Already at first profile"));
+            emit statusChanged(QStringLiteral("Already at this batch's first profile"));
     if(bUpdate)
         this->showCurrentProfile();
 }
@@ -161,6 +166,13 @@ void PlayEncountersDialog::handleNopeButtonClick() {
             iCurrentProfileIndex--;
             this->getNewBatch();
         }
+        this->showCurrentProfile();
+    }
+}
+
+void PlayEncountersDialog::handleFavoriteButtonClick() {
+    emit statusChanged(QString());
+    if(-1<iCurrentProfileIndex) {
         this->showCurrentProfile();
     }
 }

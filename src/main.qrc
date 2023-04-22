@@ -2,12 +2,15 @@
     <qresource prefix="/">
         <file>../img/bw.ico</file>
         <file>../img/action-back.svg</file>
+        <file>../img/action-favorite.svg</file>
         <file>../img/action-like.svg</file>
         <file>../img/action-nope.svg</file>
+        <file>../img/action-not-favorite.svg</file>
         <file>../img/action-skip.svg</file>
         <file>../img/action-first.png</file>
         <file>../img/action-last.png</file>
         <file>../img/action-next.png</file>
+        <file>../img/action-page.png</file>
         <file>../img/action-previous.png</file>
         <file>../img/badge-disliked-you.svg</file>
         <file>../img/badge-favorite.svg</file>

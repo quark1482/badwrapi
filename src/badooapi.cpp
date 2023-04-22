@@ -11,17 +11,23 @@ BadooMessageNameHash bmnhMessages={
     {CLIENT_LOGIN_FAILURE,"form_failure"},
     {SERVER_SEARCH_LOCATIONS,QStringLiteral("server_search_locations")},
     {CLIENT_LOCATIONS,QStringLiteral("client_locations")},
+    {SERVER_REMOVE_PERSON_FROM_FOLDER,QStringLiteral("server_folder_action")},
+    {SERVER_ADD_PERSON_TO_FOLDER,QStringLiteral("server_folder_action")},
     {SERVER_ENCOUNTERS_VOTE,QStringLiteral("server_encounters_vote")},
     {CLIENT_ENCOUNTERS_VOTE,QStringLiteral("client_vote_response")},
     {SERVER_GET_ENCOUNTERS,QStringLiteral("server_get_encounters")},
     {CLIENT_NO_MORE_ENCOUNTERS,QStringLiteral("no_more_search_results")},
     {CLIENT_ENCOUNTERS,QStringLiteral("client_encounters")},
+    {CLIENT_PERSON_NOTICE,QStringLiteral("person_notice")},
     {SERVER_GET_USER_LIST,QStringLiteral("server_get_user_list")},
     {CLIENT_USER_LIST,QStringLiteral("client_user_list")},
     {SERVER_GET_CAPTCHA,QStringLiteral("server_get_captcha")},
     {CLIENT_GET_CAPTCHA,QStringLiteral("client_get_captcha")},
     {SERVER_CAPTCHA_ATTEMPT,QStringLiteral("server_captcha_attempt")},
     {CLIENT_CAPTCHA_ATTEMPT,QStringLiteral("client_captcha_attempt")},
+    {CLIENT_ACKNOWLEDGE_COMMAND,""},
+    {SERVER_GET_USER,QStringLiteral("server_get_user")},
+    {CLIENT_USER,QStringLiteral("user")},
     {SERVER_GET_SEARCH_SETTINGS,QStringLiteral("server_get_search_settings")},
     {SERVER_SAVE_SEARCH_SETTINGS,"server_save_search_settings"},
     {CLIENT_SEARCH_SETTINGS,QStringLiteral("client_search_settings")},
@@ -366,6 +372,28 @@ bool BadooAPI::searchListSectionIdByType(QString              sSessionId,
     return bResult;
 }
 
+bool BadooAPI::sendAddPersonToFolder(QString         sSessionId,
+                                     QString         sUserId,
+                                     BadooFolderType bftFolder,
+                                     BadooAPIError   &baeError) {
+    bool        bResult=false;
+    QJsonObject jsnMessage,
+                jsnResponse;
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("person_id"),sUserId);
+    jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
+    const BadooMessagePair bmpMessage={SERVER_ADD_PERSON_TO_FOLDER,CLIENT_ACKNOWLEDGE_COMMAND};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError))
+        // Ignores the response (simple acknowledge) if no error found.
+        bResult=true;
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
 bool BadooAPI::sendCAPTCHAAttempt(QString       sSessionId,
                                   QString       sCAPTCHAId,
                                   QString       sCAPTCHAURL,
@@ -554,6 +582,43 @@ bool BadooAPI::sendGetSearchSettings(QString                  sSessionId,
     return bResult;
 }
 
+bool BadooAPI::sendGetUser(QString          sSessionId,
+                           QString          sUserId,
+                           BadooUserProfile &bupUser,
+                           BadooAPIError    &baeError) {
+    bool        bResult=false;
+    QJsonObject jsnMessage,
+                jsnResponse,
+                jsnFieldFilter;
+    QJsonArray  jsnProjection,
+                jsnAlbums;
+    clearUserProfile(bupUser);
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("user_id"),sUserId);
+    for(const auto &f:buflProjection)
+        jsnProjection.append(f);
+    jsnFieldFilter.insert(QStringLiteral("projection"),jsnProjection);
+    for(const auto &t:batlAlbums) {
+        QJsonObject jsnObj;
+        jsnObj.insert(QStringLiteral("album_type"),t);
+        jsnAlbums.append(jsnObj);
+    }
+    jsnFieldFilter.insert(QStringLiteral("request_albums"),jsnAlbums);
+    jsnMessage.insert(QStringLiteral("user_field_filter"),jsnFieldFilter);
+    jsnMessage.insert(QStringLiteral("client_source"),0);
+    const BadooMessagePair bmpMessage={SERVER_GET_USER,CLIENT_USER};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+        parseUserProfile(jsnResponse,bupUser);
+        bResult=true;
+    }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
 bool BadooAPI::sendGetUserList(QString              sSessionId,
                                BadooListFilterList  blflListFilter,
                                BadooFolderType      bftFolder,
@@ -655,6 +720,28 @@ bool BadooAPI::sendLogin(QString       sSessionId,
             parseFailure(bmrhResponses.value(CLIENT_LOGIN_FAILURE),baeError.sErrorMessage);
         bResult=!sNewSessionId.isEmpty();
     }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
+bool BadooAPI::sendRemovePersonFromFolder(QString         sSessionId,
+                                          QString         sUserId,
+                                          BadooFolderType bftFolder,
+                                          BadooAPIError   &baeError) {
+    bool        bResult=false;
+    QJsonObject jsnMessage,
+                jsnResponse;
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("person_id"),sUserId);
+    jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
+    const BadooMessagePair bmpMessage={SERVER_REMOVE_PERSON_FROM_FOLDER,CLIENT_PERSON_NOTICE};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError))
+        // Ignores the response since it does not seem to contain anything useful.
+        bResult=true;
     if(!bResult) {
         if(noError(baeError))
             baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);

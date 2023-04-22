@@ -24,6 +24,7 @@ private slots:
     void dialogBrowseFolderDestroyed();
     void dialogEncountersDestroyed();
     void menuBrowseFolderTriggered(bool);
+    void menuBrowseProfileTriggered(bool);
     void menuEncountersTriggered(bool);
     void menuLoginTriggered(bool);
     void menuLogoutTriggered(bool);
@@ -32,13 +33,18 @@ private slots:
     void wrapperStatusChanged(QString);
 private:
     Ui::MainWindow       *ui;
-    BrowseFolderDialog   *dlgBrowseLikes,
+    BrowseFolderDialog   *dlgBrowseCustom,
+                         *dlgBrowseFavorites,
+                         *dlgBrowseLikes,
                          *dlgBrowseMatches,
-                         *dlgBrowsePeopleNearby;
+                         *dlgBrowsePeopleNearby,
+                         *dlgBrowseVisitors;
     PlayEncountersDialog *dlgEncounters;
     QMdiArea             mdiArea;
     BadooWrapper         bwMain;
     bool anyChildrenActive();
+    bool getCustomFolderParameters(BadooFolderType &,BadooListSectionType &);
+    void showCustomProfile(QString);
     void showSettings(BadooSettingsContextType);
 };
 #endif // MAINWINDOW_H

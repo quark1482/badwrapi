@@ -2,7 +2,8 @@
 
 MediaControls::MediaControls(QWidget         *wgtParent,
                              bool            bIncludeVideoButtons,
-                             Qt::Orientation ornOrientation):QWidget(wgtParent) {
+                             Qt::Orientation ornOrientation):
+QWidget(wgtParent) {
     QLayout *layLayout;
     rButtonSizeRatio=1.0;
     alnHAlignment=Qt::AlignmentFlag::AlignHCenter;
@@ -52,42 +53,44 @@ MediaControls::MediaControls(QWidget         *wgtParent,
     this->resetVisualStatus();
     this->setPauseButtonState(false);
     this->setMuteButtonState(false);
-    connect(
-        &btnFirst,
-        &QPushButton::clicked,
-        this,
-        &MediaControls::firstButtonClicked
-    );
-    connect(
-        &btnPrevious,
-        &QPushButton::clicked,
-        this,
-        &MediaControls::previousButtonClicked
-    );
-    connect(
-        &btnNext,
-        &QPushButton::clicked,
-        this,
-        &MediaControls::nextButtonClicked
-    );
-    connect(
-        &btnLast,
-        &QPushButton::clicked,
-        this,
-        &MediaControls::lastButtonClicked
-    );
-    connect(
-        &btnPause,
-        &QPushButton::clicked,
-        this,
-        &MediaControls::pauseButtonClicked
-    );
-    connect(
-        &btnMute,
-        &QPushButton::clicked,
-        this,
-        &MediaControls::muteButtonClicked
-    );
+    do {
+        connect(
+            &btnFirst,
+            &QPushButton::clicked,
+            this,
+            &MediaControls::firstButtonClicked
+        );
+        connect(
+            &btnPrevious,
+            &QPushButton::clicked,
+            this,
+            &MediaControls::previousButtonClicked
+        );
+        connect(
+            &btnNext,
+            &QPushButton::clicked,
+            this,
+            &MediaControls::nextButtonClicked
+        );
+        connect(
+            &btnLast,
+            &QPushButton::clicked,
+            this,
+            &MediaControls::lastButtonClicked
+        );
+        connect(
+            &btnPause,
+            &QPushButton::clicked,
+            this,
+            &MediaControls::pauseButtonClicked
+        );
+        connect(
+            &btnMute,
+            &QPushButton::clicked,
+            this,
+            &MediaControls::muteButtonClicked
+        );
+    } while(false);
 }
 
 void MediaControls::resizeEvent(QResizeEvent *) {

@@ -7,7 +7,8 @@
 #define SEPARATOR_WIDTH 10 // Empty space the profiles are separated with.
 
 FolderViewer::FolderViewer(BadooWrapper *bwParent,
-                           QWidget      *wgtParent):QWidget(wgtParent) {
+                           QWidget      *wgtParent):
+QWidget(wgtParent) {
     bwFolder=bwParent;
     buplPageDetails.clear();
     mchPagePhotos.clear();
@@ -24,6 +25,11 @@ FolderViewer::FolderViewer(BadooWrapper *bwParent,
         QStringLiteral("Previous page")
     );
     this->configurePageButton(
+        &btnPage,
+        QStringLiteral(":img/action-page.png"),
+        QStringLiteral("Go to page")
+    );
+    this->configurePageButton(
         &btnNext,
         QStringLiteral(":img/action-next.png"),
         QStringLiteral("Next page")
@@ -37,6 +43,7 @@ FolderViewer::FolderViewer(BadooWrapper *bwParent,
     hblLayout.addStretch();
     hblLayout.addWidget(&btnFirst);
     hblLayout.addWidget(&btnPrevious);
+    hblLayout.addWidget(&btnPage);
     hblLayout.addWidget(&btnNext);
     hblLayout.addWidget(&btnLast);
     grvView.setAlignment(Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop);
@@ -50,30 +57,38 @@ FolderViewer::FolderViewer(BadooWrapper *bwParent,
     vblLayout.addWidget(&grvView);
     vblLayout.addLayout(&hblLayout);
     this->setLayout(&vblLayout);
-    connect(
-        &btnFirst,
-        &QPushButton::clicked,
-        this,
-        &FolderViewer::firstButtonClicked
-    );
-    connect(
-        &btnPrevious,
-        &QPushButton::clicked,
-        this,
-        &FolderViewer::previousButtonClicked
-    );
-    connect(
-        &btnNext,
-        &QPushButton::clicked,
-        this,
-        &FolderViewer::nextButtonClicked
-    );
-    connect(
-        &btnLast,
-        &QPushButton::clicked,
-        this,
-        &FolderViewer::lastButtonClicked
-    );
+    do {
+        connect(
+            &btnFirst,
+            &QPushButton::clicked,
+            this,
+            &FolderViewer::firstButtonClicked
+        );
+        connect(
+            &btnPrevious,
+            &QPushButton::clicked,
+            this,
+            &FolderViewer::previousButtonClicked
+        );
+        connect(
+            &btnPage,
+            &QPushButton::clicked,
+            this,
+            &FolderViewer::pageButtonClicked
+        );
+        connect(
+            &btnNext,
+            &QPushButton::clicked,
+            this,
+            &FolderViewer::nextButtonClicked
+        );
+        connect(
+            &btnLast,
+            &QPushButton::clicked,
+            this,
+            &FolderViewer::lastButtonClicked
+        );
+    } while(false);
 }
 
 bool FolderViewer::eventFilter(QObject *objO,
@@ -119,6 +134,11 @@ void FolderViewer::firstButtonClicked() {
 void FolderViewer::previousButtonClicked() {
     if(buplPageDetails.count())
         emit buttonClicked(FOLDER_VIEWER_BUTTON_PREVIOUS);
+}
+
+void FolderViewer::pageButtonClicked() {
+    if(buplPageDetails.count())
+        emit buttonClicked(FOLDER_VIEWER_BUTTON_PAGE);
 }
 
 void FolderViewer::nextButtonClicked() {
@@ -190,15 +210,20 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                             bUpdateProfile=true;
                         }
                         else
-                            sMessage=QStringLiteral("Already at page's first profile");
+                            sMessage=QStringLiteral("Already at this page's first profile");
                     break;
                 case PROFILE_VIEWER_BUTTON_NOPE:
-                    // ToDo: remove profile from the page, if required.
+                    // ToDo: (optional) remove profile from the page, if required.
                     buplPageDetails[iIndex].bvMyVote=VOTE_NO;
                     bUpdateProfile=true;
                     break;
+                case PROFILE_VIEWER_BUTTON_FAVORITE:
+                    buplPageDetails[iIndex].bIsFavorite=!buplPageDetails[iIndex].bIsFavorite;
+                    bUpdateProfile=true;
+                    bUpdatePage=true;
+                    break;
                 case PROFILE_VIEWER_BUTTON_LIKE:
-                    // ToDo: remove profile from the page, if required.
+                    // ToDo: (optional) remove profile from the page, if required.
                     buplPageDetails[iIndex].bvMyVote=VOTE_YES;
                     bUpdateProfile=true;
                     if(VOTE_YES==buplPageDetails.at(iIndex).bvTheirVote) {
@@ -213,7 +238,7 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                             bUpdateProfile=true;
                         }
                         else
-                            sMessage=QStringLiteral("Already at page's last profile");
+                            sMessage=QStringLiteral("Already at this page's last profile");
                     break;
             }
             if(sMessage.isEmpty())
