@@ -13,8 +13,9 @@ Features
 * Plays the "Encounters" game, displaying the -complete- profiles.
 * Allows you to "skip" profiles, for later.
 * Shows every other section, "People nearby", "Favorites", "Visitors", etc.
-* Reveal people in the "Liked you" section.
+* Reveals people in the "Liked you" section.
 * Shows a special profile badge for people that have already voted you.
+* Makes you anonymous, no matter if the visited profiles have super-powers.
 * Downloads profiles in self-contained single HTML files.
 
 

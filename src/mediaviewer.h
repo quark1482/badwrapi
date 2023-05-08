@@ -18,6 +18,7 @@ class MediaViewer:public QWidget {
     Q_OBJECT
 public:
     MediaViewer(MediaType=MEDIA_TYPE_PHOTO,QWidget * =nullptr);
+    ~MediaViewer();
     static void getFrame(QByteArray,QPixmap &,qreal=0.5);
     qint64      getPosition();
     void        loadVideo(QByteArray);

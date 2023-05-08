@@ -17,6 +17,7 @@ class FolderViewer:public QWidget {
 public:
     FolderViewer(BadooWrapper *,QWidget * =nullptr);
     void load(BadooUserProfileList,MediaContentsHash,MediaContentsHash);
+    void setFolderType(FolderType);
     void setPageTitle(QString);
 protected:
     bool eventFilter(QObject *,QEvent *) override;
@@ -43,6 +44,7 @@ private:
     BadooUserProfileList buplPageDetails;
     MediaContentsHash    mchPagePhotos,
                          mchPageVideos;
+    FolderType           ftType;
     void configurePageButton(QPushButton *,QString,QString);
     void resetPageWidgets();
     void showStandaloneProfile(int);

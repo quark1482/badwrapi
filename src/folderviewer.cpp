@@ -13,6 +13,7 @@ QWidget(wgtParent) {
     buplPageDetails.clear();
     mchPagePhotos.clear();
     mchPageVideos.clear();
+    ftType=FOLDER_TYPE_UNKNOWN;
     BadooAPI::getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
     this->configurePageButton(
         &btnFirst,
@@ -122,6 +123,10 @@ void FolderViewer::load(BadooUserProfileList buplPage,
     this->resetPageWidgets();
 }
 
+void FolderViewer::setFolderType(FolderType ftNew) {
+    ftType=ftNew;
+}
+
 void FolderViewer::setPageTitle(QString sTitle) {
     lblPageTitle.setText(sTitle);
 }
@@ -182,6 +187,8 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
     dlgProfile->setLayout(vblProfile);
     dlgProfile->setWindowFlag(Qt::WindowType::WindowMinMaxButtonsHint);
     dlgProfile->setWindowTitle(QStringLiteral("View profile"));
+    if(FOLDER_TYPE_LIKES==ftType)
+        pvProfile->setActiveActionButtons(~PROFILE_VIEWER_BUTTON_FAVORITE);
     pvProfile->load(
         buplPageDetails.at(iIndex),
         mchPagePhotos.value(buplPageDetails.at(iIndex).sUserId),

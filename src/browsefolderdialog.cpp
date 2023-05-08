@@ -283,5 +283,6 @@ void BrowseFolderDialog::showCurrentPage() {
         mchPhotoContents,
         mchVideoContents
     );
+    fvCurrentPage->setFolderType(ftBrowse);
     fvCurrentPage->setPageTitle(sPageTitle);
 }

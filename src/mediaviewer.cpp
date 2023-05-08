@@ -1,7 +1,7 @@
 #include "mediaviewer.h"
 
 MediaViewer::MediaViewer(MediaType mtNew,
-                         QWidget *wgtParent):
+                         QWidget   *wgtParent):
 QWidget(wgtParent) {
     bAutoHideOverlay=false;
     wgtOverlay=nullptr;
@@ -34,6 +34,10 @@ QWidget(wgtParent) {
     this->setWindowModality(Qt::WindowModality::ApplicationModal);
 }
 
+MediaViewer::~MediaViewer() {
+    this->stopVideo();
+}
+
 void MediaViewer::keyPressEvent(QKeyEvent *evnE) {
     emit keyPress(evnE->key());
     evnE->accept();
@@ -61,12 +65,14 @@ void MediaViewer::getFrame(QByteArray abtContent,
     rPosition=fabs(rPosition);
     if(rPosition>1)
         rPosition=QRandomGenerator::global()->generateDouble();
+    // Gives enough time to the QVideoSink object, so the ...
+    // ... videoFrameChanged() signal is certainly emitted.
+    mpPlayer.setLoops(QMediaPlayer::Loops::Infinite);
     mpPlayer.setVideoSink(&vskSink);
     bufSource.setBuffer(&abtContent);
     if(bufSource.open(QBuffer::OpenModeFlag::ReadOnly)) {
         i64Position=0;
         mpPlayer.setSourceDevice(&bufSource);
-        bufSource.seek(0);
         if(QMediaPlayer::Error::NoError==mpPlayer.error()) {
             QObject::connect(
                 &mpPlayer,
@@ -126,10 +132,8 @@ void MediaViewer::loadVideo(QByteArray abtContent) {
         if(!abtContent.isNull()) {
             abtMedia=abtContent;
             bufVideo.setBuffer(&abtMedia);
-            if(bufVideo.open(QBuffer::OpenModeFlag::ReadOnly)) {
+            if(bufVideo.open(QBuffer::OpenModeFlag::ReadOnly))
                 mpPlayer.setSourceDevice(&bufVideo);
-                bufVideo.seek(0);
-            }
         }
     }
 }
@@ -150,18 +154,21 @@ void MediaViewer::playVideo() {
                 // ... out the video playing status.
                 if(QMediaPlayer::MediaStatus::BufferedMedia==mpPlayer.mediaStatus())
                     mpPlayer.play();
+                else if(QMediaPlayer::MediaStatus::LoadedMedia==mpPlayer.mediaStatus())
+                    mpPlayer.play();
                 else {
                     QEventLoop evlLoop;
                     auto c1=QObject::connect(
                         &mpPlayer,
                         &QMediaPlayer::mediaStatusChanged,
                         [&](QMediaPlayer::MediaStatus mpmsStatus) {
-                            if(QMediaPlayer::MediaStatus::BufferedMedia==mpmsStatus)
-                                evlLoop.exit();
-                            else if(QMediaPlayer::MediaStatus::StalledMedia==mpmsStatus)
-                                evlLoop.exit();
-                            else if(QMediaPlayer::MediaStatus::InvalidMedia==mpmsStatus)
-                                evlLoop.exit();
+                            switch(mpmsStatus) {
+                                case QMediaPlayer::MediaStatus::BufferingMedia:
+                                case QMediaPlayer::MediaStatus::LoadingMedia:
+                                    break;
+                                default:
+                                    evlLoop.exit();
+                            }
                         }
                     );
                     auto c2=QObject::connect(
@@ -175,6 +182,22 @@ void MediaViewer::playVideo() {
                     evlLoop.exec(QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents);
                     QObject::disconnect(c1);
                     QObject::disconnect(c2);
+                    // Blocks the UI until the first frame of the video has been shown ...
+                    // ... in the associated QGraphicsVideoItem, and avoids showing an ...
+                    // ... empty pixmap if the video is paused at the very beginning.
+                    // I'm not fully sure, but it's probable that the following block ...
+                    // ... is the only thing required after a simple mpPlayer.play().
+                    if(QMediaPlayer::PlaybackState::PlayingState==mpPlayer.playbackState()) {
+                        auto c=QObject::connect(
+                            mpPlayer.videoSink(),
+                            &QVideoSink::videoFrameChanged,
+                            [&](const QVideoFrame &) {
+                                evlLoop.exit();
+                            }
+                        );
+                        evlLoop.exec(QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents);
+                        QObject::disconnect(c);
+                    }
                 }
             }
     }
