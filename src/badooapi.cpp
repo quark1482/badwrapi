@@ -215,15 +215,13 @@ void BadooAPI::getFullFileContents(QString    sPath,
     }
 }
 
-bool BadooAPI::getPreLoginParameters(QString &sAnonSessionId,
-                                     QString &sDeviceId,
+bool BadooAPI::getPreLoginParameters(QString &sDeviceId,
                                      QString &sError) {
     bool           bResult=false;
     uint           uiResCode;
     QString        sContentType;
     QByteArray     abtResponse;
     RawHeadersHash rhhHeaders;
-    sAnonSessionId.clear();
     sDeviceId.clear();
     sError.clear();
     HTTPRequest::get(
@@ -236,7 +234,7 @@ bool BadooAPI::getPreLoginParameters(QString &sAnonSessionId,
         sError
     );
     sContentType=rhhHeaders.value(QStringLiteral("content-type").toUtf8());
-    // Searches for a Device Id and a temporary Session Id in the returned cookies.
+    // Searches for a Device Id in the returned cookies.
     if(rhhHeaders.contains(QStringLiteral("set-cookie").toUtf8())) {
         QList<QNetworkCookie> nclCookies=QNetworkCookie::parseCookies(
             rhhHeaders.value(QStringLiteral("set-cookie").toUtf8())
@@ -245,17 +243,14 @@ bool BadooAPI::getPreLoginParameters(QString &sAnonSessionId,
             if(!c.name().compare(
                 QStringLiteral("device_id").toUtf8(),
                 Qt::CaseSensitivity::CaseInsensitive
-            ))
+            )) {
                 sDeviceId=QByteArray::fromPercentEncoding(c.value());
-            else if(!c.name().compare(
-                QStringLiteral("session").toUtf8(),
-                Qt::CaseSensitivity::CaseInsensitive
-            ))
-                sAnonSessionId=QByteArray::fromPercentEncoding(c.value());
+                break;
+            }
     }
     if(HTTP_STATUS_OK==uiResCode)
         if(sContentType.startsWith(QStringLiteral(HTTP_HEADER_CONTENT_TYPE_HTML)))
-            bResult=!sDeviceId.isEmpty()&&!sAnonSessionId.isEmpty();
+            bResult=!sDeviceId.isEmpty();
         else
             sError=QStringLiteral("Unexpected content type: %1").
                    arg(sContentType);
@@ -337,15 +332,16 @@ bool BadooAPI::searchListSectionIdByType(QString              sSessionId,
                                          QString              &sSectionId,
                                          QString              &sSectionName,
                                          BadooAPIError        &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
     sSectionId.clear();
     sSectionName.clear();
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
     const BadooMessagePair bmpMessage={SERVER_GET_USER_LIST,CLIENT_USER_LIST};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         if(jsnResponse.value(QStringLiteral("section")).isArray()) {
             QJsonObject jsnObj;
             QJsonArray  jsnSection;
@@ -376,14 +372,15 @@ bool BadooAPI::sendAddPersonToFolder(QString         sSessionId,
                                      QString         sUserId,
                                      BadooFolderType bftFolder,
                                      BadooAPIError   &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("person_id"),sUserId);
     jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
     const BadooMessagePair bmpMessage={SERVER_ADD_PERSON_TO_FOLDER,CLIENT_ACKNOWLEDGE_COMMAND};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError))
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
         // Ignores the response (simple acknowledge) if no error found.
         bResult=true;
     if(!bResult) {
@@ -400,16 +397,17 @@ bool BadooAPI::sendCAPTCHAAttempt(QString       sSessionId,
                                   QString       sAnswer,
                                   bool          &bSuccess,
                                   BadooAPIError &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
     bSuccess=false;
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("uid"),sCAPTCHAId);
     jsnMessage.insert(QStringLiteral("image_id"),sCAPTCHAURL);
     jsnMessage.insert(QStringLiteral("answer"),sAnswer);
     const BadooMessagePair bmpMessage={SERVER_CAPTCHA_ATTEMPT,CLIENT_CAPTCHA_ATTEMPT};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         if(jsnResponse.value(QStringLiteral("success")).isBool()) {
             bSuccess=jsnResponse.value(QStringLiteral("success")).toBool();
             bResult=true;
@@ -428,9 +426,10 @@ bool BadooAPI::sendEncountersVote(QString       sSessionId,
                                   bool          bLike,
                                   bool          &bMatch,
                                   BadooAPIError &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
     bMatch=false;
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("person_id"),sUserId);
@@ -440,7 +439,7 @@ bool BadooAPI::sendEncountersVote(QString       sSessionId,
     // Voting again is possible, but doesn't do anything (most probably reserved to premium access).
     // Voting for profiles from another country is also possible, but doesn't do anything either.
     // Voting for local profiles with restricted game settings (age, etc.) IS possible.
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         // Ignores over-parsing the response because at this point, it's safe to assume ...
         // ... that the vote was successfully registered (see VOTE_ enums for exceptions) ...
         // ... and only checks for the match condition.
@@ -460,16 +459,17 @@ bool BadooAPI::sendGetCAPTCHA(QString       sSessionId,
                               QString       sCAPTCHAId,
                               QString       &sCAPTCHAURL,
                               BadooAPIError &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
     sCAPTCHAURL.clear();
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("uid"),sCAPTCHAId);
     jsnMessage.insert(QStringLiteral("force_new"),true);
     jsnMessage.insert(QStringLiteral("context"),0);
     const BadooMessagePair bmpMessage={SERVER_GET_CAPTCHA,CLIENT_GET_CAPTCHA};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         if(jsnResponse.value(QStringLiteral("captcha")).isObject()) {
             QJsonObject jsnObj=jsnResponse.value(QStringLiteral("captcha")).toObject();
             sCAPTCHAURL=jsnObj.value(QStringLiteral("image_id")).toString();
@@ -494,6 +494,7 @@ bool BadooAPI::sendGetEncounters(QString              sSessionId,
                              jsnFieldFilter;
     QJsonArray               jsnProjection,
                              jsnAlbums;
+    RawHeadersHash           rhhHeaders;
     BadooMessageResponseHash bmrhResponses;
     buplUsers.clear();
     clearError(baeError);
@@ -510,7 +511,7 @@ bool BadooAPI::sendGetEncounters(QString              sSessionId,
     }
     jsnFieldFilter.insert(QStringLiteral("request_albums"),jsnAlbums);
     jsnMessage.insert(QStringLiteral("user_field_filter"),jsnFieldFilter);
-    if(getResponse(SERVER_GET_ENCOUNTERS,sSessionId,jsnMessage,bmrhResponses,baeError)) {
+    if(getResponse(SERVER_GET_ENCOUNTERS,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
         if(bmrhResponses.contains(CLIENT_ENCOUNTERS)) {
             if(bmrhResponses.value(CLIENT_ENCOUNTERS).value(QStringLiteral("results")).isArray()) {
                 QJsonObject      jsnUser;
@@ -547,9 +548,10 @@ bool BadooAPI::sendGetSearchSettings(QString                  sSessionId,
                                      BadooStrKeyStrValueHash  &bsksvhDistanceHash,
                                      BadooIntKeyStrValueHash  &biksvhIntentHash,
                                      BadooAPIError            &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
     clearSearchSettings(bssSettings);
     birAgeRange.first=0;
     birAgeRange.second=0;
@@ -560,7 +562,7 @@ bool BadooAPI::sendGetSearchSettings(QString                  sSessionId,
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("context_type"),bsctContext);
     const BadooMessagePair bmpMessage={SERVER_GET_SEARCH_SETTINGS,CLIENT_SEARCH_SETTINGS};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         // Depending on the supplied settings context type, the returned search settings struct ...
         // ... will have either the 'distance away' or the 'distance code' field values filled ...
         // ... and the other set to its default (zero or an empty string)
@@ -586,12 +588,13 @@ bool BadooAPI::sendGetUser(QString          sSessionId,
                            QString          sUserId,
                            BadooUserProfile &bupUser,
                            BadooAPIError    &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse,
-                jsnFieldFilter;
-    QJsonArray  jsnProjection,
-                jsnAlbums;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse,
+                   jsnFieldFilter;
+    QJsonArray     jsnProjection,
+                   jsnAlbums;
+    RawHeadersHash rhhHeaders;
     clearUserProfile(bupUser);
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("user_id"),sUserId);
@@ -607,7 +610,7 @@ bool BadooAPI::sendGetUser(QString          sSessionId,
     jsnMessage.insert(QStringLiteral("user_field_filter"),jsnFieldFilter);
     jsnMessage.insert(QStringLiteral("client_source"),0);
     const BadooMessagePair bmpMessage={SERVER_GET_USER,CLIENT_USER};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         parseUserProfile(jsnResponse,bupUser);
         bResult=true;
     }
@@ -628,13 +631,14 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
                                BadooUserProfileList &buplUsers,
                                int                  &iTotal,
                                BadooAPIError        &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse,
-                jsnFieldFilter;
-    QJsonArray  jsnProjection,
-                jsnAlbums,
-                jsnListFilter;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse,
+                   jsnFieldFilter;
+    QJsonArray     jsnProjection,
+                   jsnAlbums,
+                   jsnListFilter;
+    RawHeadersHash rhhHeaders;
     buplUsers.clear();
     iTotal=0;
     clearError(baeError);
@@ -657,7 +661,7 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
         jsnListFilter.append(f);
     jsnMessage.insert(QStringLiteral("filter"),jsnListFilter);
     const BadooMessagePair bmpMessage={SERVER_GET_USER_LIST,CLIENT_USER_LIST};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         if(jsnResponse.value(QStringLiteral("total_count")).isDouble()) {
             if(jsnResponse.value(QStringLiteral("section")).isArray()) {
                 QJsonObject      jsnSection;
@@ -707,15 +711,33 @@ bool BadooAPI::sendLogin(QString       sSessionId,
                          BadooAPIError &baeError) {
     bool                     bResult=false;
     QJsonObject              jsnMessage;
+    RawHeadersHash           rhhHeaders;
     BadooMessageResponseHash bmrhResponses;
     sNewSessionId.clear();
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("user"),sUsername);
     jsnMessage.insert(QStringLiteral("password"),sPassword);
     jsnMessage.insert(QStringLiteral("remember_me"),true);
-    if(getResponse(SERVER_LOGIN_BY_PASSWORD,sSessionId,jsnMessage,bmrhResponses,baeError)) {
-        if(bmrhResponses.contains(CLIENT_LOGIN_SUCCESS))
+    if(getResponse(SERVER_LOGIN_BY_PASSWORD,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
+        if(bmrhResponses.contains(CLIENT_LOGIN_SUCCESS)) {
             sNewSessionId=bmrhResponses.value(CLIENT_LOGIN_SUCCESS).value(QStringLiteral("session_id")).toString();
+            if(sNewSessionId.isEmpty()) {
+                // Searches for the authenticated Session Id in the returned cookies.
+                if(rhhHeaders.contains(QStringLiteral("set-cookie").toUtf8())) {
+                    QList<QNetworkCookie> nclCookies=QNetworkCookie::parseCookies(
+                        rhhHeaders.value(QStringLiteral("set-cookie").toUtf8())
+                    );
+                    for(const auto &c:nclCookies)
+                        if(!c.name().compare(
+                            QStringLiteral("session").toUtf8(),
+                            Qt::CaseSensitivity::CaseInsensitive
+                        )) {
+                            sNewSessionId=QByteArray::fromPercentEncoding(c.value());
+                            break;
+                        }
+                }
+            }
+        }
         else if(bmrhResponses.contains(CLIENT_LOGIN_FAILURE))
             parseFailure(bmrhResponses.value(CLIENT_LOGIN_FAILURE),baeError.sErrorMessage);
         bResult=!sNewSessionId.isEmpty();
@@ -732,14 +754,15 @@ bool BadooAPI::sendRemovePersonFromFolder(QString         sSessionId,
                                           QString         sUserId,
                                           BadooFolderType bftFolder,
                                           BadooAPIError   &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("person_id"),sUserId);
     jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
     const BadooMessagePair bmpMessage={SERVER_REMOVE_PERSON_FROM_FOLDER,CLIENT_PERSON_NOTICE};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError))
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
         // Ignores the response since it does not seem to contain anything useful.
         bResult=true;
     if(!bResult) {
@@ -764,6 +787,7 @@ bool BadooAPI::sendSaveSearchSettings(QString                  sSessionId,
                              jsnAge,
                              jsnDistance;
     QJsonArray               jsnGender;
+    RawHeadersHash           rhhHeaders;
     BadooMessageResponseHash bmrhResponses;
     birAgeRange.first=0;
     birAgeRange.second=0;
@@ -792,7 +816,7 @@ bool BadooAPI::sendSaveSearchSettings(QString                  sSessionId,
     jsnSettings.insert(QStringLiteral("distance"),jsnDistance);
     jsnSettings.insert(QStringLiteral("tiw_phrase_id"),bssSettings.iOwnIntentId);
     jsnMessage.insert(QStringLiteral("settings"),jsnSettings);
-    if(getResponse(SERVER_SAVE_SEARCH_SETTINGS,sSessionId,jsnMessage,bmrhResponses,baeError)) {
+    if(getResponse(SERVER_SAVE_SEARCH_SETTINGS,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
         if(bmrhResponses.contains(CLIENT_SEARCH_SETTINGS)) {
             // A copy of the saved settings is returned here. The supplied search settings ...
             // ... struct is updated (just to be sure) along with the ranges and hash tables.
@@ -821,16 +845,17 @@ bool BadooAPI::sendSearchLocations(QString                 sSessionId,
                                    QString                 sQuery,
                                    BadooSearchLocationList &bsllLocations,
                                    BadooAPIError           &baeError) {
-    bool        bResult=false;
-    QJsonObject jsnMessage,
-                jsnResponse;
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
     bsllLocations.clear();
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("query"),sQuery);
     // There is a query modifier boolean field named 'with_countries' which makes ...
     // ... the response include full countries as well. It's not worth the attention.
     const BadooMessagePair bmpMessage={SERVER_SEARCH_LOCATIONS,CLIENT_LOCATIONS};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,jsnResponse,baeError)) {
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         if(jsnResponse.value(QStringLiteral("locations")).isArray()) {
             QJsonArray jsnLocations=jsnResponse.value(QStringLiteral("locations")).toArray();
             for(const auto &l:qAsConst(jsnLocations))
@@ -906,8 +931,8 @@ bool BadooAPI::sendSearchLocations(QString                 sSessionId,
     return bResult;
 }
 
-bool BadooAPI::sendStartup(QString          sSessionId,
-                           QString          sDeviceId,
+bool BadooAPI::sendStartup(QString          sDeviceId,
+                           QString          &sSessionId,
                            QString          &sAccountId,
                            BadooUserProfile &bupUser,
                            BadooAPIError    &baeError) {
@@ -917,16 +942,17 @@ bool BadooAPI::sendStartup(QString          sSessionId,
     QJsonArray               jsnFeatures,
                              jsnMinorFeatures,
                              jsnProjection;
+    RawHeadersHash           rhhHeaders;
     BadooMessageResponseHash bmrhResponses;
     sAccountId.clear();
     clearUserProfile(bupUser);
     clearError(baeError);
-    jsnMessage.insert(QStringLiteral("app_build"),QStringLiteral("Badoo"));
-    jsnMessage.insert(QStringLiteral("app_name"),QStringLiteral("hotornot"));
+    jsnMessage.insert(QStringLiteral("app_build"),QStringLiteral("Webapp"));
+    jsnMessage.insert(QStringLiteral("app_name"),QStringLiteral("BMA/Webapp"));
     jsnMessage.insert(QStringLiteral("app_version"),QStringLiteral("1.0.00"));
     jsnMessage.insert(QStringLiteral("user_agent"),QString());
-    jsnMessage.insert(QStringLiteral("screen_width"),1280);
-    jsnMessage.insert(QStringLiteral("screen_height"),720);
+    jsnMessage.insert(QStringLiteral("screen_width"),0);
+    jsnMessage.insert(QStringLiteral("screen_height"),0);
     jsnMessage.insert(QStringLiteral("language"),0);
     for(const auto &f:bftlFeatures)
         jsnFeatures.append(f);
@@ -938,10 +964,12 @@ bool BadooAPI::sendStartup(QString          sSessionId,
         jsnProjection.append(f);
     jsnFieldFilter.insert(QStringLiteral("projection"),jsnProjection);
     jsnMessage.insert(QStringLiteral("user_field_filter_client_login_success"),jsnFieldFilter);
-    jsnMessage.insert(QStringLiteral("device_id"),sDeviceId);
-    if(getResponse(SERVER_APP_STARTUP,sSessionId,jsnMessage,bmrhResponses,baeError)) {
+    jsnMessage.insert(QStringLiteral("open_udid"),sDeviceId);
+    if(getResponse(SERVER_APP_STARTUP,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
         if(bmrhResponses.contains(CLIENT_STARTUP)) {
-            // We don't need anything from this response ATM.
+            // Fills the (anonymous) Session Id at the very beginning.
+            if(sSessionId.isEmpty())
+                sSessionId=bmrhResponses.value(CLIENT_STARTUP).value(QStringLiteral("anonymous_session_id")).toString();
         }
         if(bmrhResponses.contains(CLIENT_LOGIN_SUCCESS)) {
             if(bmrhResponses.value(CLIENT_LOGIN_SUCCESS).value(QStringLiteral("user_info")).isObject())
@@ -1025,17 +1053,19 @@ QString BadooAPI::fixURL(QString sURL) {
 bool BadooAPI::getResponse(BadooMessagePair bmpServerClient,
                            QString          sSessionId,
                            QJsonObject      jsnMessage,
-                           QJsonObject      &jsnResponse,
+                           RawHeadersHash   &rhhHeaders,
+                           QJsonObject      &jsnBody,
                            BadooAPIError    &baeError) {
     bool        bResult=false;
-    QString     sResponse,
+    QString     sBody,
                 sError;
     QJsonObject jsnError;
     while(true) {
-        jsnResponse=QJsonObject();
+        rhhHeaders.clear();
+        jsnBody=QJsonObject();
         clearError(baeError);
-        if(sendMessage(bmpServerClient.first,sSessionId,jsnMessage,sResponse,sError))
-            if(parseResponse(bmpServerClient.second,sResponse,jsnResponse,jsnError,sError)) {
+        if(sendMessage(bmpServerClient.first,sSessionId,jsnMessage,rhhHeaders,sBody,sError))
+            if(parseResponse(bmpServerClient.second,sBody,jsnBody,jsnError,sError)) {
                 if(!jsnError.isEmpty()) {
                     parseError(jsnError,baeError);
                     if(SERVER_ERROR_TYPE_CAPTCHA_REQUIRED==baeError.iErrorCode)
@@ -1058,17 +1088,19 @@ bool BadooAPI::getResponse(BadooMessagePair bmpServerClient,
 bool BadooAPI::getResponse(BadooMessageType         bmtMessage,
                            QString                  sSessionId,
                            QJsonObject              jsnMessage,
-                           BadooMessageResponseHash &bmrhResponses,
+                           RawHeadersHash           &rhhHeaders,
+                           BadooMessageResponseHash &bmrhBody,
                            BadooAPIError            &baeError) {
     bool        bResult=false;
-    QString     sResponse,
+    QString     sBody,
                 sError;
     QJsonObject jsnError;
     while(true) {
-        bmrhResponses.clear();
+        rhhHeaders.clear();
+        bmrhBody.clear();
         clearError(baeError);
-        if(sendMessage(bmtMessage,sSessionId,jsnMessage,sResponse,sError))
-            if(parseResponse(sResponse,bmrhResponses,jsnError,sError)) {
+        if(sendMessage(bmtMessage,sSessionId,jsnMessage,rhhHeaders,sBody,sError))
+            if(parseResponse(sBody,bmrhBody,jsnError,sError)) {
                 if(!jsnError.isEmpty()) {
                     parseError(jsnError,baeError);
                     if(SERVER_ERROR_TYPE_CAPTCHA_REQUIRED==baeError.iErrorCode)
@@ -1511,21 +1543,22 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
 bool BadooAPI::sendMessage(BadooMessageType bmtMessage,
                            QString          sSessionId,
                            QJsonObject      jsnMessage,
-                           QString          &sResponse,
+                           RawHeadersHash   &rhhHeaders,
+                           QString          &sBody,
                            QString          &sError) {
     bool           bResult=false;
     uint           uiResCode;
     QString        sRequest,
                    sSignature,
                    sContentType;
-    QByteArray     abtResponse;
+    QByteArray     abtBody;
     QJsonDocument  jsnDoc;
     QJsonObject    jsnObj,
                    jsnBody;
     QJsonArray     jsnArr;
     QUrl           urlEndPoint;
-    RawHeadersHash rhhHeaders;
-    sResponse.clear();
+    rhhHeaders.clear();
+    sBody.clear();
     sError.clear();
     if(bmnhMessages.contains(bmtMessage)) {
         jsnBody.insert(QStringLiteral("message_type"),bmtMessage);
@@ -1567,14 +1600,14 @@ bool BadooAPI::sendMessage(BadooMessageType bmtMessage,
             },
             {},
             uiResCode,
-            abtResponse,
+            abtBody,
             rhhHeaders,
             sError
         );
         sContentType=rhhHeaders.value(QStringLiteral("content-type").toUtf8());
         if(HTTP_STATUS_OK==uiResCode)
             if(sContentType.startsWith(QStringLiteral(HTTP_HEADER_CONTENT_TYPE_JSON))) {
-                sResponse=abtResponse;
+                sBody=abtBody;
                 bResult=true;
             }
             else

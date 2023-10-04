@@ -922,12 +922,13 @@ bool BadooWrapper::login(QString sUsername,
     BadooUserProfile bupUser;
     BadooAPIError    baeError;
     this->clearSessionDetails();
+    sAnonSessionId.clear();
     sError.clear();
     emit statusChanged(QStringLiteral("Logging in..."));
-    if(BadooAPI::getPreLoginParameters(sAnonSessionId,sDeviceId,sError))
-        if(BadooAPI::sendStartup(sAnonSessionId,sDeviceId,sAccountId,bupUser,baeError))
+    if(BadooAPI::getPreLoginParameters(sDeviceId,sError))
+        if(BadooAPI::sendStartup(sDeviceId,sAnonSessionId,sAccountId,bupUser,baeError))
             if(BadooAPI::sendLogin(sAnonSessionId,sUsername,sPassword,sSessionId,baeError))
-                if(BadooAPI::sendStartup(sSessionId,sDeviceId,sAccountId,bupUser,baeError))
+                if(BadooAPI::sendStartup(sDeviceId,sSessionId,sAccountId,bupUser,baeError))
                     if(BadooAPI::getPostLoginParameters(sSessionId,sResponseToken,sError))
                         bResult=true;
     emit statusChanged(QString());

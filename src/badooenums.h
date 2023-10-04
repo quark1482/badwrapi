@@ -853,7 +853,7 @@ typedef enum {
     BLOCKED=9,
     NEARBY_PEOPLE=10,                        // Tested
     PRIVATE_ALBUM_ACCESS=11,
-    SPOTLIGHT=13,
+    SPOTLIGHT=13,                            // Tested
     MATCHES=15,                              // Tested
     NEARBY_PEOPLE_4=16,                      // Tested (apparently, same as NEARBY_PEOPLE)
     RATED_ME=17,                             // Does not work
