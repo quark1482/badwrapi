@@ -472,6 +472,7 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
                          sSectionName;
     BadooAPIError        baeError;
     BadooListFilterList  blflFilter={};
+    BadooUserProfileList buplProfilesInFolder;
     sError.clear();
     buplProfilesInPage.clear();
     iTotalPagesInFolder=0;
@@ -496,12 +497,24 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
             buplProfilesInPage,
             iTotalProfilesInFolder,
             baeError
-        )) {
-            iTotalPagesInFolder=iTotalProfilesInFolder/iMaxProfilesByPage;
-            if(iTotalProfilesInFolder%iMaxProfilesByPage)
-                iTotalPagesInFolder++;
-            bResult=true;
-        }
+        ))
+            // Makes a second call to get the actual total of profiles in the folder.
+            if(BadooAPI::sendGetUserList(
+                sdSession.sSessionId,
+                blflFilter,
+                bftFolder,
+                sSectionId,
+                0,
+                0,
+                buplProfilesInFolder,
+                iTotalProfilesInFolder,
+                baeError
+            )) {
+                iTotalPagesInFolder=iTotalProfilesInFolder/iMaxProfilesByPage;
+                if(iTotalProfilesInFolder%iMaxProfilesByPage)
+                    iTotalPagesInFolder++;
+                bResult=true;
+            }
     emit statusChanged(QString());
     if(!bResult) {
         if(sError.isEmpty())

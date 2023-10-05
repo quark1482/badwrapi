@@ -11,13 +11,13 @@
 
 #define ENDPOINT_BASE    "https://badoo.com"
 
-#define ENDPOINT_WEBAPI  "https://badoo.com/mwebapi.phtml"
+#define ENDPOINT_WEBAPI  "https://badoo.com/mwebapi.phtml" // New end-point (Sep/2023).
 
 #define ENDPOINT_SESSION "https://badoo.com/ws/set_session_cookie.phtml"
 
 #define ENDPOINT_SIGNOUT "https://badoo.com/signout"
 
-#define SIGNATURE_MAGIC "whitetelevisionbulbelectionroofhorseflying"
+#define SIGNATURE_MAGIC  "whitetelevisionbulbelectionroofhorseflying"
 
 typedef QPair<int,int> BadooIntRange;
 

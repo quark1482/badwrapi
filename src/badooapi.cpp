@@ -65,6 +65,29 @@ BadooAlbumTypeList batlAlbums={ // This is the 'request_albums' array content ..
     ALBUM_TYPE_EXTERNAL_PHOTOS, // No idea about what are 'external' photos either.
 };
 
+// Features list requested by the web app. Used only for testing sendStartup().
+auto debugFeatures={
+    1,2,4,6,7,8,9,10,11,13,15,18,19,20,21,25,27,28,29,32,36,37,38,39,42,44,46,50,
+    53,62,64,70,73,75,92,96,100,101,103,106,108,109,111,113,121,127,132,136,139,
+    143,155,160,163,176,177,183,190,197,201,204,209,223,232,237,243,247,248,250,
+    259,264,268,281,282,296,301,302,304,308,310,314,316,324,327,333
+};
+
+// Minor features list requested by the web app. Used only for testing sendStartup().
+auto debugMinorFeatures={
+    2,3,8,14,17,19,20,22,24,35,36,39,40,41,42,46,48,55,60,62,63,70,71,76,81,83,93,
+    100,104,108,114,115,118,121,122,127,130,131,134,136,139,142,146,148,152,153,163,
+    164,168,170,171,175,178,179,180,181,182,183,184,188,192,194,196,202,207,208,214,
+    216,218,220,221,223,226,230,233,234,236,243,244,245,247,250,252,254,260,264,266,
+    267,268,269,273,275,277,278,279,280,284,285,290,292,297,302,305,306,313,319,320,
+    328,336,337,352,354,355,363,365,369,377,382,383,390,391,392,394,396,400,404,410,
+    413,418,426,427,436,440,450,453,455,462,470,471,479,483,487,488,490,493,495,498,
+    501,504,505,511,514,524,527,530,537,538,542,549,555,558,560,561,562,567,576,582,
+    584,592,594,596,605,607,610,611,613,615,616,620,629,630,631,638,644,645,648,650,
+    657,659,662,664,667,669,674,675,677,678,679,681,682,688,691,693,696,702,705,707,
+    708,725,731,735,748,750,753,754,757,767,774,776,784,829,901
+};
+
 BadooFeatureTypeList bftlFeatures={
     ALLOW_OPEN_PEOPLE_NEARBY,        // Required to get albums for the folder NEARBY_PEOPLE_XXX.
     ALLOW_OPEN_ENCOUNTERS,           // Required for requesting SERVER_GET_ENCOUNTERS.
@@ -74,11 +97,12 @@ BadooFeatureTypeList bftlFeatures={
     ALLOW_BADOO_PROFILE_MOOD_STATUS, // Required to include moods in user profiles.
 };
 
-BadooMinorFeatureList bmflMinorFeatures {
+BadooMinorFeatureList bmflMinorFeatures={
     MINOR_FEATURE_ENCOUNTER_SETTINGS_DISTANCE_SLIDER,  // Allows setting a 'distance away' in encounters.
     MINOR_FEATURE_REDESIGN_MERGE_ALBUMS,               // Puts everything in a single album.
     MINOR_FEATURE_CAN_PLAY_VIDEO,                      // Includes videos in album.
     MINOR_FEATURE_NO_ENCOUNTERS_ALBUM_IN_PROFILE_MODE, // Avoids a lot of repeated photos.
+    MINOR_FEATURE_COMBINED_CONNECTIONS_V2,             // Allows querying the visitors folder.
     MINOR_FEATURE_SEPARATE_MATCH_FOLDER,               // Allows querying the matches folder.
     MINOR_FEATURE_CHAT_PLAY_AUDIO,                     // Accepts audio clips in chat messages.
 };
@@ -643,14 +667,28 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
     iTotal=0;
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
-    for(const auto &f:buflProjection)
-        jsnProjection.append(f);
-    jsnFieldFilter.insert(QStringLiteral("projection"),jsnProjection);
-    for(const auto &t:batlAlbums) {
-        QJsonObject jsnObj;
-        jsnObj.insert(QStringLiteral("album_type"),t);
-        jsnAlbums.append(jsnObj);
+    // Fills the requested profile fields and album types if iCount is not zero.
+    // As of September 2023, the new API has screwed the meaning of total_count.
+    // It does not contain the 'total in folder' anymore, but something like ...
+    // ... 'total in page', which is just the number of returned profiles in ...
+    // ... the response, according to the number of requested profiles (iCount).
+    if(iCount) {
+        for(const auto &f:buflProjection)
+            jsnProjection.append(f);
+        for(const auto &t:batlAlbums) {
+            QJsonObject jsnObj;
+            jsnObj.insert(QStringLiteral("album_type"),t);
+            jsnAlbums.append(jsnObj);
+        }
     }
+    else
+        // Sets iCount to a ridiculously big number when we pass it as zero in the call.
+        // This way, we make the request to return the actual total of user profiles ...
+        // ... inside the requested folder. -Not a fancy fix since the response also ...
+        // ... includes the users data-, but stripped down of most fields and albums ...
+        // ... so it's comparatively small in size.
+        iCount=std::numeric_limits<int>::max();
+    jsnFieldFilter.insert(QStringLiteral("projection"),jsnProjection);
     jsnFieldFilter.insert(QStringLiteral("request_albums"),jsnAlbums);
     jsnMessage.insert(QStringLiteral("user_field_filter"),jsnFieldFilter);
     if(!sSectionId.isEmpty())
