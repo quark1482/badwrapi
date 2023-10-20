@@ -7,6 +7,8 @@
 
 #define MAX_DOWNLOAD_TRIES 3
 
+#define MAX_PROFILE_IDLE_TIME 60
+
 #define PREFIX_NORMAL_USER_ID    "zAhMAC"
 #define PREFIX_ENCRYPTED_USER_ID "zAgEAC"
 
@@ -18,6 +20,16 @@ typedef enum {
     FOLDER_TYPE_PEOPLE_NEARBY,
     FOLDER_TYPE_VISITORS
 } FolderType;
+
+typedef enum {
+    FOLDER_FILTER_ALL,
+    FOLDER_FILTER_ONLINE,
+    FOLDER_FILTER_NEW,
+    FOLDER_FILTER_NEARBY,
+    FOLDER_FILTER_MATCHED
+} FolderFilter;
+
+typedef QList<FolderFilter> FolderFilterList;
 
 typedef QHash<QString,QByteArrayList> MediaContentsHash;
 
@@ -60,8 +72,8 @@ public:
     bool    downloadMultiProfileResources(BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int=MAX_DOWNLOAD_TRIES);
     bool    getEncounters(BadooUserProfileList &,bool=false);
     void    getEncountersSettings(EncountersSettings &);
-    bool    getFolderPage(BadooFolderType,BadooListSectionType,int,BadooUserProfileList &,int &,int &,int &);
-    bool    getFolderPage(FolderType,int,BadooUserProfileList &,int &,int &,int &);
+    bool    getFolderPage(BadooFolderType,BadooListSectionType,BadooListFilterList,int,BadooUserProfileList &,int &,int &,int &);
+    bool    getFolderPage(FolderType,FolderFilterList,int,BadooUserProfileList &,int &,int &,int &);
     QString getLastError();
     bool    getLoggedInProfile(BadooUserProfile &);
     bool    getLoggedInProfilePhoto(QByteArray &);

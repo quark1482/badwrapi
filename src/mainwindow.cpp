@@ -43,7 +43,19 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
             &MainWindow::menuBrowseFolderTriggered
         );
         connect(
-            ui->actPeopleNearby,
+            ui->actAllPeopleNearby,
+            &QAction::triggered,
+            this,
+            &MainWindow::menuBrowseFolderTriggered
+        );
+        connect(
+            ui->actOnlinePeopleNearby,
+            &QAction::triggered,
+            this,
+            &MainWindow::menuBrowseFolderTriggered
+        );
+        connect(
+            ui->actNewPeopleNearby,
             &QAction::triggered,
             this,
             &MainWindow::menuBrowseFolderTriggered
@@ -167,6 +179,7 @@ void MainWindow::dialogEncountersDestroyed() {
 void MainWindow::menuBrowseFolderTriggered(bool) {
     BrowseFolderDialog *dlgFolder=nullptr;
     FolderType         ftFolder;
+    FolderFilterList   fflFilters={FOLDER_FILTER_ALL};
     if(ui->actCustomFolder==QObject::sender()) {
         dlgFolder=dlgBrowseCustom;
         ftFolder=FOLDER_TYPE_UNKNOWN;
@@ -183,9 +196,19 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
         dlgFolder=dlgBrowseMatches;
         ftFolder=FOLDER_TYPE_MATCHES;
     }
-    else if(ui->actPeopleNearby==QObject::sender()) {
+    else if(ui->actAllPeopleNearby==QObject::sender()) {
         dlgFolder=dlgBrowsePeopleNearby;
         ftFolder=FOLDER_TYPE_PEOPLE_NEARBY;
+    }
+    else if(ui->actOnlinePeopleNearby==QObject::sender()) {
+        dlgFolder=dlgBrowsePeopleNearby;
+        ftFolder=FOLDER_TYPE_PEOPLE_NEARBY;
+        fflFilters={FOLDER_FILTER_ONLINE};
+    }
+    else if(ui->actNewPeopleNearby==QObject::sender()) {
+        dlgFolder=dlgBrowsePeopleNearby;
+        ftFolder=FOLDER_TYPE_PEOPLE_NEARBY;
+        fflFilters={FOLDER_FILTER_NEW};
     }
     else if(ui->actVisitors==QObject::sender()) {
         dlgFolder=dlgBrowseVisitors;
@@ -200,7 +223,7 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
                     dlgFolder=new BrowseFolderDialog(bftFolder,blstSection,&bwMain,this);
             }
             else
-                dlgFolder=new BrowseFolderDialog(ftFolder,&bwMain,this);
+                dlgFolder=new BrowseFolderDialog(ftFolder,fflFilters,&bwMain,this);
             if(nullptr!=dlgFolder) {
                 switch(ftFolder) {
                     case FOLDER_TYPE_UNKNOWN:
@@ -296,25 +319,16 @@ void MainWindow::menuBrowseProfileTriggered(bool) {
         qobject_cast<QVBoxLayout *>(idProfile.layout())->addLayout(&hblWarning);
         while(true)
             if(QDialog::DialogCode::Accepted==idProfile.exec()) {
-                bool    bValid=false;
-                QString sProfile=idProfile.textValue().trimmed(),
-                        sURLLeader=QStringLiteral("%1/profile/0").
-                                   arg(QStringLiteral(ENDPOINT_BASE));
+                QString sProfile=idProfile.textValue().trimmed();
                 if(sProfile.isEmpty())
                     break;
-                if(sProfile.startsWith(sURLLeader)) {
-                    QUrl urlProfile(sProfile);
-                    sProfile=urlProfile.toString(QUrl::UrlFormattingOption::RemoveQuery);
-                    sProfile.remove(sURLLeader);
-                    bValid=BadooWrapper::isValidUserId(sProfile);
-                }
-                else if(sProfile.startsWith('0')) {
+                if(sProfile.startsWith(ENDPOINT_BASE))
+                    sProfile=QUrl(sProfile).
+                             adjusted(QUrl::UrlFormattingOption::StripTrailingSlash).
+                             fileName();
+                if(sProfile.startsWith('0'))
                     sProfile.remove(0,1);
-                    bValid=BadooWrapper::isValidUserId(sProfile);
-                }
-                else
-                    bValid=BadooWrapper::isValidUserId(sProfile);
-                if(bValid) {
+                if(BadooWrapper::isValidUserId(sProfile)) {
                     this->showCustomProfile(sProfile);
                     break;
                 }

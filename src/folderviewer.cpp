@@ -353,7 +353,10 @@ void FolderViewer::updatePageGallery() {
             BadooVote::VOTE_YES==p.bvTheirVote,
             BadooVote::VOTE_NO==p.bvTheirVote,
             p.bIsFavorite,
-            p.bHasQuickChat
+            p.bIsCrush,
+            p.bHasQuickChat,
+            p.iLastOnline,
+            p.sOnlineStatus
         );
         if(++iCol==iTCols) {
             iCol=0;
@@ -367,13 +370,16 @@ void FolderViewer::updatePageWidgets() {
     this->updatePageGallery();
 }
 
-void FolderViewer::updateProfileBadges(QRect recBadges,
-                                       bool  bVerified,
-                                       bool  bMatch,
-                                       bool  bLikedYou,
-                                       bool  bDislikedYou,
-                                       bool  bFavorite,
-                                       bool  bQuickChat) {
+void FolderViewer::updateProfileBadges(QRect   recBadges,
+                                       bool    bVerified,
+                                       bool    bMatch,
+                                       bool    bLikedYou,
+                                       bool    bDislikedYou,
+                                       bool    bFavorite,
+                                       bool    bCrush,
+                                       bool    bQuickChat,
+                                       int     iLastOnline,
+                                       QString sOnlineStatus) {
     int            iXOffset;
     QPixmap        pxmBadge;
     QList<QPixmap> pxmlBadges;
@@ -393,6 +399,11 @@ void FolderViewer::updateProfileBadges(QRect recBadges,
         pxmlBadges.append(pxmBadge);
         slBadgeToolTips.append(QStringLiteral("It's a match!"));
     }
+    else if(bCrush) {
+        pxmBadge.load(QStringLiteral(":img/badge-crush.svg"));
+        pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(QStringLiteral("They have a crush on you!"));
+    }
     else if(bLikedYou) {
         pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
         pxmlBadges.append(pxmBadge);
@@ -407,6 +418,23 @@ void FolderViewer::updateProfileBadges(QRect recBadges,
         pxmBadge.load(QStringLiteral(":img/badge-verification.svg"));
         pxmlBadges.append(pxmBadge);
         slBadgeToolTips.append(QStringLiteral("Verifed profile"));
+    }
+    if(-1==iLastOnline) {
+        pxmBadge.load(QStringLiteral(":img/badge-offline.svg"));
+        pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(QStringLiteral("Hidden online status"));
+    } else if(!iLastOnline) {
+        pxmBadge.load(QStringLiteral(":img/badge-online.svg"));
+        pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(sOnlineStatus);
+    } else if(MAX_PROFILE_IDLE_TIME>=iLastOnline) {
+        pxmBadge.load(QStringLiteral(":img/badge-online-idle.svg"));
+        pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(sOnlineStatus);
+    } else {
+        pxmBadge.load(QStringLiteral(":img/badge-offline.svg"));
+        pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(sOnlineStatus);
     }
     iXOffset=-recBadges.height();
     for(const auto &b:pxmlBadges) {

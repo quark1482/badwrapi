@@ -8,7 +8,7 @@ class BrowseFolderDialog:public QDialog {
     Q_OBJECT
 public:
     BrowseFolderDialog(BadooFolderType,BadooListSectionType,BadooWrapper *,QWidget * =nullptr);
-    BrowseFolderDialog(FolderType,BadooWrapper *,QWidget * =nullptr);
+    BrowseFolderDialog(FolderType,FolderFilterList,BadooWrapper *,QWidget * =nullptr);
     ~BrowseFolderDialog();
     bool isReady();
 private slots:
@@ -26,6 +26,7 @@ private:
     MediaContentsHash    mchPhotoContents,
                          mchVideoContents;
     FolderType           ftBrowse;
+    FolderFilterList     fflBrowse;
     FolderViewer         *fvCurrentPage;
     QVBoxLayout          vblLayout;
     bool getNewPage(int);

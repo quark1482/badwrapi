@@ -50,9 +50,11 @@ typedef struct {
     QString     sName;
     int         iAge;
     int         iGender;
+    int         iLastOnline;
     bool        bIsVerified;
     bool        bIsMatch;
     bool        bIsFavorite;
+    bool        bIsCrush;
     bool        bHasQuickChat;
     QString     sCountry;
     QString     sRegion;
@@ -145,6 +147,7 @@ private:
     static void    parseError(QJsonObject,BadooAPIError &);
     static void    parseFailure(QJsonObject,QString &);
     static void    parseLocation(QJsonObject,BadooLocationType &,int &,QString &,int &,QString &,int &,QString &);
+    static void    parseOnlineStatus(QString,int &);
     static bool    parseResponse(BadooMessageType,QString,QJsonObject &,QJsonObject &,QString &);
     static bool    parseResponse(QString,BadooMessageResponseHash &,QJsonObject &,QString &);
     static void    parseSearchSettings(QJsonObject,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &);

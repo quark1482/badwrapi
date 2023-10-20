@@ -24,11 +24,19 @@
     <property name="title">
      <string>Demo</string>
     </property>
+    <widget class="QMenu" name="mnuPeopleNearby">
+     <property name="title">
+      <string>People nearby</string>
+     </property>
+     <addaction name="actAllPeopleNearby"/>
+     <addaction name="actOnlinePeopleNearby"/>
+     <addaction name="actNewPeopleNearby"/>
+    </widget>
     <addaction name="actEncounters"/>
     <addaction name="actFavorites"/>
     <addaction name="actLikes"/>
     <addaction name="actMatches"/>
-    <addaction name="actPeopleNearby"/>
+    <addaction name="mnuPeopleNearby"/>
     <addaction name="actVisitors"/>
     <addaction name="separator"/>
     <addaction name="actExit"/>
@@ -91,16 +99,6 @@
     <string>Exit</string>
    </property>
   </action>
-  <action name="actMatches">
-   <property name="text">
-    <string>Matches</string>
-   </property>
-  </action>
-  <action name="actPeopleNearby">
-   <property name="text">
-    <string>People nearby</string>
-   </property>
-  </action>
   <action name="actLikes">
    <property name="text">
     <string>Likes</string>
@@ -111,11 +109,6 @@
     <string>Visitors</string>
    </property>
   </action>
-  <action name="actFavorites">
-   <property name="text">
-    <string>Favorites</string>
-   </property>
-  </action>
   <action name="actCustomFolder">
    <property name="text">
     <string>Browse custom folder</string>
@@ -124,6 +117,61 @@
   <action name="actCustomProfile">
    <property name="text">
     <string>Browse custom profile</string>
+   </property>
+  </action>
+  <action name="actAllPeopleNearby">
+   <property name="text">
+    <string>All</string>
+   </property>
+  </action>
+  <action name="actOnlinePeopleNearby">
+   <property name="text">
+    <string>Online</string>
+   </property>
+  </action>
+  <action name="actNewPeopleNearby">
+   <property name="text">
+    <string>New</string>
+   </property>
+  </action>
+  <action name="actAllFavorites">
+   <property name="text">
+    <string>All</string>
+   </property>
+  </action>
+  <action name="actOnlineFavorites">
+   <property name="text">
+    <string>Online</string>
+   </property>
+  </action>
+  <action name="actMatchedFavorites">
+   <property name="text">
+    <string>Matched</string>
+   </property>
+  </action>
+  <action name="actAllMatches">
+   <property name="text">
+    <string>All</string>
+   </property>
+  </action>
+  <action name="actOnlineMatches">
+   <property name="text">
+    <string>Online</string>
+   </property>
+  </action>
+  <action name="actNearbyMatches">
+   <property name="text">
+    <string>Nearby</string>
+   </property>
+  </action>
+  <action name="actFavorites">
+   <property name="text">
+    <string>Favorites</string>
+   </property>
+  </action>
+  <action name="actMatches">
+   <property name="text">
+    <string>Matches</string>
    </property>
   </action>
  </widget>

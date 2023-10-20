@@ -2512,4 +2512,11 @@ typedef enum {
     GAME_SUCCESS=3 // I am just using GAME_SUCCESS to verify if there was a match or not.
 } BadooGame;
 
+typedef enum {
+    ONLINE_STATUS_ONLINE=1,  // Either 'right now' or 'a little while ago'.
+    ONLINE_STATUS_OFFLINE=2, // Never found a single case - seems to be unused.
+    ONLINE_STATUS_UNKNOWN=3, // For longer periods: 'yesterday', 'days ago', etc.
+    ONLINE_STATUS_HIDDEN=4   // Not sure - probably used for invisible people.
+} BadooOnlineStatus;         // Values never used. For reference only.
+
 #endif // BADOOENUMS_H

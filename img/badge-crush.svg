@@ -1,0 +1,15 @@
+<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <pattern x="0" y="0" width="25" height="25" patternUnits="userSpaceOnUse" viewBox="0 0 100 100" id="pattern-0">
+      <rect x="0" y="0" width="50" height="100" style="fill: black;"></rect>
+    </pattern>
+    <pattern id="pattern-0-0" patternTransform="matrix(1, 0, 0, 1, 29.466, 8.852999)" xlink:href="#pattern-0"></pattern>
+  </defs>
+  <g>
+    <title>Layer 1</title>
+    <path id="svg_1" d="m16,0a16,16 0 1 0 0,32a16,16 0 0 0 0,-32z" style="stroke: rgb(110, 62, 255); stroke-miterlimit: 1; stroke-width: 0px; fill: rgb(223, 215, 246);"></path>
+    <path id="svg_2" d="m19.126,15.15a0.667,0.667 0 0 1 -0.918,-0.966l1.584,-1.506a0.666,0.666 0 0 0 0.208,-0.483l0,-1.69a0.498,0.498 0 0 0 -0.467,-0.5a3.988,3.988 0 0 0 -0.2,-0.005a3.666,3.666 0 0 0 -3.333,2a3.667,3.667 0 0 0 -3.333,-2a4.667,4.667 0 0 0 -4.667,4.667a8.048,8.048 0 0 0 3.353,6.37l-1.423,1.425l-0.953,-0.953a0.567,0.567 0 0 0 -0.977,0.391l0,2.634a0.8,0.8 0 0 0 0.8,0.8l2.612,0a0.583,0.583 0 0 0 0.544,-0.345a0.566,0.566 0 0 0 -0.122,-0.62l-0.963,-0.963l1.637,-1.637a7.578,7.578 0 0 0 3.492,0.898c4,0 8,-3.582 8,-8a4.613,4.613 0 0 0 -0.066,-0.778a0.67,0.67 0 0 0 -0.662,-0.556l-1.968,0a0.667,0.667 0 0 0 -0.459,0.184l-1.72,1.633l0.001,0z" style="stroke-miterlimit: 1; stroke-width: 0px;" fill="#6E3EFF"></path>
+    <path id="svg_3" d="m26.038,9.333l-2.038,0l0,-2.038a0.629,0.629 0 0 0 -1.073,-0.444l-0.962,0.962a2.157,2.157 0 0 0 -0.631,1.52l0,1.778a0.889,0.889 0 0 0 0.887,0.889l1.774,0a2.45,2.45 0 0 0 1.524,-0.631l0.963,-0.963a0.629,0.629 0 0 0 -0.445,-1.073l0.001,0z" style="stroke-miterlimit: 1; stroke-width: 0px;" fill="#6E3EFF"></path>
+  </g>
+  <ellipse style="fill: none; stroke: rgb(110, 62, 255);" cx="16" cy="16" rx="15.5" ry="15.5"></ellipse>
+</svg>

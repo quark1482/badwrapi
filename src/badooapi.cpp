@@ -53,6 +53,7 @@ BadooUserFieldList buflProjection={
     USER_FIELD_MY_VOTE,
     USER_FIELD_THEIR_VOTE,
     USER_FIELD_IS_MATCH,
+    USER_FIELD_IS_CRUSH,
     USER_FIELD_IS_FAVOURITE,
     USER_FIELD_QUICK_CHAT,         // Is free chat possible for the queried profile?
     USER_FIELD_MOOD_STATUS,        // 'Make me laugh', 'Looking for love', 'Thinking long-term', etc.
@@ -94,6 +95,7 @@ BadooFeatureTypeList bftlFeatures={
     ALLOW_ENCOUNTERS_VOTE,           // Required for well, voting.
     ALLOW_MULTIMEDIA,                // Required for multimedia chat messages.
     ALLOW_CONTACTS_FOR_CREDITS,      // Required to make the 'quick_chat' user field valid.
+    ALLOW_CRUSH,                     // Required to detect crushes.
     ALLOW_BADOO_PROFILE_MOOD_STATUS, // Required to include moods in user profiles.
 };
 
@@ -114,9 +116,11 @@ void BadooAPI::clearUserProfile(BadooUserProfile &bupProfile) {
     bupProfile.sName.clear();
     bupProfile.iAge=0;
     bupProfile.iGender=SEX_TYPE_UNKNOWN;
+    bupProfile.iLastOnline=-1;
     bupProfile.bIsVerified=false;
     bupProfile.bIsMatch=false;
     bupProfile.bIsFavorite=false;
+    bupProfile.bIsCrush=false;
     bupProfile.bHasQuickChat=false;
     bupProfile.sCountry.clear();
     bupProfile.sRegion.clear();
@@ -1293,6 +1297,60 @@ void BadooAPI::parseLocation(QJsonObject       jsnLocation,
     }
 }
 
+void BadooAPI::parseOnlineStatus(QString sStatus,
+                                 int     &iMinsAgo) {
+    iMinsAgo=-1;
+    if(sStatus.length()) {
+        // The exact online status is a little tricky to determine, since ...
+        // ... 'right now' and 'a short while ago' are both identified as ...
+        // ... ONLINE_STATUS_ONLINE in the field 'online_status', and for ...
+        // ... offline statuses, 'a longer while ago' and 'long time ago' ...
+        // ... are basically the same (both as ONLINE_STATUS_UNKNOWN) and ...
+        // ... this is annoying, having in mind that there IS a value for ...
+        // ... that: ONLINE_STATUS_OFFLINE.
+        sStatus=sStatus.toLower();
+        sStatus.remove(QStringLiteral("online"));
+        sStatus.remove(QStringLiteral("ago"));
+        sStatus=sStatus.trimmed();
+        if(sStatus.length()) {
+            if(QStringLiteral("yesterday")==sStatus)
+                sStatus=QStringLiteral("1 day");
+            if(sStatus.startsWith(QStringLiteral("now")))
+                iMinsAgo=0;
+            else {
+                // Therefore, what we do here is parsing the number of idle ...
+                // ... minutes from the field 'online_status_text' and just ...
+                // ... let the caller to decide if that's online/offline or ...
+                // ... anything between.
+                QStringList slTime=sStatus.split(' ');
+                if(2==slTime.count()) {
+                    int iMultiplier=0;
+                    if(QStringLiteral("min")==slTime.at(1)||
+                       QStringLiteral("mins")==slTime.at(1))
+                        iMultiplier=1;
+                    else if(QStringLiteral("hr")==slTime.at(1)||
+                            QStringLiteral("hrs")==slTime.at(1))
+                        iMultiplier=60;
+                    else if(QStringLiteral("day")==slTime.at(1)||
+                            QStringLiteral("days")==slTime.at(1))
+                        iMultiplier=1440;
+                    if(iMultiplier) {
+                        bool bOK;
+                        int  iTime;
+                        if(QStringLiteral("7+")==slTime.at(0))
+                            slTime[0]=QStringLiteral("7");
+                        iTime=slTime.at(0).toInt(&bOK);
+                        if(bOK)
+                            iMinsAgo=iTime*iMultiplier;
+                    }
+                }
+            }
+        }
+        else
+            iMinsAgo=0;
+    }
+}
+
 bool BadooAPI::parseResponse(BadooMessageType bmtMessage,
                              QString          sResponse,
                              QJsonObject      &jsnResponse,
@@ -1484,6 +1542,7 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     bupUser.bIsVerified=jsnUser.value(QStringLiteral("is_verified")).toBool();
     bupUser.bIsMatch=jsnUser.value(QStringLiteral("is_match")).toBool();
     bupUser.bIsFavorite=jsnUser.value(QStringLiteral("is_favourite")).toBool();
+    bupUser.bIsCrush=jsnUser.value(QStringLiteral("is_crush")).toBool();
     bupUser.bHasQuickChat=jsnUser.value(QStringLiteral("quick_chat")).isObject();
     if(jsnUser.value(QStringLiteral("country")).isObject()) {
         jsnObj=jsnUser.value(QStringLiteral("country")).toObject();
@@ -1498,6 +1557,7 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
         bupUser.sCity=jsnObj.value(QStringLiteral("name")).toString();
     }
     bupUser.sOnlineStatus=jsnUser.value(QStringLiteral("online_status_text")).toString();
+    parseOnlineStatus(bupUser.sOnlineStatus,bupUser.iLastOnline);
     if(jsnUser.value(QStringLiteral("profile_photo")).isObject()) {
         QString sURL;
         jsnObj=jsnUser.value(QStringLiteral("profile_photo")).toObject();

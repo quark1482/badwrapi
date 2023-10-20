@@ -306,7 +306,7 @@ void ProfileViewer::delayedResizeTimeout() {
 
 void ProfileViewer::copyURLButtonClicked() {
     if(!bupProfileDetails.sUserId.isEmpty()) {
-        QString sURL=QStringLiteral("%1/profile/0%2").
+        QString sURL=QStringLiteral("%1/profile/%2").
                      arg(ENDPOINT_BASE).
                      arg(bupProfileDetails.sUserId);
         QGuiApplication::clipboard()->setText(sURL);
@@ -1038,66 +1038,87 @@ void ProfileViewer::updateProfileInfo() {
             delete i->widget();
         delete i;
     }
-    QLabel  *lblTitle=new QLabel(sTitle),
-            *lblBadge;
-    QSize   sizBadge;
-    QPixmap pxmBadge;
+    QLabel *lblTitle=new QLabel(sTitle);
+    QSize  sizBadge;
     sizBadge.setHeight(lblTitle->fontMetrics().height());
     sizBadge.setWidth(sizBadge.height());
     ui->hblInfo->addWidget(lblTitle);
-    if(bupProfileDetails.bIsVerified) {
-        pxmBadge.load(QStringLiteral(":img/badge-verification.svg"));
+    std::function<void(QString,QString)> fnAddBadge=[=](QString sImg,QString sMsg) {
+        QPixmap pxmBadge;
+        QLabel  *lblBadge;
+        pxmBadge.load(sImg);
         lblBadge=new QLabel;
         lblBadge->setMaximumSize(sizBadge);
         lblBadge->setPixmap(pxmBadge);
         lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("Verifed profile"));
+        lblBadge->setToolTip(sMsg);
         ui->hblInfo->addWidget(lblBadge);
+    };
+    if(-1==bupProfileDetails.iLastOnline) {
+        fnAddBadge(
+            QStringLiteral(":img/badge-offline.svg"),
+            QStringLiteral("Hidden online status")
+        );
+    }
+    else if(!bupProfileDetails.iLastOnline) {
+        fnAddBadge(
+            QStringLiteral(":img/badge-online.svg"),
+            bupProfileDetails.sOnlineStatus
+        );
+    }
+    else if(MAX_PROFILE_IDLE_TIME>=bupProfileDetails.iLastOnline) {
+        fnAddBadge(
+            QStringLiteral(":img/badge-online-idle.svg"),
+            bupProfileDetails.sOnlineStatus
+        );
+    }
+    else {
+        fnAddBadge(
+            QStringLiteral(":img/badge-offline.svg"),
+            bupProfileDetails.sOnlineStatus
+        );
+    }
+    if(bupProfileDetails.bIsVerified) {
+        fnAddBadge(
+            QStringLiteral(":img/badge-verification.svg"),
+            QStringLiteral("Verifed profile")
+        );
     }
     if(bupProfileDetails.bIsMatch) {
-        pxmBadge.load(QStringLiteral(":img/badge-match.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("It's a match!"));
-        ui->hblInfo->addWidget(lblBadge);
+        fnAddBadge(
+            QStringLiteral(":img/badge-match.svg"),
+            QStringLiteral("It's a match!")
+        );
+    }
+    else if(bupProfileDetails.bIsCrush) {
+        fnAddBadge(
+            QStringLiteral(":img/badge-crush.svg"),
+            QStringLiteral("They have a crush on you!")
+        );
     }
     else if(BadooVote::VOTE_YES==bupProfileDetails.bvTheirVote) {
-        pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("They already liked you!"));
-        ui->hblInfo->addWidget(lblBadge);
+        fnAddBadge(
+            QStringLiteral(":img/badge-liked-you.svg"),
+            QStringLiteral("They already liked you!")
+        );
     }
     else if(BadooVote::VOTE_NO==bupProfileDetails.bvTheirVote) {
-        pxmBadge.load(QStringLiteral(":img/badge-disliked-you.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("They voted against you"));
-        ui->hblInfo->addWidget(lblBadge);
+        fnAddBadge(
+            QStringLiteral(":img/badge-disliked-you.svg"),
+            QStringLiteral("They voted against you")
+        );
     }
     if(bupProfileDetails.bIsFavorite) {
-        pxmBadge.load(QStringLiteral(":img/badge-favorite.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("Your favorite"));
-        ui->hblInfo->addWidget(lblBadge);
+        fnAddBadge(
+            QStringLiteral(":img/badge-favorite.svg"),
+            QStringLiteral("Your favorite")
+        );
     }
     if(bupProfileDetails.bHasQuickChat) {
-        pxmBadge.load(QStringLiteral(":img/badge-quick-chat.svg"));
-        lblBadge=new QLabel;
-        lblBadge->setMaximumSize(sizBadge);
-        lblBadge->setPixmap(pxmBadge);
-        lblBadge->setScaledContents(true);
-        lblBadge->setToolTip(QStringLiteral("Quick-chat enabled!"));
-        ui->hblInfo->addWidget(lblBadge);
+        fnAddBadge(
+            QStringLiteral(":img/badge-quick-chat.svg"),
+            QStringLiteral("Quick-chat enabled!")
+        );
     }
     ui->hblInfo->addStretch();
     while(ui->fmlInfo->rowCount())

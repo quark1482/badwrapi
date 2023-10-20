@@ -12,9 +12,13 @@
         <file>../img/action-next.png</file>
         <file>../img/action-page.png</file>
         <file>../img/action-previous.png</file>
+        <file>../img/badge-crush.svg</file>
         <file>../img/badge-disliked-you.svg</file>
         <file>../img/badge-favorite.svg</file>
         <file>../img/badge-liked-you.svg</file>
+        <file>../img/badge-offline.svg</file>
+        <file>../img/badge-online.svg</file>
+        <file>../img/badge-online-idle.svg</file>
         <file>../img/badge-match.svg</file>
         <file>../img/badge-quick-chat.svg</file>
         <file>../img/badge-verification.svg</file>

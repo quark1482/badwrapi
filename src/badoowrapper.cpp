@@ -461,6 +461,7 @@ QString BadooWrapper::getFolderName(FolderType ftType) {
 
 bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
                                  BadooListSectionType blstSection,
+                                 BadooListFilterList  blflFilters,
                                  int                  iPage,
                                  BadooUserProfileList &buplProfilesInPage,
                                  int                  &iTotalPagesInFolder,
@@ -471,7 +472,6 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
                          sSectionId,
                          sSectionName;
     BadooAPIError        baeError;
-    BadooListFilterList  blflFilter={};
     BadooUserProfileList buplProfilesInFolder;
     sError.clear();
     buplProfilesInPage.clear();
@@ -489,7 +489,7 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
     ))
         if(BadooAPI::sendGetUserList(
             sdSession.sSessionId,
-            blflFilter,
+            blflFilters,
             bftFolder,
             sSectionId,
             iPage*iMaxProfilesByPage,
@@ -501,7 +501,7 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
             // Makes a second call to get the actual total of profiles in the folder.
             if(BadooAPI::sendGetUserList(
                 sdSession.sSessionId,
-                blflFilter,
+                blflFilters,
                 bftFolder,
                 sSectionId,
                 0,
@@ -526,6 +526,7 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
 }
 
 bool BadooWrapper::getFolderPage(FolderType           ftType,
+                                 FolderFilterList     fflFilters,
                                  int                  iPage,
                                  BadooUserProfileList &buplProfilesInPage,
                                  int                  &iTotalPagesInFolder,
@@ -533,9 +534,9 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
                                  int                  &iMaxProfilesByPage) {
     bool                 bResult=false;
     QString              sError;
-    BadooAPIError        baeError;
     BadooFolderType      bftFolder;
     BadooListSectionType blstSection;
+    BadooListFilterList  blflFilters;
     sError.clear();
     switch(ftType) {
         case FOLDER_TYPE_FAVORITES:
@@ -559,12 +560,34 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
             blstSection=LIST_SECTION_TYPE_PROFILE_VISITORS;
             break;
     }
+    blflFilters.clear();
+    for(const auto &f:fflFilters) {
+        switch(f) {
+            case FOLDER_FILTER_ONLINE:
+                blflFilters.append(LIST_FILTER_ONLINE);
+                break;
+            case FOLDER_FILTER_NEW:
+                blflFilters.append(LIST_FILTER_NEW);
+                break;
+            case FOLDER_FILTER_NEARBY:
+                blflFilters.append(LIST_FILTER_NEARBY);
+                break;
+            case FOLDER_FILTER_MATCHED:
+                blflFilters.append(LIST_FILTER_MATCHED);
+                break;
+        }
+        if(FOLDER_FILTER_ALL==f) {
+            blflFilters.clear();
+            break;
+        }
+    }
     if(FOLDER_TYPE_UNKNOWN==ftType)
         sError=QStringLiteral("Unknown folder type");
     else
         bResult=BadooWrapper::getFolderPage(
             bftFolder,
             blstSection,
+            blflFilters,
             iPage,
             buplProfilesInPage,
             iTotalPagesInFolder,

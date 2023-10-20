@@ -6,7 +6,7 @@ BrowseFolderDialog::BrowseFolderDialog(BadooFolderType      bftFolder,
                                        BadooListSectionType blstSection,
                                        BadooWrapper         *bwParent,
                                        QWidget              *wgtParent):
-BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,bwParent,wgtParent) {
+BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,{},bwParent,wgtParent) {
     bftBrowsedFolder=bftFolder;
     blstBrowsedSection=blstSection;
     if(this->getNewPage(0)) {
@@ -20,9 +20,10 @@ BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,bwParent,wgtParent) {
     }
 }
 
-BrowseFolderDialog::BrowseFolderDialog(FolderType   ftType,
-                                       BadooWrapper *bwParent,
-                                       QWidget      *wgtParent):
+BrowseFolderDialog::BrowseFolderDialog(FolderType       ftType,
+                                       FolderFilterList fflFilters,
+                                       BadooWrapper     *bwParent,
+                                       QWidget          *wgtParent):
 QDialog(wgtParent) {
     bDialogReady=false;
     iCurrentPageIndex=-1;
@@ -35,6 +36,7 @@ QDialog(wgtParent) {
     mchPhotoContents.clear();
     mchVideoContents.clear();
     ftBrowse=ftType;
+    fflBrowse=fflFilters;
     bwBrowse=bwParent;
     fvCurrentPage=new FolderViewer(bwBrowse,this);
     vblLayout.addWidget(fvCurrentPage);
@@ -120,6 +122,7 @@ bool BrowseFolderDialog::getNewPage(int iPage) {
             bOK=bwBrowse->getFolderPage(
                 bftBrowsedFolder,
                 blstBrowsedSection,
+                {},
                 iCurrentPageIndex,
                 buplBrowse,
                 iTotalPages,
@@ -129,6 +132,7 @@ bool BrowseFolderDialog::getNewPage(int iPage) {
         else
             bOK=bwBrowse->getFolderPage(
                 ftBrowse,
+                fflBrowse,
                 iCurrentPageIndex,
                 buplBrowse,
                 iTotalPages,
