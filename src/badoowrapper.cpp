@@ -463,6 +463,7 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
                                  BadooListSectionType blstSection,
                                  BadooListFilterList  blflFilters,
                                  int                  iPage,
+                                 int                  iMaxProfileMediaCount,
                                  BadooUserProfileList &buplProfilesInPage,
                                  int                  &iTotalPagesInFolder,
                                  int                  &iTotalProfilesInFolder,
@@ -513,6 +514,17 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
                 iTotalPagesInFolder=iTotalProfilesInFolder/iMaxProfilesByPage;
                 if(iTotalProfilesInFolder%iMaxProfilesByPage)
                     iTotalPagesInFolder++;
+                // Truncates both lists of media URLs for everyy user profile ...
+                // ... when the respective counts are greater than a supplied ...
+                // ... value, allowing the caller to optionally save time and ...
+                // ... bandwidth in special cases.
+                if(iMaxProfileMediaCount)
+                    for(auto &p:buplProfilesInPage) {
+                        if(p.slPhotos.count()>iMaxProfileMediaCount)
+                            p.slPhotos.resize(iMaxProfileMediaCount);
+                        if(p.slVideos.count()>iMaxProfileMediaCount)
+                            p.slVideos.resize(iMaxProfileMediaCount);
+                    }
                 bResult=true;
             }
     emit statusChanged(QString());
@@ -526,8 +538,9 @@ bool BadooWrapper::getFolderPage(BadooFolderType      bftFolder,
 }
 
 bool BadooWrapper::getFolderPage(FolderType           ftType,
-                                 FolderFilterList     fflFilters,
+                                 BadooListFilterList  blflFilters,
                                  int                  iPage,
+                                 int                  iMaxProfileMediaCount,
                                  BadooUserProfileList &buplProfilesInPage,
                                  int                  &iTotalPagesInFolder,
                                  int                  &iTotalProfilesInFolder,
@@ -536,7 +549,6 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
     QString              sError;
     BadooFolderType      bftFolder;
     BadooListSectionType blstSection;
-    BadooListFilterList  blflFilters;
     sError.clear();
     switch(ftType) {
         case FOLDER_TYPE_FAVORITES:
@@ -560,27 +572,6 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
             blstSection=LIST_SECTION_TYPE_PROFILE_VISITORS;
             break;
     }
-    blflFilters.clear();
-    for(const auto &f:fflFilters) {
-        switch(f) {
-            case FOLDER_FILTER_ONLINE:
-                blflFilters.append(LIST_FILTER_ONLINE);
-                break;
-            case FOLDER_FILTER_NEW:
-                blflFilters.append(LIST_FILTER_NEW);
-                break;
-            case FOLDER_FILTER_NEARBY:
-                blflFilters.append(LIST_FILTER_NEARBY);
-                break;
-            case FOLDER_FILTER_MATCHED:
-                blflFilters.append(LIST_FILTER_MATCHED);
-                break;
-        }
-        if(FOLDER_FILTER_ALL==f) {
-            blflFilters.clear();
-            break;
-        }
-    }
     if(FOLDER_TYPE_UNKNOWN==ftType)
         sError=QStringLiteral("Unknown folder type");
     else
@@ -589,6 +580,7 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
             blstSection,
             blflFilters,
             iPage,
+            iMaxProfileMediaCount,
             buplProfilesInPage,
             iTotalPagesInFolder,
             iTotalProfilesInFolder,

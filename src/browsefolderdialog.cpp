@@ -4,9 +4,11 @@
 
 BrowseFolderDialog::BrowseFolderDialog(BadooFolderType      bftFolder,
                                        BadooListSectionType blstSection,
+                                       BadooListFilterList  blflFilters,
                                        BadooWrapper         *bwParent,
+                                       int                  iMediaLimit,
                                        QWidget              *wgtParent):
-BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,{},bwParent,wgtParent) {
+BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,blflFilters,bwParent,iMediaLimit,wgtParent) {
     bftBrowsedFolder=bftFolder;
     blstBrowsedSection=blstSection;
     if(this->getNewPage(0)) {
@@ -20,23 +22,25 @@ BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,{},bwParent,wgtParent) {
     }
 }
 
-BrowseFolderDialog::BrowseFolderDialog(FolderType       ftType,
-                                       FolderFilterList fflFilters,
-                                       BadooWrapper     *bwParent,
-                                       QWidget          *wgtParent):
+BrowseFolderDialog::BrowseFolderDialog(FolderType          ftType,
+                                       BadooListFilterList blflilters,
+                                       BadooWrapper        *bwParent,
+                                       int                 iMediaLimit,
+                                       QWidget             *wgtParent):
 QDialog(wgtParent) {
     bDialogReady=false;
     iCurrentPageIndex=-1;
     iTotalPages=0;
     iTotalProfiles=0;
     iMaxPageProfiles=0;
+    iMaxMediaCount=iMediaLimit;
     bftBrowsedFolder=static_cast<BadooFolderType>(0);
     blstBrowsedSection=static_cast<BadooListSectionType>(0);
+    blflBrowseFilters=blflilters;
     buplBrowse.clear();
     mchPhotoContents.clear();
     mchVideoContents.clear();
     ftBrowse=ftType;
-    fflBrowse=fflFilters;
     bwBrowse=bwParent;
     fvCurrentPage=new FolderViewer(bwBrowse,this);
     vblLayout.addWidget(fvCurrentPage);
@@ -122,8 +126,9 @@ bool BrowseFolderDialog::getNewPage(int iPage) {
             bOK=bwBrowse->getFolderPage(
                 bftBrowsedFolder,
                 blstBrowsedSection,
-                {},
+                blflBrowseFilters,
                 iCurrentPageIndex,
+                iMaxMediaCount,
                 buplBrowse,
                 iTotalPages,
                 iTotalProfiles,
@@ -132,8 +137,9 @@ bool BrowseFolderDialog::getNewPage(int iPage) {
         else
             bOK=bwBrowse->getFolderPage(
                 ftBrowse,
-                fflBrowse,
+                blflBrowseFilters,
                 iCurrentPageIndex,
+                iMaxMediaCount,
                 buplBrowse,
                 iTotalPages,
                 iTotalProfiles,

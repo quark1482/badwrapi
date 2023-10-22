@@ -177,9 +177,9 @@ void MainWindow::dialogEncountersDestroyed() {
 }
 
 void MainWindow::menuBrowseFolderTriggered(bool) {
-    BrowseFolderDialog *dlgFolder=nullptr;
-    FolderType         ftFolder;
-    FolderFilterList   fflFilters={FOLDER_FILTER_ALL};
+    BrowseFolderDialog  *dlgFolder=nullptr;
+    FolderType          ftFolder;
+    BadooListFilterList blflFilters;
     if(ui->actCustomFolder==QObject::sender()) {
         dlgFolder=dlgBrowseCustom;
         ftFolder=FOLDER_TYPE_UNKNOWN;
@@ -203,12 +203,12 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
     else if(ui->actOnlinePeopleNearby==QObject::sender()) {
         dlgFolder=dlgBrowsePeopleNearby;
         ftFolder=FOLDER_TYPE_PEOPLE_NEARBY;
-        fflFilters={FOLDER_FILTER_ONLINE};
+        blflFilters={LIST_FILTER_ONLINE};
     }
     else if(ui->actNewPeopleNearby==QObject::sender()) {
         dlgFolder=dlgBrowsePeopleNearby;
         ftFolder=FOLDER_TYPE_PEOPLE_NEARBY;
-        fflFilters={FOLDER_FILTER_NEW};
+        blflFilters={LIST_FILTER_NEW};
     }
     else if(ui->actVisitors==QObject::sender()) {
         dlgFolder=dlgBrowseVisitors;
@@ -217,13 +217,42 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
     if(bwMain.isLoggedIn())
         if(nullptr==dlgFolder) {
             if(FOLDER_TYPE_UNKNOWN==ftFolder) {
+                int                  iMediaCount;
                 BadooFolderType      bftFolder;
                 BadooListSectionType blstSection;
-                if(this->getCustomFolderParameters(bftFolder,blstSection))
-                    dlgFolder=new BrowseFolderDialog(bftFolder,blstSection,&bwMain,this);
+                if(this->getCustomFolderParameters(
+                        bftFolder,
+                        blstSection,
+                        blflFilters,
+                        iMediaCount
+                )) {
+                    dlgFolder=new BrowseFolderDialog(
+                        bftFolder,
+                        blstSection,
+                        blflFilters,
+                        &bwMain,
+                        iMediaCount,
+                        this
+                    );
+                    if(!dlgFolder->isReady()) {
+                        delete dlgFolder;
+                        dlgFolder=nullptr;
+                    }
+                }
             }
-            else
-                dlgFolder=new BrowseFolderDialog(ftFolder,fflFilters,&bwMain,this);
+            else {
+                dlgFolder=new BrowseFolderDialog(
+                    ftFolder,
+                    blflFilters,
+                    &bwMain,
+                    0,
+                    this
+                );
+                if(!dlgFolder->isReady()) {
+                    delete dlgFolder;
+                    dlgFolder=nullptr;
+                }
+            }
             if(nullptr!=dlgFolder) {
                 switch(ftFolder) {
                     case FOLDER_TYPE_UNKNOWN:
@@ -271,10 +300,7 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
                 mdiArea.addSubWindow(dlgFolder)->setWindowFlag(
                     Qt::WindowType::WindowMinMaxButtonsHint
                 );
-                if(dlgFolder->isReady())
-                    dlgFolder->exec();
-                else
-                    delete dlgFolder;
+                dlgFolder->exec();
             }
         }
         else
@@ -355,36 +381,39 @@ void MainWindow::menuEncountersTriggered(bool) {
     if(bwMain.isLoggedIn())
         if(nullptr==dlgEncounters) {
             dlgEncounters=new PlayEncountersDialog(&bwMain,this);
-            connect(
-                dlgEncounters,
-                &PlayEncountersDialog::statusChanged,
-                this,
-                &MainWindow::wrapperStatusChanged
-            );
-            connect(
-                dlgEncounters,
-                &PlayEncountersDialog::destroyed,
-                this,
-                &MainWindow::dialogEncountersDestroyed
-            );
-            // There seems to be a problem when a QDialog belongs to a QMdiArea and ...
-            // ... QDialog::reject() is invoked by pressing the Escape key, causing ...
-            // ... that the dialog remains visible. So, as a straightforward fix we ...
-            // ... call QMdiArea::closeActiveSubWindow() to close it by force.
-            connect(
-                dlgEncounters,
-                &BrowseFolderDialog::rejected,
-                &mdiArea,
-                &QMdiArea::closeActiveSubWindow
-            );
-            dlgEncounters->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
-            mdiArea.addSubWindow(dlgEncounters)->setWindowFlag(
-                Qt::WindowType::WindowMinMaxButtonsHint
-            );
-            if(dlgEncounters->isReady())
-                dlgEncounters->exec();
-            else
+            if(!dlgEncounters->isReady()) {
                 delete dlgEncounters;
+                dlgEncounters=nullptr;
+            }
+            else {
+                connect(
+                    dlgEncounters,
+                    &PlayEncountersDialog::statusChanged,
+                    this,
+                    &MainWindow::wrapperStatusChanged
+                );
+                connect(
+                    dlgEncounters,
+                    &PlayEncountersDialog::destroyed,
+                    this,
+                    &MainWindow::dialogEncountersDestroyed
+                );
+                // There seems to be a problem when a QDialog belongs to a QMdiArea and ...
+                // ... QDialog::reject() is invoked by pressing the Escape key, causing ...
+                // ... that the dialog remains visible. So, as a straightforward fix we ...
+                // ... call QMdiArea::closeActiveSubWindow() to close it by force.
+                connect(
+                    dlgEncounters,
+                    &BrowseFolderDialog::rejected,
+                    &mdiArea,
+                    &QMdiArea::closeActiveSubWindow
+                );
+                dlgEncounters->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
+                mdiArea.addSubWindow(dlgEncounters)->setWindowFlag(
+                    Qt::WindowType::WindowMinMaxButtonsHint
+                );
+                dlgEncounters->exec();
+            }
         }
         else
             QMessageBox::critical(
@@ -463,28 +492,233 @@ bool MainWindow::anyChildrenActive() {
            nullptr!=dlgEncounters;
 }
 
+QHash<BadooFolderType,QString>      hshBadooFolderNames;
+QHash<BadooListSectionType,QString> hshBadooSectionNames;
+QHash<BadooListFilter,QString>      hshBadooFilterNames;
+
+void getCustomFolderParameters_Helper() {
+#define ADD_CONSTANT_TO_HASH(h,c) (h.insert(c,QStringLiteral(#c)))
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,ALL_MESSAGES);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FRIENDS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FAVOURITES);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,WANT_TO_MEET_YOU);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,YOU_WANT_TO_MEET);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,PROFILE_VISITORS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,BLOCKED);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,NEARBY_PEOPLE);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,PRIVATE_ALBUM_ACCESS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,SPOTLIGHT);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,MATCHES);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,NEARBY_PEOPLE_4);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,RATED_ME);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,PROFILE_SEARCH);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,NEARBY_PEOPLE_WEB);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,VERIFICATION_ACCESS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_COMBINED_CONNECTIONS_ALL);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_BELL);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_LIVESTREAMERS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_LIVESTREAM_SUBSCRIPTIONS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_LIVESTREAM_FOLLOWERS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_LIVESTREAM_VIEWERS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_CHAT_REQUEST_LIST);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_JOINED_GROUP_CHATS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_AVAILABLE_GROUP_CHATS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_NO_VOTES);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_GROUP_CHAT_MEMBERS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_MATCH_BAR);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_ARCHIVED);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_FAVOURITED_ME);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_FAVOURITED_BY_ME);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_ACTIVITY);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_CONVERSATIONS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_CRUSHES);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_MESSAGES_AND_ACTIVITY);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_BEST_BETS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_BFF_CONTACTS);
+    for(const auto &k:hshBadooFolderNames.keys())
+        hshBadooFolderNames[k].remove(QStringLiteral("FOLDER_TYPE_"));
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_UNKNOWN);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_GENERAL);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_TEMPORAL_MATCH);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BUMPED_INTO);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_ALL_MESSAGES);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_FAVORITES);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_FAVORITED_YOU);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_FAVORITES_MUTUAL);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_WANT_TO_MEET_YOU_UNVOTED);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_WANT_TO_MEET_YOU_MUTUAL);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_WANT_TO_MEET_YOU_REJECTED);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_PROFILE_VISITORS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BLOCKED);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_PRIVATE_ALBUM_ACCESS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_SPOTLIGHT);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_PROFILE_SEARCH);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_COMMON_PLACE);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_PEOPLE_NEARBY);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_FRIENDS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_MESSENGER_MINI_GAME);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_COMBINED_CONNECTIONS_ALL);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_TOP_LIVESTREAMERS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_POPULAR_LIVESTREAMERS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_TOP_SPENDERS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_IN_RANGE);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_OUT_OF_RANGE);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_LIVESTREAM_FOLLOWING);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_LOCKED);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_ACTIVITY);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_ACTIVITY_HIGHLIGHTS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_ALL);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_NEW);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_NEARBY);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_RECENTLY_ACTIVE);
+    for(const auto &k:hshBadooSectionNames.keys())
+        hshBadooSectionNames[k].remove(QStringLiteral("LIST_SECTION_TYPE_"));
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ONLINE);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_NEW);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_UNREAD);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_CONVERSATIONS);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ACTIVE_USERS);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_NEARBY);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_FAVOURITES);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_MATCHED);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_MATCH_MODE);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_UNREPLIED);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_MESSENGER_MINI_GAME);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_HOT);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_STREAMING);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ENCOUNTERS);
+    for(const auto &k:hshBadooFilterNames.keys())
+        hshBadooFilterNames[k].remove(QStringLiteral("LIST_FILTER_"));
+}
+
 bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
-                                           BadooListSectionType &blstSection) {
+                                           BadooListSectionType &blstSection,
+                                           BadooListFilterList  &blflFilters,
+                                           int                  &iMediaCount) {
     bool        bResult=false;
     QDialog     dlgCustom(this);
-    QFormLayout fmlParams;
-    QHBoxLayout vblButtons;
+    QVBoxLayout vblCustom;
+    QFormLayout fmlFolder;
+    QGridLayout grlFilter;
+    QHBoxLayout hblFolder,
+                hblSection,
+                hblMediaCount,
+                hblButtons;
     QSpinBox    spbFolder,
-                spbSection;
+                spbSection,
+                spbMediaCount;
+    QLabel      lblFilter;
+    QComboBox   cboFolder,
+                cboSection,
+                cboMediaCount;
+    QWidgetList wglFilters;
     QPushButton btnOK,
                 btnCancel;
+    getCustomFolderParameters_Helper();
     spbFolder.setRange(0,99);
     spbFolder.setAlignment(Qt::AlignmentFlag::AlignRight);
+    spbFolder.setSizePolicy(
+        QSizePolicy::Policy::Fixed,
+        QSizePolicy::Policy::Preferred
+    );
     spbSection.setRange(0,99);
     spbSection.setAlignment(Qt::AlignmentFlag::AlignRight);
+    spbSection.setSizePolicy(
+        QSizePolicy::Policy::Fixed,
+        QSizePolicy::Policy::Preferred
+    );
+    spbMediaCount.setRange(0,100);
+    spbMediaCount.setAlignment(Qt::AlignmentFlag::AlignRight);
+    spbMediaCount.setSizePolicy(
+        QSizePolicy::Policy::Fixed,
+        QSizePolicy::Policy::Preferred
+    );
+    spbFolder.setMinimumWidth(spbMediaCount.sizeHint().width());
+    spbSection.setMinimumWidth(spbMediaCount.sizeHint().width());
+    auto folderKeys=hshBadooFolderNames.keys();
+    std::sort(folderKeys.begin(),folderKeys.end());
+    for(const auto &k:folderKeys) {
+        if(FOLDER_TYPE_COMBINED_CONNECTIONS_ALL==k) {
+            auto *simModel=qobject_cast<QStandardItemModel *>(cboFolder.model());
+            cboFolder.addItem(QStringLiteral("------- Extended folder types -------"),-1);
+            simModel->item(cboFolder.count()-1,0)->setFlags(Qt::ItemFlag::NoItemFlags);
+        }
+        cboFolder.addItem(hshBadooFolderNames.value(k),k);
+    }
+    cboFolder.setCurrentIndex(-1);
+    cboFolder.setPlaceholderText(QStringLiteral("Folder type shortcuts"));
+    cboFolder.setSizePolicy(
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Preferred
+    );
+    connect(
+        &cboFolder,
+        &QComboBox::currentIndexChanged,
+        [&](int) {
+            spbFolder.setValue(cboFolder.currentData().toInt());
+        }
+    );
+    auto sectionKeys=hshBadooSectionNames.keys();
+    std::sort(sectionKeys.begin(),sectionKeys.end());
+    for(const auto &k:sectionKeys)
+        cboSection.addItem(hshBadooSectionNames.value(k),k);
+    cboSection.setCurrentIndex(-1);
+    cboSection.setPlaceholderText(QStringLiteral("Section type shortcuts"));
+    cboSection.setSizePolicy(
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Preferred
+    );
+    connect(
+        &cboSection,
+        &QComboBox::currentIndexChanged,
+        [&](int) {
+            spbSection.setValue(cboSection.currentData().toInt());
+        }
+    );
+    cboMediaCount.addItem(QStringLiteral("All available images and videos"),0);
+    cboMediaCount.addItem(QStringLiteral("Only one image / one video per profile"),1);
+    cboMediaCount.addItem(QStringLiteral("Up to 10 images / 10 videos per profile"),10);
+    cboMediaCount.addItem(QStringLiteral("Up to 100 images / 100 videos per profile"),100);
+    cboMediaCount.setPlaceholderText(QStringLiteral("Media count shortcuts"));
+    cboMediaCount.setSizePolicy(
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Preferred
+    );
+    connect(
+        &cboMediaCount,
+        &QComboBox::currentIndexChanged,
+        [&](int) {
+            spbMediaCount.setValue(cboMediaCount.currentData().toInt());
+        }
+    );
+    lblFilter.setText(QStringLiteral("Choose filters:"));
     btnOK.setText(QStringLiteral("OK"));
     btnCancel.setText(QStringLiteral("Cancel"));
-    vblButtons.addWidget(&btnOK);
-    vblButtons.addWidget(&btnCancel);
-    fmlParams.addRow(QStringLiteral("Folder type [0-99]:"),&spbFolder);
-    fmlParams.addRow(QStringLiteral("Section type [0-99]:"),&spbSection);
-    fmlParams.addRow(QString(),&vblButtons);
-    dlgCustom.setLayout(&fmlParams);
+    hblFolder.addWidget(&spbFolder);
+    hblFolder.addWidget(&cboFolder);
+    hblSection.addWidget(&spbSection);
+    hblSection.addWidget(&cboSection);
+    hblMediaCount.addWidget(&spbMediaCount);
+    hblMediaCount.addWidget(&cboMediaCount);
+    fmlFolder.addRow(QStringLiteral("Folder type [0-99]:"),&hblFolder);
+    fmlFolder.addRow(QStringLiteral("Section type [0-99]:"),&hblSection);
+    fmlFolder.addRow(QStringLiteral("Media count [0-100]:"),&hblMediaCount);
+    auto filterKeys=hshBadooFilterNames.keys();
+    std::sort(filterKeys.begin(),filterKeys.end());
+    for(int iK=0;iK<filterKeys.count();iK++) {
+        int iRow=iK/3,
+            iCol=iK%3;
+        wglFilters.append(new QCheckBox(hshBadooFilterNames.value(filterKeys.at(iK))));
+        grlFilter.addWidget(wglFilters.at(iK),iRow,iCol);
+    }
+    hblButtons.addStretch();
+    hblButtons.addWidget(&btnOK);
+    hblButtons.addWidget(&btnCancel);
+    vblCustom.addLayout(&fmlFolder);
+    vblCustom.addWidget(&lblFilter,0,Qt::AlignmentFlag::AlignHCenter);
+    vblCustom.addLayout(&grlFilter);
+    vblCustom.addLayout(&hblButtons);
+    dlgCustom.setLayout(&vblCustom);
     dlgCustom.setWindowFlag(Qt::WindowType::MSWindowsFixedSizeDialogHint);
     dlgCustom.setWindowFlag(Qt::WindowType::CustomizeWindowHint);
     dlgCustom.setWindowFlag(Qt::WindowType::WindowSystemMenuHint,false);
@@ -507,6 +741,13 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
     if(QDialog::DialogCode::Accepted==dlgCustom.exec()) {
         bftFolder=static_cast<BadooFolderType>(spbFolder.value());
         blstSection=static_cast<BadooListSectionType>(spbSection.value());
+        blflFilters.clear();
+        for(int iK=0;iK<wglFilters.count();iK++) {
+            if(qobject_cast<QCheckBox *>(wglFilters.at(iK))->isChecked())
+                blflFilters.append(static_cast<BadooListFilter>(iK));
+            delete wglFilters.at(iK);
+        }
+        iMediaCount=spbMediaCount.value();
         bResult=true;
     }
     return bResult;

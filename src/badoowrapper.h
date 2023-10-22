@@ -19,17 +19,7 @@ typedef enum {
     FOLDER_TYPE_MATCHES,
     FOLDER_TYPE_PEOPLE_NEARBY,
     FOLDER_TYPE_VISITORS
-} FolderType;
-
-typedef enum {
-    FOLDER_FILTER_ALL,
-    FOLDER_FILTER_ONLINE,
-    FOLDER_FILTER_NEW,
-    FOLDER_FILTER_NEARBY,
-    FOLDER_FILTER_MATCHED
-} FolderFilter;
-
-typedef QList<FolderFilter> FolderFilterList;
+} FolderType; // High level forder type - because not every BadooFolderType is supported.
 
 typedef QHash<QString,QByteArrayList> MediaContentsHash;
 
@@ -72,8 +62,8 @@ public:
     bool    downloadMultiProfileResources(BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int=MAX_DOWNLOAD_TRIES);
     bool    getEncounters(BadooUserProfileList &,bool=false);
     void    getEncountersSettings(EncountersSettings &);
-    bool    getFolderPage(BadooFolderType,BadooListSectionType,BadooListFilterList,int,BadooUserProfileList &,int &,int &,int &);
-    bool    getFolderPage(FolderType,FolderFilterList,int,BadooUserProfileList &,int &,int &,int &);
+    bool    getFolderPage(BadooFolderType,BadooListSectionType,BadooListFilterList,int,int,BadooUserProfileList &,int &,int &,int &);
+    bool    getFolderPage(FolderType,BadooListFilterList,int,int,BadooUserProfileList &,int &,int &,int &);
     QString getLastError();
     bool    getLoggedInProfile(BadooUserProfile &);
     bool    getLoggedInProfilePhoto(QByteArray &);

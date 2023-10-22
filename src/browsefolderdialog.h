@@ -7,8 +7,8 @@
 class BrowseFolderDialog:public QDialog {
     Q_OBJECT
 public:
-    BrowseFolderDialog(BadooFolderType,BadooListSectionType,BadooWrapper *,QWidget * =nullptr);
-    BrowseFolderDialog(FolderType,FolderFilterList,BadooWrapper *,QWidget * =nullptr);
+    BrowseFolderDialog(BadooFolderType,BadooListSectionType,BadooListFilterList,BadooWrapper *,int=0,QWidget * =nullptr);
+    BrowseFolderDialog(FolderType,BadooListFilterList,BadooWrapper *,int=0,QWidget * =nullptr);
     ~BrowseFolderDialog();
     bool isReady();
 private slots:
@@ -18,15 +18,16 @@ private:
     int                  iCurrentPageIndex,
                          iTotalPages,
                          iTotalProfiles,
-                         iMaxPageProfiles;
+                         iMaxPageProfiles,
+                         iMaxMediaCount;
     BadooWrapper         *bwBrowse;
     BadooFolderType      bftBrowsedFolder;
     BadooListSectionType blstBrowsedSection;
+    BadooListFilterList  blflBrowseFilters;
     BadooUserProfileList buplBrowse;
     MediaContentsHash    mchPhotoContents,
                          mchVideoContents;
     FolderType           ftBrowse;
-    FolderFilterList     fflBrowse;
     FolderViewer         *fvCurrentPage;
     QVBoxLayout          vblLayout;
     bool getNewPage(int);

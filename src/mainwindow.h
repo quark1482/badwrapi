@@ -43,7 +43,7 @@ private:
     QMdiArea             mdiArea;
     BadooWrapper         bwMain;
     bool anyChildrenActive();
-    bool getCustomFolderParameters(BadooFolderType &,BadooListSectionType &);
+    bool getCustomFolderParameters(BadooFolderType &,BadooListSectionType &,BadooListFilterList &,int &);
     void showCustomProfile(QString);
     void showSettings(BadooSettingsContextType);
 };
