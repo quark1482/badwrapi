@@ -844,22 +844,22 @@ typedef enum {
 } BadooLocationType;
 
 typedef enum {
-    ALL_MESSAGES=0,
+    ALL_MESSAGES=0,                          // Tested
     FRIENDS=3,                               // Does not work
     FAVOURITES=4,                            // Tested
     WANT_TO_MEET_YOU=6,                      // Tested
     YOU_WANT_TO_MEET=7,                      // Tested
     PROFILE_VISITORS=8,                      // Tested
-    BLOCKED=9,
+    BLOCKED=9,                               // Tested (folder comes with no media URLs)
     NEARBY_PEOPLE=10,                        // Tested
-    PRIVATE_ALBUM_ACCESS=11,
+    PRIVATE_ALBUM_ACCESS=11,                 // Tested (folder is always empty)
     SPOTLIGHT=13,                            // Tested
     MATCHES=15,                              // Tested
     NEARBY_PEOPLE_4=16,                      // Tested (apparently, same as NEARBY_PEOPLE)
     RATED_ME=17,                             // Does not work
-    PROFILE_SEARCH=20,
-    NEARBY_PEOPLE_WEB=25,                    // Tested (used by web app)
-    VERIFICATION_ACCESS=27,
+    PROFILE_SEARCH=20,                       // Does not work
+    NEARBY_PEOPLE_WEB=25,                    // Tested (used by web app - unclear diffs)
+    VERIFICATION_ACCESS=27,                  // Tested (folder is always empty)
     FOLDER_TYPE_COMBINED_CONNECTIONS_ALL=31, // From here down, untested
     FOLDER_TYPE_BELL=32,
     FOLDER_TYPE_LIVESTREAMERS=33,

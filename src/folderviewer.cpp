@@ -120,7 +120,7 @@ void FolderViewer::load(BadooUserProfileList buplPage,
     buplPageDetails=buplPage;
     mchPagePhotos=mchPhotos;
     mchPageVideos=mchVideos;
-    this->resetPageWidgets();
+    this->updatePageWidgets(true);
 }
 
 void FolderViewer::setFolderType(FolderType ftNew) {
@@ -171,10 +171,6 @@ void FolderViewer::configurePageButton(QPushButton *btnButton,
     btnButton->setToolTip(sToolTip);
 }
 
-void FolderViewer::resetPageWidgets() {
-    this->updatePageWidgets();
-}
-
 void FolderViewer::showStandaloneProfile(int iIndex) {
     QDialog       *dlgProfile=new QDialog(this);
     QStatusBar    *stbProfile=new QStatusBar(this);
@@ -223,6 +219,7 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                     // ToDo: (optional) remove profile from the page, if required.
                     buplPageDetails[iIndex].bvMyVote=VOTE_NO;
                     bUpdateProfile=true;
+                    bUpdatePage=true;
                     break;
                 case PROFILE_VIEWER_BUTTON_FAVORITE:
                     buplPageDetails[iIndex].bIsFavorite=!buplPageDetails[iIndex].bIsFavorite;
@@ -233,10 +230,9 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                     // ToDo: (optional) remove profile from the page, if required.
                     buplPageDetails[iIndex].bvMyVote=VOTE_YES;
                     bUpdateProfile=true;
-                    if(VOTE_YES==buplPageDetails.at(iIndex).bvTheirVote) {
+                    bUpdatePage=true;
+                    if(VOTE_YES==buplPageDetails.at(iIndex).bvTheirVote)
                         buplPageDetails[iIndex].bIsMatch=true;
-                        bUpdatePage=true;
-                    }
                     break;
                 case PROFILE_VIEWER_BUTTON_SKIP:
                     if(-1<iIndex)
@@ -270,12 +266,13 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
     delete dlgProfile;
 }
 
-void FolderViewer::updatePageGallery() {
-    int iRow=0,
-        iCol=0,
-        iTRows,
-        iTCols,
-        iSideSize=THUMBNAIL_SIDE+MARGIN_WIDTH*2;
+void FolderViewer::updatePageWidgets(bool bReset) {
+    int   iRow=0,
+          iCol=0,
+          iTRows,
+          iTCols,
+          iSideSize=THUMBNAIL_SIDE+MARGIN_WIDTH*2,
+          vScrollPos=bReset?0:grvView.verticalScrollBar()->value();
     iTCols=(grvView.width()-SEPARATOR_WIDTH)/(iSideSize+SEPARATOR_WIDTH);
     if(!iTCols)
         iTCols++;
@@ -348,10 +345,11 @@ void FolderViewer::updatePageGallery() {
         );
         this->updateProfileBadges(
             recBadges,
+            recPhoto,
             p.bIsVerified,
             p.bIsMatch,
-            BadooVote::VOTE_YES==p.bvTheirVote,
-            BadooVote::VOTE_NO==p.bvTheirVote,
+            p.bvMyVote,
+            p.bvTheirVote,
             p.bIsFavorite,
             p.bIsCrush,
             p.bHasQuickChat,
@@ -363,23 +361,20 @@ void FolderViewer::updatePageGallery() {
             iRow++;
         }
     }
-    grvView.ensureVisible(QRectF());
+    grvView.verticalScrollBar()->setValue(vScrollPos);
 }
 
-void FolderViewer::updatePageWidgets() {
-    this->updatePageGallery();
-}
-
-void FolderViewer::updateProfileBadges(QRect   recBadges,
-                                       bool    bVerified,
-                                       bool    bMatch,
-                                       bool    bLikedYou,
-                                       bool    bDislikedYou,
-                                       bool    bFavorite,
-                                       bool    bCrush,
-                                       bool    bQuickChat,
-                                       int     iLastOnline,
-                                       QString sOnlineStatus) {
+void FolderViewer::updateProfileBadges(QRect     recBadges,
+                                       QRect     recPhoto,
+                                       bool      bVerified,
+                                       bool      bMatch,
+                                       BadooVote bvMyVote,
+                                       BadooVote bvTheirVote,
+                                       bool      bFavorite,
+                                       bool      bCrush,
+                                       bool      bQuickChat,
+                                       int       iLastOnline,
+                                       QString   sOnlineStatus) {
     int            iXOffset;
     QPixmap        pxmBadge;
     QList<QPixmap> pxmlBadges;
@@ -404,15 +399,22 @@ void FolderViewer::updateProfileBadges(QRect   recBadges,
         pxmlBadges.append(pxmBadge);
         slBadgeToolTips.append(QStringLiteral("They have a crush on you!"));
     }
-    else if(bLikedYou) {
+    else if(BadooVote::VOTE_YES==bvTheirVote) {
         pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
         pxmlBadges.append(pxmBadge);
         slBadgeToolTips.append(QStringLiteral("They already liked you!"));
     }
-    else if(bDislikedYou) {
-        pxmBadge.load(QStringLiteral(":img/badge-disliked-you.svg"));
-        pxmlBadges.append(pxmBadge);
-        slBadgeToolTips.append(QStringLiteral("They voted against you"));
+    else if(BadooVote::VOTE_NO==bvTheirVote) {
+        if(BadooVote::VOTE_NO==bvMyVote) {
+            pxmBadge.load(QStringLiteral(":img/badge-disliked-mutual.svg"));
+            pxmlBadges.append(pxmBadge);
+            slBadgeToolTips.append(QStringLiteral("The hate is mutual"));
+        }
+        else {
+            pxmBadge.load(QStringLiteral(":img/badge-disliked-you.svg"));
+            pxmlBadges.append(pxmBadge);
+            slBadgeToolTips.append(QStringLiteral("They voted against you"));
+        }
     }
     if(bVerified) {
         pxmBadge.load(QStringLiteral(":img/badge-verification.svg"));
@@ -420,7 +422,7 @@ void FolderViewer::updateProfileBadges(QRect   recBadges,
         slBadgeToolTips.append(QStringLiteral("Verifed profile"));
     }
     if(-1==iLastOnline) {
-        pxmBadge.load(QStringLiteral(":img/badge-offline.svg"));
+        pxmBadge.load(QStringLiteral(":img/badge-offline-hidden.svg"));
         pxmlBadges.append(pxmBadge);
         slBadgeToolTips.append(QStringLiteral("Hidden online status"));
     } else if(!iLastOnline) {
@@ -431,14 +433,38 @@ void FolderViewer::updateProfileBadges(QRect   recBadges,
         pxmBadge.load(QStringLiteral(":img/badge-online-idle.svg"));
         pxmlBadges.append(pxmBadge);
         slBadgeToolTips.append(sOnlineStatus);
+    } else if(MAX_PROFILE_REAL_TIME<=iLastOnline) {
+        pxmBadge.load(QStringLiteral(":img/badge-offline-unknown.svg"));
+        pxmlBadges.append(pxmBadge);
+        slBadgeToolTips.append(sOnlineStatus);
     } else {
         pxmBadge.load(QStringLiteral(":img/badge-offline.svg"));
         pxmlBadges.append(pxmBadge);
         slBadgeToolTips.append(sOnlineStatus);
     }
+    QGraphicsPixmapItem *grpiBadge;
+    if(BadooVote::VOTE_YES==bvMyVote||BadooVote::VOTE_NO==bvMyVote) {
+        QString sToolTip=QStringLiteral("You already voted %1 to this profile").
+                         arg(BadooWrapper::getTextFromVote(bvMyVote));
+        grpiBadge=grsScene.addPixmap(QPixmap());
+        grpiBadge->setToolTip(sToolTip);
+        if(BadooVote::VOTE_YES==bvMyVote)
+            pxmBadge.load(QStringLiteral(":img/badge-you-liked.svg"));
+        else
+            pxmBadge.load(QStringLiteral(":img/badge-you-disliked.svg"));
+        grpiBadge->setPixmap(
+            pxmBadge.scaled(
+                recBadges.height(),
+                recBadges.height(),
+                Qt::AspectRatioMode::KeepAspectRatio,
+                Qt::TransformationMode::SmoothTransformation
+            )
+        );
+        grpiBadge->setPos(recPhoto.x(),recPhoto.y());
+    }
     iXOffset=-recBadges.height();
     for(const auto &b:pxmlBadges) {
-        QGraphicsPixmapItem *grpiBadge=grsScene.addPixmap(QPixmap());
+        grpiBadge=grsScene.addPixmap(QPixmap());
         grpiBadge->setToolTip(slBadgeToolTips.takeFirst());
         if(!b.isNull()) {
             grpiBadge->setPixmap(

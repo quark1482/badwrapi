@@ -13,10 +13,15 @@
         <file>../img/action-page.png</file>
         <file>../img/action-previous.png</file>
         <file>../img/badge-crush.svg</file>
+        <file>../img/badge-disliked-mutual.svg</file>
         <file>../img/badge-disliked-you.svg</file>
         <file>../img/badge-favorite.svg</file>
         <file>../img/badge-liked-you.svg</file>
+        <file>../img/badge-you-liked.svg</file>
+        <file>../img/badge-you-disliked.svg</file>
         <file>../img/badge-offline.svg</file>
+        <file>../img/badge-offline-hidden.svg</file>
+        <file>../img/badge-offline-unknown.svg</file>
         <file>../img/badge-online.svg</file>
         <file>../img/badge-online-idle.svg</file>
         <file>../img/badge-match.svg</file>

@@ -46,11 +46,9 @@ private:
                          mchPageVideos;
     FolderType           ftType;
     void configurePageButton(QPushButton *,QString,QString);
-    void resetPageWidgets();
     void showStandaloneProfile(int);
-    void updatePageGallery();
-    void updatePageWidgets();
-    void updateProfileBadges(QRect,bool,bool,bool,bool,bool,bool,bool,int,QString);
+    void updatePageWidgets(bool=false);
+    void updateProfileBadges(QRect,QRect,bool,bool,BadooVote,BadooVote,bool,bool,bool,int,QString);
     void updateProfileMediaCounters(QRect,int,int);
     void updateProfilePhoto(QRect,QByteArray,int);
     void updateProfileTitle(QRect,QString,int,QString);

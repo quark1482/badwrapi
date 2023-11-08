@@ -662,6 +662,7 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
     bool           bResult=false;
     QJsonObject    jsnMessage,
                    jsnResponse,
+                   jsnPhotoRequest,
                    jsnFieldFilter;
     QJsonArray     jsnProjection,
                    jsnAlbums,
@@ -677,6 +678,7 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
     // ... 'total in page', which is just the number of returned profiles in ...
     // ... the response, according to the number of requested profiles (iCount).
     if(iCount) {
+        jsnPhotoRequest.insert(QStringLiteral("return_large_url"),true);
         for(const auto &f:buflProjection)
             jsnProjection.append(f);
         for(const auto &t:batlAlbums) {
@@ -692,6 +694,7 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
         // ... includes the users data-, but stripped down of most fields and albums ...
         // ... so it's comparatively small in size.
         iCount=std::numeric_limits<int>::max();
+    jsnFieldFilter.insert(QStringLiteral("profile_photo_request"),jsnPhotoRequest);
     jsnFieldFilter.insert(QStringLiteral("projection"),jsnProjection);
     jsnFieldFilter.insert(QStringLiteral("request_albums"),jsnAlbums);
     jsnMessage.insert(QStringLiteral("user_field_filter"),jsnFieldFilter);

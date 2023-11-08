@@ -854,6 +854,7 @@ void ProfileViewer::toggleMediaViewersIndependence() {
         ui->wgtPhoto->layout()->addWidget(mvwPhoto);
         mctPhotoControls->setButtonSizeRatio(0.25);
         mctPhotoControls->setVisible(true);
+        this->activateWindow();
     }
     else {
         ui->wgtPhoto->layout()->removeWidget(mvwPhoto);
@@ -865,6 +866,7 @@ void ProfileViewer::toggleMediaViewersIndependence() {
         ui->wgtVideo->layout()->addWidget(mvwVideo);
         mctVideoControls->setButtonSizeRatio(0.25);
         mctVideoControls->setVisible(true);
+        this->activateWindow();
     }
     else {
         ui->wgtVideo->layout()->removeWidget(mvwVideo);
@@ -1038,7 +1040,7 @@ void ProfileViewer::updateProfileInfo() {
             delete i->widget();
         delete i;
     }
-    QLabel *lblTitle=new QLabel(sTitle);
+    QLabel *lblTitle=new QLabel(QStringLiteral("<b>%1</b>").arg(sTitle));
     QSize  sizBadge;
     sizBadge.setHeight(lblTitle->fontMetrics().height());
     sizBadge.setWidth(sizBadge.height());
@@ -1056,7 +1058,7 @@ void ProfileViewer::updateProfileInfo() {
     };
     if(-1==bupProfileDetails.iLastOnline) {
         fnAddBadge(
-            QStringLiteral(":img/badge-offline.svg"),
+            QStringLiteral(":img/badge-offline-hidden.svg"),
             QStringLiteral("Hidden online status")
         );
     }
@@ -1069,6 +1071,12 @@ void ProfileViewer::updateProfileInfo() {
     else if(MAX_PROFILE_IDLE_TIME>=bupProfileDetails.iLastOnline) {
         fnAddBadge(
             QStringLiteral(":img/badge-online-idle.svg"),
+            bupProfileDetails.sOnlineStatus
+        );
+    }
+    else if(MAX_PROFILE_REAL_TIME<=bupProfileDetails.iLastOnline) {
+        fnAddBadge(
+            QStringLiteral(":img/badge-offline-unknown.svg"),
             bupProfileDetails.sOnlineStatus
         );
     }
@@ -1103,10 +1111,16 @@ void ProfileViewer::updateProfileInfo() {
         );
     }
     else if(BadooVote::VOTE_NO==bupProfileDetails.bvTheirVote) {
-        fnAddBadge(
-            QStringLiteral(":img/badge-disliked-you.svg"),
-            QStringLiteral("They voted against you")
-        );
+        if(BadooVote::VOTE_NO==bupProfileDetails.bvMyVote)
+            fnAddBadge(
+                QStringLiteral(":img/badge-disliked-mutual.svg"),
+                QStringLiteral("The hate is mutual")
+            );
+        else
+            fnAddBadge(
+                QStringLiteral(":img/badge-disliked-you.svg"),
+                QStringLiteral("They voted against you")
+            );
     }
     if(bupProfileDetails.bIsFavorite) {
         fnAddBadge(

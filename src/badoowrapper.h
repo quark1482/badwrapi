@@ -7,7 +7,8 @@
 
 #define MAX_DOWNLOAD_TRIES 3
 
-#define MAX_PROFILE_IDLE_TIME 60
+#define MAX_PROFILE_IDLE_TIME 60    // After 60 min idle, they are definitely offline.
+#define MAX_PROFILE_REAL_TIME 10080 // After 7 days offline, they are probably 'gone'.
 
 #define PREFIX_NORMAL_USER_ID    "zAhMAC"
 #define PREFIX_ENCRYPTED_USER_ID "zAgEAC"
