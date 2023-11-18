@@ -2,6 +2,7 @@
 #define FOLDERVIEWER_H
 
 #include "badoowrapper.h"
+#include "db.h"
 #include "profileviewer.h"
 
 typedef enum {
@@ -17,6 +18,7 @@ class FolderViewer:public QWidget {
 public:
     FolderViewer(BadooWrapper *,QWidget * =nullptr);
     void load(BadooUserProfileList,MediaContentsHash,MediaContentsHash);
+    void setDB(DB *);
     void setFolderType(FolderType);
     void setPageTitle(QString);
 protected:
@@ -45,6 +47,7 @@ private:
     MediaContentsHash    mchPagePhotos,
                          mchPageVideos;
     FolderType           ftType;
+    DB                   *dbFolder;
     void configurePageButton(QPushButton *,QString,QString);
     void showStandaloneProfile(int);
     void updatePageWidgets(bool=false);

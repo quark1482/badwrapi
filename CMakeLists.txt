@@ -17,6 +17,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Network)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS QuickWidgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Multimedia)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS MultimediaWidgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Sql)
 
 add_subdirectory(src)
 
@@ -50,6 +51,7 @@ target_link_libraries(
     PRIVATE Qt${QT_VERSION_MAJOR}::QuickWidgets
     PRIVATE Qt${QT_VERSION_MAJOR}::Multimedia
     PRIVATE Qt${QT_VERSION_MAJOR}::MultimediaWidgets
+    PRIVATE Qt${QT_VERSION_MAJOR}::Sql
 )
 
 set_target_properties(BadWrAPI PROPERTIES

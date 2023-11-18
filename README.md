@@ -30,7 +30,7 @@ Other sign-in options are not suported -yet-.
 ToDo's
 ------
 
-- [ ] Save credentials/session.
+- [x] Save credentials/session.
 - [x] Show "People nearby".
 - [x] Show "Likes".
 - [x] Show "Matches".

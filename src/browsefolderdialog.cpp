@@ -7,8 +7,9 @@ BrowseFolderDialog::BrowseFolderDialog(BadooFolderType      bftFolder,
                                        BadooListFilterList  blflFilters,
                                        BadooWrapper         *bwParent,
                                        int                  iMediaLimit,
+                                       DB                   *dbDatabase,
                                        QWidget              *wgtParent):
-BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,blflFilters,bwParent,iMediaLimit,wgtParent) {
+BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,blflFilters,bwParent,iMediaLimit,dbDatabase,wgtParent) {
     bftBrowsedFolder=bftFolder;
     blstBrowsedSection=blstSection;
     if(this->getNewPage(0)) {
@@ -23,9 +24,10 @@ BrowseFolderDialog(FOLDER_TYPE_UNKNOWN,blflFilters,bwParent,iMediaLimit,wgtParen
 }
 
 BrowseFolderDialog::BrowseFolderDialog(FolderType          ftType,
-                                       BadooListFilterList blflilters,
+                                       BadooListFilterList blflFilters,
                                        BadooWrapper        *bwParent,
                                        int                 iMediaLimit,
+                                       DB                  *dbDatabase,
                                        QWidget             *wgtParent):
 QDialog(wgtParent) {
     bDialogReady=false;
@@ -36,13 +38,14 @@ QDialog(wgtParent) {
     iMaxMediaCount=iMediaLimit;
     bftBrowsedFolder=static_cast<BadooFolderType>(0);
     blstBrowsedSection=static_cast<BadooListSectionType>(0);
-    blflBrowseFilters=blflilters;
+    blflBrowseFilters=blflFilters;
     buplBrowse.clear();
     mchPhotoContents.clear();
     mchVideoContents.clear();
     ftBrowse=ftType;
     bwBrowse=bwParent;
     fvCurrentPage=new FolderViewer(bwBrowse,this);
+    fvCurrentPage->setDB(dbDatabase);
     vblLayout.addWidget(fvCurrentPage);
     this->setGeometry(0,0,640,480);
     this->setLayout(&vblLayout);
@@ -55,13 +58,11 @@ QDialog(wgtParent) {
     );
     if(FOLDER_TYPE_UNKNOWN!=ftBrowse)
         if(this->getNewPage(0)) {
+            // This may be a costly operation (along with calling getNewPage(0)), ...
+            // ... so I've decided to execute it before giving the control to the ...
+            // ... user to avoid possible problems with the event loop.
+            this->showCurrentPage();
             bDialogReady=true;
-            QTimer::singleShot(
-                0,
-                [=]() {
-                    this->showCurrentPage();
-                }
-            );
         }
 }
 

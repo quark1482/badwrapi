@@ -178,7 +178,14 @@ void MediaViewer::playVideo() {
                             evlLoop.exit();
                         }
                     );
-                    mpPlayer.play();
+                    // Defers the start of the video play to the next event loop, ...
+                    // ... to avoid losing signals that may happen really quick.
+                    QTimer::singleShot(
+                        0,
+                        [=]() {
+                            mpPlayer.play();
+                        }
+                    );
                     evlLoop.exec(QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents);
                     QObject::disconnect(c1);
                     QObject::disconnect(c2);

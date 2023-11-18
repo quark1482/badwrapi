@@ -9,7 +9,9 @@ RangeSlider {
 )"
 
 BadooSearchSettingsDialog::BadooSearchSettingsDialog(BadooSettingsContextType bsctNewContext,
-                                                     BadooWrapper             *bwParent) {
+                                                     BadooWrapper             *bwParent,
+                                                     QWidget                  *wgtParent):
+QDialog(wgtParent) {
     QObject              *objRangeSlider;
     BadooSexTypeList     bstlGenders;
     BadooIntRange        birAge,
@@ -25,10 +27,7 @@ BadooSearchSettingsDialog::BadooSearchSettingsDialog(BadooSettingsContextType bs
     bwWrapper->getEncountersSettings(esSettings);
     bwWrapper->getPeopleNearbySettings(pnsSettings);
 
-    // Configures a fixed-border dialog, with no minimize/maximize buttons and no system menu.
     this->setWindowFlag(Qt::WindowType::MSWindowsFixedSizeDialogHint);
-    this->setWindowFlag(Qt::WindowType::CustomizeWindowHint);
-    this->setWindowFlag(Qt::WindowType::WindowSystemMenuHint,false);
 
     if(SETTINGS_CONTEXT_TYPE_ENCOUNTERS==bsctContext) {
         this->setWindowTitle(QStringLiteral("Encounters settings"));

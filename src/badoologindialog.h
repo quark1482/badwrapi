@@ -10,7 +10,7 @@ class BadooWrapper;
 
 class BadooLoginDialog:public QDialog {
 public:
-    BadooLoginDialog(BadooWrapper *);
+    BadooLoginDialog(BadooWrapper *,QWidget * =nullptr);
     bool show();
 public slots:
     void okButtonClicked(bool);

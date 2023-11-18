@@ -13,6 +13,7 @@ prepend(SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}
         badoowrapper.h badoowrapper.cpp
         badoosearchsettingsdialog.h badoosearchsettingsdialog.cpp
         browsefolderdialog.h browsefolderdialog.cpp
+        db.h db.cpp
         folderviewer.h folderviewer.cpp
         httprequest.h httprequest.cpp
         main.cpp main.qrc

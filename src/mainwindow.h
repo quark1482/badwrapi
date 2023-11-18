@@ -5,6 +5,7 @@
 #include <QMessageBox>
 #include "badoowrapper.h"
 #include "browsefolderdialog.h"
+#include "db.h"
 #include "playencountersdialog.h"
 
 QT_BEGIN_NAMESPACE
@@ -20,9 +21,8 @@ public:
     ~MainWindow();
 protected:
     void closeEvent(QCloseEvent *) override;
+    bool eventFilter(QObject *,QEvent *) override;
 private slots:
-    void dialogBrowseFolderDestroyed();
-    void dialogEncountersDestroyed();
     void menuBrowseFolderTriggered(bool);
     void menuBrowseProfileTriggered(bool);
     void menuEncountersTriggered(bool);
@@ -42,8 +42,12 @@ private:
     PlayEncountersDialog *dlgEncounters;
     QMdiArea             mdiArea;
     BadooWrapper         bwMain;
+    DB                   *dbMain;
     bool anyChildrenActive();
     bool getCustomFolderParameters(BadooFolderType &,BadooListSectionType &,BadooListFilterList &,int &);
+    bool postInit();
+    bool setupDB(QString &);
+    void showChildDialog(SettingsGroup,QDialog *);
     void showCustomProfile(QString);
     void showSettings(BadooSettingsContextType);
 };

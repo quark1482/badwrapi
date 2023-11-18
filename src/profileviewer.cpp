@@ -40,7 +40,7 @@
 )"
 
 ProfileViewer::ProfileViewer(BadooWrapper *bwParent,
-                             QWidget *wgtParent):
+                             QWidget      *wgtParent):
 QWidget(wgtParent),ui(new Ui::ProfileViewer) {
     bVideoPausedByUser=false;
     iActiveActionButtons=-1;

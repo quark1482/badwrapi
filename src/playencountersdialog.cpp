@@ -23,14 +23,14 @@ QDialog(wgtParent) {
         &PlayEncountersDialog::buttonClicked
     );
     if(this->getNewBatch(true)) {
+        pvCurrentProfile->setActiveActionButtons(~PROFILE_VIEWER_BUTTON_FAVORITE);
+        // This may be a costly operation (because of thumbnails and/or videos) ...
+        // ... if the profile has too much media, so I've decided to execute it ...
+        // ... before giving the control to the user to avoid possible problems ...
+        // ... with the event loop (happened once and I lost 48 hours trying to ...
+        // ... figure out the source of the bug).
+        this->showCurrentProfile();
         bDialogReady=true;
-        QTimer::singleShot(
-            0,
-            [=]() {
-                pvCurrentProfile->setActiveActionButtons(~PROFILE_VIEWER_BUTTON_FAVORITE);
-                this->showCurrentProfile();
-            }
-        );
     }
 }
 

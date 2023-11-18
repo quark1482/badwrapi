@@ -1,14 +1,13 @@
 #ifndef BROWSEFOLDERDIALOG_H
 #define BROWSEFOLDERDIALOG_H
 
-#include <QDialog>
 #include "folderviewer.h"
 
 class BrowseFolderDialog:public QDialog {
     Q_OBJECT
 public:
-    BrowseFolderDialog(BadooFolderType,BadooListSectionType,BadooListFilterList,BadooWrapper *,int=0,QWidget * =nullptr);
-    BrowseFolderDialog(FolderType,BadooListFilterList,BadooWrapper *,int=0,QWidget * =nullptr);
+    BrowseFolderDialog(BadooFolderType,BadooListSectionType,BadooListFilterList,BadooWrapper *,int=0,DB * =nullptr,QWidget * =nullptr);
+    BrowseFolderDialog(FolderType,BadooListFilterList,BadooWrapper *,int=0,DB * =nullptr,QWidget * =nullptr);
     ~BrowseFolderDialog();
     bool isReady();
 private slots:

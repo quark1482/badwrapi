@@ -132,6 +132,14 @@ bool BadooWrapper::addToFavorites(QString sProfileId) {
     return bResult;
 }
 
+void BadooWrapper::clearSessionDetails() {
+    sdSession.sSessionId.clear();
+    sdSession.sDeviceId.clear();
+    sdSession.sUserId.clear();
+    sdSession.sAccountId.clear();
+    sdSession.sResponseToken.clear();
+}
+
 template bool BadooWrapper::downloadMultiMediaResources<QString>(
     QStringList,QStringList &,int
 );
@@ -792,6 +800,18 @@ void BadooWrapper::getSessionDetails(SessionDetails &sdDetails) {
     sdDetails=sdSession;
 }
 
+void BadooWrapper::getSessionDetails(QString &sSessionId,
+                                     QString &sDeviceId,
+                                     QString &sUserId,
+                                     QString &sAccountId,
+                                     QString &sResponseToken) {
+    sSessionId=sdSession.sSessionId;
+    sDeviceId=sdSession.sDeviceId;
+    sUserId=sdSession.sUserId;
+    sAccountId=sdSession.sAccountId;
+    sResponseToken=sdSession.sResponseToken;
+}
+
 QString BadooWrapper::getTextFromBoolean(bool bBoolean) {
     return bBoolean?QStringLiteral("YES"):QStringLiteral("NO");
 }
@@ -819,7 +839,7 @@ QString BadooWrapper::getTextFromVote(BadooVote bvVote) {
     QString sResult;
     switch(bvVote) {
         case VOTE_UNKNOWN:
-            sResult=QStringLiteral("UNKOWN");
+            sResult=QStringLiteral("UNKNOWN");
             break;
         case VOTE_NONE:
             sResult=QStringLiteral("NONE");
@@ -858,7 +878,8 @@ bool BadooWrapper::isValidUserId(QString sUserId) {
     QString                 sPattern;
     QRegularExpression      rxRegEx;
     QRegularExpressionMatch rxmMatch;
-    sPattern=QStringLiteral("(%1|%2)[A-Za-z0-9-_]{30,}").
+    sPattern=QStringLiteral("(%2|%3)[A-Za-z0-9-_]{%1,}").
+             arg(MIN_USER_ID_LENGTH).
              arg(
                  QStringLiteral(PREFIX_NORMAL_USER_ID),
                  QStringLiteral(PREFIX_ENCRYPTED_USER_ID)
@@ -872,6 +893,25 @@ bool BadooWrapper::isValidUserId(QString sUserId) {
 
 bool BadooWrapper::isLoggedIn() {
     return !sdSession.sSessionId.isEmpty()&&!sdSession.sResponseToken.isEmpty();
+}
+
+bool BadooWrapper::loadOwnProfile() {
+    bool          bResult=false;
+    QString       sError;
+    BadooAPIError baeError;
+    sError.clear();
+    BadooAPI::clearUserProfile(bupSelf);
+    emit statusChanged(QStringLiteral("Loading own profile..."));
+    if(BadooAPI::sendGetUser(sdSession.sSessionId,sdSession.sUserId,bupSelf,baeError))
+        bResult=true;
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
 }
 
 bool BadooWrapper::loadSearchSettings() {
@@ -1142,10 +1182,26 @@ void BadooWrapper::setPeopleNearbySettings(PeopleNearbySettings pnsNew) {
     pnsPeopleNearby=pnsNew;
 }
 
-bool BadooWrapper::showLogin() {
+void BadooWrapper::setSessionDetails(SessionDetails sdNewDetails) {
+    sdSession=sdNewDetails;
+}
+
+void BadooWrapper::setSessionDetails(QString sNewSessionId,
+                                     QString sNewDeviceId,
+                                     QString sNewUserId,
+                                     QString sNewAccountId,
+                                     QString sNewResponseToken) {
+    sdSession.sSessionId=sNewSessionId;
+    sdSession.sDeviceId=sNewDeviceId;
+    sdSession.sUserId=sNewUserId;
+    sdSession.sAccountId=sNewAccountId;
+    sdSession.sResponseToken=sNewResponseToken;
+}
+
+bool BadooWrapper::showLogin(QWidget *wgtParent) {
     bool             bResult=false;
     QString          sError;
-    BadooLoginDialog bldLogin(this);
+    BadooLoginDialog bldLogin(this,wgtParent);
     sError.clear();
     if(bldLogin.show())
         bResult=true;
@@ -1160,10 +1216,11 @@ bool BadooWrapper::showLogin() {
     return bResult;
 }
 
-bool BadooWrapper::showSearchSettings(BadooSettingsContextType bsctContext) {
+bool BadooWrapper::showSearchSettings(BadooSettingsContextType bsctContext,
+                                      QWidget                  *wgtParent) {
     bool                      bResult=false;
     QString                   sError;
-    BadooSearchSettingsDialog bssdSettings(bsctContext,this);
+    BadooSearchSettingsDialog bssdSettings(bsctContext,this,wgtParent);
     sError.clear();
     if(bssdSettings.show())
         bResult=true;
@@ -1223,14 +1280,6 @@ void BadooWrapper::clearPeopleNearbySettings() {
     pnsPeopleNearby.iOwnIntentId=0;
 }
 
-void BadooWrapper::clearSessionDetails() {
-    sdSession.sSessionId.clear();
-    sdSession.sDeviceId.clear();
-    sdSession.sUserId.clear();
-    sdSession.sAccountId.clear();
-    sdSession.sResponseToken.clear();
-}
-
 void BadooWrapper::setEncountersSettings(BadooSexTypeList bstlNewGenders,
                                          BadooIntRange    birNewAgeRange,
                                          BadooIntRange    birNewAge,
@@ -1261,16 +1310,4 @@ void BadooWrapper::setPeopleNearbySettings(BadooSexTypeList        bstlNewGender
     pnsPeopleNearby.sDistanceCode=sNewDistanceCode;
     pnsPeopleNearby.biksvhOwnIntentHash=biksvhNewOwnIntentHash;
     pnsPeopleNearby.iOwnIntentId=iNewOwnIntentId;
-}
-
-void BadooWrapper::setSessionDetails(QString sNewSessionId,
-                                     QString sNewDeviceId,
-                                     QString sNewUserId,
-                                     QString sNewAccountId,
-                                     QString sNewResponseToken) {
-    sdSession.sSessionId=sNewSessionId;
-    sdSession.sDeviceId=sNewDeviceId;
-    sdSession.sUserId=sNewUserId;
-    sdSession.sAccountId=sNewAccountId;
-    sdSession.sResponseToken=sNewResponseToken;
 }

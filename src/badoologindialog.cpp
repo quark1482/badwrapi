@@ -1,11 +1,10 @@
 #include "badoologindialog.h"
 
-BadooLoginDialog::BadooLoginDialog(BadooWrapper *bwParent) {
+BadooLoginDialog::BadooLoginDialog(BadooWrapper *bwParent,
+                                   QWidget      *wgtParent):
+QDialog(wgtParent) {
     bwWrapper=bwParent;
-    // Configures a fixed-border dialog, with no minimize/maximize buttons and no system menu.
     this->setWindowFlag(Qt::WindowType::MSWindowsFixedSizeDialogHint);
-    this->setWindowFlag(Qt::WindowType::CustomizeWindowHint);
-    this->setWindowFlag(Qt::WindowType::WindowSystemMenuHint,false);
     this->setWindowTitle(QStringLiteral("Login"));
     lblUser.setText(QStringLiteral("Email / Phone:"));
     lblPass.setText(QStringLiteral("Password:"));

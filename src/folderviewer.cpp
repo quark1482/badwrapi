@@ -9,6 +9,7 @@
 FolderViewer::FolderViewer(BadooWrapper *bwParent,
                            QWidget      *wgtParent):
 QWidget(wgtParent) {
+    dbFolder=nullptr;
     bwFolder=bwParent;
     buplPageDetails.clear();
     mchPagePhotos.clear();
@@ -123,6 +124,10 @@ void FolderViewer::load(BadooUserProfileList buplPage,
     this->updatePageWidgets(true);
 }
 
+void FolderViewer::setDB(DB *dbNew) {
+    dbFolder=dbNew;
+}
+
 void FolderViewer::setFolderType(FolderType ftNew) {
     ftType=ftNew;
 }
@@ -182,6 +187,7 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
     dlgProfile->setGeometry(pvProfile->geometry());
     dlgProfile->setLayout(vblProfile);
     dlgProfile->setWindowFlag(Qt::WindowType::WindowMinMaxButtonsHint);
+    dlgProfile->setWindowModality(Qt::WindowModality::ApplicationModal);
     dlgProfile->setWindowTitle(QStringLiteral("View profile"));
     if(FOLDER_TYPE_LIKES==ftType)
         pvProfile->setActiveActionButtons(~PROFILE_VIEWER_BUTTON_FAVORITE);
@@ -259,7 +265,34 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
             }
         }
     );
+    WidgetGeometry wggGeometry;
+    if(nullptr!=dbFolder)
+        if(dbFolder->loadSetting(stgPROFILE,wggGeometry))
+            if(!wggGeometry.recRect.isNull()) {
+                dlgProfile->setGeometry(wggGeometry.recRect);
+                switch(wggGeometry.wgsStatus) {
+                    case wgsNORMAL:
+                        dlgProfile->showNormal();
+                        break;
+                    case wgsMINIMIZED:
+                        dlgProfile->showMinimized();
+                        break;
+                    case wgsMAXIMIZED:
+                        dlgProfile->showMaximized();
+                        break;
+                }
+            }
     dlgProfile->exec();
+    if(nullptr!=dbFolder) {
+        if(dlgProfile->isMaximized())
+            wggGeometry.wgsStatus=wgsMAXIMIZED;
+        else if(dlgProfile->isMinimized())
+            wggGeometry.wgsStatus=wgsMINIMIZED;
+        else
+            wggGeometry.wgsStatus=wgsNORMAL;
+        wggGeometry.recRect=dlgProfile->normalGeometry();
+        dbFolder->saveSetting(stgPROFILE,wggGeometry);
+    }
     delete pvProfile;
     delete vblProfile;
     delete stbProfile;

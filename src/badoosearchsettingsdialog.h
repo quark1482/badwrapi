@@ -12,7 +12,7 @@ class BadooWrapper;
 class BadooSearchSettingsDialog:public QDialog {
     Q_OBJECT
 public:
-    BadooSearchSettingsDialog(BadooSettingsContextType,BadooWrapper *);
+    BadooSearchSettingsDialog(BadooSettingsContextType,BadooWrapper *,QWidget * =nullptr);
     bool show();
 public slots:
     void ageRangeSliderChanged();

@@ -2,9 +2,11 @@
 #include "./ui_mainwindow.h"
 
 #define APP_TITLE "Badoo API wrapper demo"
+#define DB_NAME   "BadWrAPI-demo.db"
 
 MainWindow::MainWindow(QWidget *parent):
 QMainWindow(parent),ui(new Ui::MainWindow) {
+    dbMain=new DB;
     ui->setupUi(this);
     dlgBrowseCustom=nullptr;
     dlgBrowseFavorites=nullptr;
@@ -118,12 +120,23 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
     QTimer::singleShot(
         0,
         [=]() {
-            this->resize(800,600);
+            if(!this->postInit())
+                QApplication::quit();
         }
     );
 }
 
 MainWindow::~MainWindow() {
+    WidgetGeometry wggGeometry;
+    if(this->isMaximized())
+        wggGeometry.wgsStatus=wgsMAXIMIZED;
+    else if(this->isMinimized())
+        wggGeometry.wgsStatus=wgsMINIMIZED;
+    else
+        wggGeometry.wgsStatus=wgsNORMAL;
+    wggGeometry.recRect=this->normalGeometry();
+    dbMain->saveSetting(stgMAIN,wggGeometry);
+    delete dbMain;
     if(nullptr!=dlgBrowseCustom)
         delete dlgBrowseCustom;
     if(nullptr!=dlgBrowseFavorites)
@@ -150,30 +163,49 @@ void MainWindow::closeEvent(QCloseEvent *evnE) {
         );
         evnE->ignore();
     }
-    else {
-        if(bwMain.isLoggedIn())
-            bwMain.logout();
+    else
         evnE->accept();
+}
+
+bool MainWindow::eventFilter(QObject *objO,
+                             QEvent  *evnE) {
+    if(QEvent::Type::Close==evnE->type()) {
+        QDialog        *dlgChild=qobject_cast<QDialog *>(objO);
+        QMdiSubWindow  *mdsChild=qobject_cast<QMdiSubWindow *>(objO->parent());
+        SettingsGroup  stgGroup=static_cast<SettingsGroup>(
+            dlgChild->property(QStringLiteral("group").toUtf8()).toInt()
+        );
+        WidgetGeometry wggGeometry;
+        if(mdsChild->isMaximized())
+            wggGeometry.wgsStatus=wgsMAXIMIZED;
+        else if(mdsChild->isMinimized())
+            wggGeometry.wgsStatus=wgsMINIMIZED;
+        else
+            wggGeometry.wgsStatus=wgsNORMAL;
+        // Among the bunch of annoyances that the MDI interface brings to the ...
+        // ... table, is that the QRect returned by normalGeometry() is null, ...
+        // ... so the child window needs to be restored to its 'normal' state ...
+        // ... before getting that geometry.
+        mdsChild->showNormal();
+        wggGeometry.recRect=mdsChild->geometry();
+        dbMain->saveSetting(stgGroup,wggGeometry);
+        if(dlgBrowseCustom==dlgChild)
+            dlgBrowseCustom=nullptr;
+        else if(dlgBrowseFavorites==dlgChild)
+            dlgBrowseFavorites=nullptr;
+        else if(dlgBrowseLikes==dlgChild)
+            dlgBrowseLikes=nullptr;
+        else if(dlgBrowseMatches==dlgChild)
+            dlgBrowseMatches=nullptr;
+        else if(dlgBrowsePeopleNearby==dlgChild)
+            dlgBrowsePeopleNearby=nullptr;
+        else if(dlgBrowseVisitors==dlgChild)
+            dlgBrowseVisitors=nullptr;
+        else if(dlgEncounters==dlgChild)
+            dlgEncounters=nullptr;
+        delete dlgChild;
     }
-}
-
-void MainWindow::dialogBrowseFolderDestroyed() {
-    if(dlgBrowseCustom==QObject::sender())
-        dlgBrowseCustom=nullptr;
-    else if(dlgBrowseFavorites==QObject::sender())
-        dlgBrowseFavorites=nullptr;
-    else if(dlgBrowseLikes==QObject::sender())
-        dlgBrowseLikes=nullptr;
-    else if(dlgBrowseMatches==QObject::sender())
-        dlgBrowseMatches=nullptr;
-    else if(dlgBrowsePeopleNearby==QObject::sender())
-        dlgBrowsePeopleNearby=nullptr;
-    else if(dlgBrowseVisitors==QObject::sender())
-        dlgBrowseVisitors=nullptr;
-}
-
-void MainWindow::dialogEncountersDestroyed() {
-    dlgEncounters=nullptr;
+    return QObject::eventFilter(objO,evnE);
 }
 
 void MainWindow::menuBrowseFolderTriggered(bool) {
@@ -221,10 +253,10 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
                 BadooFolderType      bftFolder;
                 BadooListSectionType blstSection;
                 if(this->getCustomFolderParameters(
-                        bftFolder,
-                        blstSection,
-                        blflFilters,
-                        iMediaCount
+                    bftFolder,
+                    blstSection,
+                    blflFilters,
+                    iMediaCount
                 )) {
                     dlgFolder=new BrowseFolderDialog(
                         bftFolder,
@@ -232,6 +264,7 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
                         blflFilters,
                         &bwMain,
                         iMediaCount,
+                        dbMain,
                         this
                     );
                     if(!dlgFolder->isReady()) {
@@ -246,6 +279,7 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
                     blflFilters,
                     &bwMain,
                     0,
+                    dbMain,
                     this
                 );
                 if(!dlgFolder->isReady()) {
@@ -280,27 +314,10 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
                     this,
                     &MainWindow::wrapperStatusChanged
                 );
-                connect(
-                    dlgFolder,
-                    &BrowseFolderDialog::destroyed,
-                    this,
-                    &MainWindow::dialogBrowseFolderDestroyed
+                this->showChildDialog(
+                    (FOLDER_TYPE_UNKNOWN==ftFolder)?stgCUSTOM:stgFOLDERS,
+                    dlgFolder
                 );
-                // There seems to be a problem when a QDialog belongs to a QMdiArea and ...
-                // ... QDialog::reject() is invoked by pressing the Escape key, causing ...
-                // ... that the dialog remains visible. So, as a straightforward fix we ...
-                // ... can call QMdiArea::closeActiveSubWindow() to close it by force.
-                connect(
-                    dlgFolder,
-                    &BrowseFolderDialog::rejected,
-                    &mdiArea,
-                    &QMdiArea::closeActiveSubWindow
-                );
-                dlgFolder->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
-                mdiArea.addSubWindow(dlgFolder)->setWindowFlag(
-                    Qt::WindowType::WindowMinMaxButtonsHint
-                );
-                dlgFolder->exec();
             }
         }
         else
@@ -319,25 +336,27 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
 
 void MainWindow::menuBrowseProfileTriggered(bool) {
     if(bwMain.isLoggedIn()) {
-        QInputDialog idProfile;
+        QInputDialog idProfile(this);
         QHBoxLayout  hblWarning;
         QLabel       lblWarningIcon,
                      lblWarningText;
-        idProfile.setLabelText(QStringLiteral("Profile URL or Id:"));
+        // Forces the resize of the QInputDialog to something more adequate by ...
+        // ... setting its QLabel to some maximum length string before showing ...
+        // ... the dialog itself.
+        idProfile.setLabelText(QStringLiteral("W").repeated(MIN_USER_ID_LENGTH));
         idProfile.setWindowFlag(Qt::WindowType::MSWindowsFixedSizeDialogHint);
-        idProfile.setWindowFlag(Qt::WindowType::CustomizeWindowHint);
-        idProfile.setWindowFlag(Qt::WindowType::WindowSystemMenuHint,false);
         idProfile.setWindowModality(Qt::WindowModality::ApplicationModal);
         idProfile.setWindowTitle(QStringLiteral("Custom profile"));
         idProfile.show();
+        idProfile.setLabelText(QStringLiteral("Profile URL or Id:"));
         lblWarningIcon.setPixmap(
             QApplication::style()->standardPixmap(
                 QStyle::StandardPixmap::SP_MessageBoxWarning
             )
         );
         lblWarningText.setText(
-            QStringLiteral("Warning: by browsing this profile directly, you become\n"
-                           "a visitor for them, completely losing your anonymity.")
+            QStringLiteral("<i>Warning: by browsing this profile directly, you become<br>"
+                           "a visitor for them, completely losing your anonymity.</i>")
         );
         hblWarning.addWidget(&lblWarningIcon);
         hblWarning.addWidget(&lblWarningText);
@@ -392,27 +411,7 @@ void MainWindow::menuEncountersTriggered(bool) {
                     this,
                     &MainWindow::wrapperStatusChanged
                 );
-                connect(
-                    dlgEncounters,
-                    &PlayEncountersDialog::destroyed,
-                    this,
-                    &MainWindow::dialogEncountersDestroyed
-                );
-                // There seems to be a problem when a QDialog belongs to a QMdiArea and ...
-                // ... QDialog::reject() is invoked by pressing the Escape key, causing ...
-                // ... that the dialog remains visible. So, as a straightforward fix we ...
-                // ... call QMdiArea::closeActiveSubWindow() to close it by force.
-                connect(
-                    dlgEncounters,
-                    &BrowseFolderDialog::rejected,
-                    &mdiArea,
-                    &QMdiArea::closeActiveSubWindow
-                );
-                dlgEncounters->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
-                mdiArea.addSubWindow(dlgEncounters)->setWindowFlag(
-                    Qt::WindowType::WindowMinMaxButtonsHint
-                );
-                dlgEncounters->exec();
+                this->showChildDialog(stgENCOUNTERS,dlgEncounters);
             }
         }
         else
@@ -437,15 +436,21 @@ void MainWindow::menuLoginTriggered(bool) {
             QStringLiteral("Already logged in")
         );
     else
-        if(bwMain.showLogin())
+        if(bwMain.showLogin(this)) {
+            QString sSes,sDev,sUsr,sAcc,sTok;
+            bwMain.getSessionDetails(sSes,sDev,sUsr,sAcc,sTok);
+            dbMain->saveSession(sSes,sDev,sUsr,sAcc,sTok);
             ui->stbMain->showMessage(QStringLiteral("Logged in"));
+        }
 }
 
 void MainWindow::menuLogoutTriggered(bool) {
     if(bwMain.isLoggedIn())
         if(!this->anyChildrenActive())
-            if(bwMain.logout())
+            if(bwMain.logout()) {
+                dbMain->saveSession(QString(),QString(),QString(),QString(),QString());
                 ui->stbMain->showMessage(QStringLiteral("Logged out"));
+            }
             else
                 QMessageBox::critical(
                     this,
@@ -596,8 +601,8 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
                                            BadooListFilterList  &blflFilters,
                                            int                  &iMediaCount) {
     bool        bResult=false;
-    QDialog     dlgCustom(this);
-    QVBoxLayout vblCustom;
+    QDialog     dlgCFParams(this);
+    QVBoxLayout vblCFParams;
     QFormLayout fmlFolder;
     QGridLayout grlFilter;
     QHBoxLayout hblFolder,
@@ -714,31 +719,29 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
     hblButtons.addStretch();
     hblButtons.addWidget(&btnOK);
     hblButtons.addWidget(&btnCancel);
-    vblCustom.addLayout(&fmlFolder);
-    vblCustom.addWidget(&lblFilter,0,Qt::AlignmentFlag::AlignHCenter);
-    vblCustom.addLayout(&grlFilter);
-    vblCustom.addLayout(&hblButtons);
-    dlgCustom.setLayout(&vblCustom);
-    dlgCustom.setWindowFlag(Qt::WindowType::MSWindowsFixedSizeDialogHint);
-    dlgCustom.setWindowFlag(Qt::WindowType::CustomizeWindowHint);
-    dlgCustom.setWindowFlag(Qt::WindowType::WindowSystemMenuHint,false);
-    dlgCustom.setWindowModality(Qt::WindowModality::ApplicationModal);
-    dlgCustom.setWindowTitle(QStringLiteral("Custom folder parameters"));
+    vblCFParams.addLayout(&fmlFolder);
+    vblCFParams.addWidget(&lblFilter,0,Qt::AlignmentFlag::AlignHCenter);
+    vblCFParams.addLayout(&grlFilter);
+    vblCFParams.addLayout(&hblButtons);
+    dlgCFParams.setLayout(&vblCFParams);
+    dlgCFParams.setWindowFlag(Qt::WindowType::MSWindowsFixedSizeDialogHint);
+    dlgCFParams.setWindowModality(Qt::WindowModality::ApplicationModal);
+    dlgCFParams.setWindowTitle(QStringLiteral("Custom folder parameters"));
     connect(
         &btnOK,
         &QPushButton::clicked,
-        &dlgCustom,
+        &dlgCFParams,
         &QDialog::accept
     );
     connect(
         &btnCancel,
         &QPushButton::clicked,
-        &dlgCustom,
+        &dlgCFParams,
         &QDialog::reject
     );
-    dlgCustom.show();
+    dlgCFParams.show();
     spbFolder.selectAll();
-    if(QDialog::DialogCode::Accepted==dlgCustom.exec()) {
+    if(QDialog::DialogCode::Accepted==dlgCFParams.exec()) {
         bftFolder=static_cast<BadooFolderType>(spbFolder.value());
         blstSection=static_cast<BadooListSectionType>(spbSection.value());
         blflFilters.clear();
@@ -751,6 +754,175 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
         bResult=true;
     }
     return bResult;
+}
+
+bool MainWindow::postInit() {
+    int     iButton;
+    QString sError;
+    // Initializes the DB.
+    do {
+        if(this->setupDB(sError)) {
+            iButton=QMessageBox::StandardButton::NoButton;
+            break;
+        }
+        else {
+            iButton=QMessageBox::critical(
+                this,
+                QStringLiteral("Error"),
+                sError,
+                QMessageBox::StandardButton::Abort|
+                QMessageBox::StandardButton::Retry|
+                QMessageBox::StandardButton::Ignore,
+                QMessageBox::StandardButton::Retry
+            );
+            if(QMessageBox::StandardButton::Abort==iButton)
+                break;
+            else if(QMessageBox::StandardButton::Ignore==iButton) {
+                QMessageBox::information(
+                    this,
+                    QStringLiteral(APP_TITLE),
+                    QStringLiteral("The program will continue now,\n"
+                                   "but it's not gonna be possible\n"
+                                   "to save the interface settings\n"
+                                   "nor the logged-in session.")
+                );
+                break;
+            }
+        }
+    } while(true);
+    if(QMessageBox::StandardButton::Abort==iButton)
+        return false;
+    this->resize(800,600);
+    WidgetGeometry wggGeometry;
+    // Restores the interface settings, when available.
+    if(dbMain->loadSetting(stgMAIN,wggGeometry))
+        if(!wggGeometry.recRect.isNull()) {
+            this->setGeometry(wggGeometry.recRect);
+            switch(wggGeometry.wgsStatus) {
+                case wgsNORMAL:
+                    this->showNormal();
+                    break;
+                case wgsMINIMIZED:
+                    this->showMinimized();
+                    break;
+                case wgsMAXIMIZED:
+                    this->showMaximized();
+                    break;
+            }
+        }
+    QString sSes,sDev,sUsr,sAcc,sTok;
+    // Restores the saved session, when available.
+    if(dbMain->loadSession(sSes,sDev,sUsr,sAcc,sTok)) {
+        bwMain.setSessionDetails(sSes,sDev,sUsr,sAcc,sTok);
+        if(bwMain.isLoggedIn()) {
+            do {
+                if(bwMain.loadOwnProfile()) {
+                    iButton=QMessageBox::StandardButton::NoButton;
+                    break;
+                }
+                else {
+                    iButton=QMessageBox::critical(
+                        this,
+                        QStringLiteral("Error"),
+                        bwMain.getLastError(),
+                        QMessageBox::StandardButton::Abort|
+                        QMessageBox::StandardButton::Retry|
+                        QMessageBox::StandardButton::Ignore,
+                        QMessageBox::StandardButton::Retry
+                    );
+                    if(QMessageBox::StandardButton::Abort==iButton)
+                        break;
+                    else if(QMessageBox::StandardButton::Ignore==iButton) {
+                        QMessageBox::information(
+                            this,
+                            QStringLiteral(APP_TITLE),
+                            QStringLiteral("The program will continue now,\n"
+                                           "but the saved session will be\n"
+                                           "cleared, so you need to log in\n"
+                                           "again.")
+                        );
+                        break;
+                    }
+                }
+            } while(true);
+            if(QMessageBox::StandardButton::Abort==iButton)
+                return false;
+            else if(QMessageBox::StandardButton::Ignore==iButton) {
+                if(bwMain.logout())
+                    dbMain->saveSession(QString(),QString(),QString(),QString(),QString());
+                // Clears the session even if the API or DB operations failed.
+                bwMain.clearSessionDetails();
+            } else
+                ui->stbMain->showMessage(QStringLiteral("Logged in"));
+        }
+    }
+    return true;
+}
+
+bool MainWindow::setupDB(QString &sError) {
+    bool    bResult=false;
+    QString sFilename,
+            sLocation=QStandardPaths::standardLocations(
+                QStandardPaths::StandardLocation::AppLocalDataLocation
+            ).first();
+    sError.clear();
+    sFilename=QStringLiteral("%1/%2").arg(sLocation,QStringLiteral(DB_NAME));
+    dbMain->setFilename(sFilename);
+    if(dbMain->exists())
+        bResult=true;
+    else if(dbMain->create())
+        bResult=true;
+    else {
+        (void)QDir().remove(sFilename);
+        sError=QStringLiteral("Unable to create the DB:\n%1").
+               arg(dbMain->getLastError());
+    }
+    if(bResult)
+        if(!dbMain->open()) {
+            sError=QStringLiteral("Unable to open the DB:\n%1").
+                   arg(dbMain->getLastError());
+            bResult=false;
+        }
+    return bResult;
+}
+
+void MainWindow::showChildDialog(SettingsGroup stgGroup,
+                                 QDialog       *dlgChild) {
+    QMdiSubWindow  *mdsChild;
+    WidgetGeometry wggGeometry;
+    // Identifies the dialog with its settings group through a custom property.
+    dlgChild->setProperty(QStringLiteral("group").toUtf8(),stgGroup);
+    dlgChild->setWindowIcon(QIcon(QStringLiteral(":img/bw.ico")));
+    mdsChild=mdiArea.addSubWindow(dlgChild);
+    // Restores the dialog status and geometry, if possible.
+    if(dbMain->loadSetting(stgGroup,wggGeometry))
+        if(!wggGeometry.recRect.isNull()) {
+            mdsChild->setGeometry(wggGeometry.recRect);
+            switch(wggGeometry.wgsStatus) {
+                case wgsNORMAL:
+                    mdsChild->showNormal();
+                    break;
+                case wgsMINIMIZED:
+                    mdsChild->showMinimized();
+                    break;
+                case wgsMAXIMIZED:
+                    mdsChild->showMaximized();
+                    break;
+            }
+        }
+    // There seems to be a problem when a QDialog belongs to a QMdiArea and ...
+    // ... QDialog::reject() is invoked by pressing the Escape key, causing ...
+    // ... that its QMdiSubWindow remains visible. So, as a straightforward ...
+    // ... fix, we can call QMdiArea::closeActiveSubWindow() to close it by ...
+    // ... force as soon as the dialog finishes.
+    connect(
+        dlgChild,
+        &QDialog::finished,
+        &mdiArea,
+        &QMdiArea::closeActiveSubWindow
+    );
+    dlgChild->installEventFilter(this);
+    dlgChild->show();
 }
 
 void MainWindow::showCustomProfile(QString sProfileId) {
@@ -774,6 +946,7 @@ void MainWindow::showCustomProfile(QString sProfileId) {
             dlgProfile->setGeometry(pvProfile->geometry());
             dlgProfile->setLayout(vblProfile);
             dlgProfile->setWindowFlag(Qt::WindowType::WindowMinMaxButtonsHint);
+            dlgProfile->setWindowModality(Qt::WindowModality::ApplicationModal);
             dlgProfile->setWindowTitle(QStringLiteral("View profile"));
             iActionButtons=PROFILE_VIEWER_BUTTON_COPY_URL|
                            PROFILE_VIEWER_BUTTON_DOWNLOAD|
@@ -831,7 +1004,31 @@ void MainWindow::showCustomProfile(QString sProfileId) {
                         );
                 }
             );
+            WidgetGeometry wggGeometry;
+            if(dbMain->loadSetting(stgPROFILE,wggGeometry))
+                if(!wggGeometry.recRect.isNull()) {
+                    dlgProfile->setGeometry(wggGeometry.recRect);
+                    switch(wggGeometry.wgsStatus) {
+                        case wgsNORMAL:
+                            dlgProfile->showNormal();
+                            break;
+                        case wgsMINIMIZED:
+                            dlgProfile->showMinimized();
+                            break;
+                        case wgsMAXIMIZED:
+                            dlgProfile->showMaximized();
+                            break;
+                    }
+                }
             dlgProfile->exec();
+            if(dlgProfile->isMaximized())
+                wggGeometry.wgsStatus=wgsMAXIMIZED;
+            else if(dlgProfile->isMinimized())
+                wggGeometry.wgsStatus=wgsMINIMIZED;
+            else
+                wggGeometry.wgsStatus=wgsNORMAL;
+            wggGeometry.recRect=dlgProfile->normalGeometry();
+            dbMain->saveSetting(stgPROFILE,wggGeometry);
             delete pvProfile;
             delete vblProfile;
             delete stbProfile;
@@ -855,7 +1052,7 @@ void MainWindow::showCustomProfile(QString sProfileId) {
 void MainWindow::showSettings(BadooSettingsContextType bsctContext) {
     if(bwMain.isLoggedIn())
         if(bwMain.loadSearchSettings()) {
-            if(bwMain.showSearchSettings(bsctContext))
+            if(bwMain.showSearchSettings(bsctContext,this))
                 ui->stbMain->showMessage(QStringLiteral("Settings saved"));
         }
         else

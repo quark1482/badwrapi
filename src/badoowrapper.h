@@ -10,6 +10,8 @@
 #define MAX_PROFILE_IDLE_TIME 60    // After 60 min idle, they are definitely offline.
 #define MAX_PROFILE_REAL_TIME 10080 // After 7 days offline, they are probably 'gone'.
 
+#define MIN_USER_ID_LENGTH 30
+
 #define PREFIX_NORMAL_USER_ID    "zAhMAC"
 #define PREFIX_ENCRYPTED_USER_ID "zAgEAC"
 
@@ -57,6 +59,7 @@ class BadooWrapper:public QObject {
 public:
     BadooWrapper();
     bool    addToFavorites(QString);
+    void    clearSessionDetails();
     template<typename T>
     bool    downloadMultiMediaResources(QStringList,QList<T> &,int=MAX_DOWNLOAD_TRIES);
     template<typename T>
@@ -71,7 +74,9 @@ public:
     void    getPeopleNearbySettings(PeopleNearbySettings &);
     bool    getProfile(QString,BadooUserProfile &);
     void    getSessionDetails(SessionDetails &);
+    void    getSessionDetails(QString &,QString &,QString &,QString &,QString &);
     bool    isLoggedIn();
+    bool    loadOwnProfile();
     bool    loadSearchSettings();
     bool    login(QString,QString);
     bool    logout();
@@ -79,8 +84,10 @@ public:
     bool    saveSearchSettings();
     void    setEncountersSettings(EncountersSettings);
     void    setPeopleNearbySettings(PeopleNearbySettings);
-    bool    showLogin();
-    bool    showSearchSettings(BadooSettingsContextType);
+    void    setSessionDetails(SessionDetails);
+    void    setSessionDetails(QString,QString,QString,QString,QString);
+    bool    showLogin(QWidget * =nullptr);
+    bool    showSearchSettings(BadooSettingsContextType,QWidget * =nullptr);
     bool    vote(QString,bool,bool &);
     static QString getFolderName(FolderType);
     static QString getHTMLFromProfile(BadooUserProfile,bool=false,QString=QString(),QByteArrayList={},QByteArrayList={});
@@ -99,10 +106,8 @@ private:
     PeopleNearbySettings pnsPeopleNearby;
     void    clearEncountersSettings();
     void    clearPeopleNearbySettings();
-    void    clearSessionDetails();
     void    setEncountersSettings(BadooSexTypeList,BadooIntRange,BadooIntRange,BadooIntRange,int);
     void    setPeopleNearbySettings(BadooSexTypeList,BadooIntRange,BadooIntRange,int,QString,BadooStrKeyStrValueHash,QString,BadooIntKeyStrValueHash,int);
-    void    setSessionDetails(QString,QString,QString,QString,QString);
 signals:
     void statusChanged(QString);
 };
