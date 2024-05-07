@@ -23,6 +23,7 @@ QDialog(wgtParent) {
         &PlayEncountersDialog::buttonClicked
     );
     if(this->getNewBatch(true)) {
+        // Adding someone to Favorites is not possible when playing Encounters.
         pvCurrentProfile->setActiveActionButtons(~PROFILE_VIEWER_BUTTON_FAVORITE);
         // This may be a costly operation (because of thumbnails and/or videos) ...
         // ... if the profile has too much media, so I've decided to execute it ...
@@ -64,6 +65,15 @@ void PlayEncountersDialog::buttonClicked(ProfileViewerButton pvbButton) {
             break;
         case PROFILE_VIEWER_BUTTON_SKIP:
             this->handleSkipButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_BLOCK:
+            this->handleBlockButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_UNBLOCK:
+            this->handleUnblockButtonClick();
+            break;
+        case PROFILE_VIEWER_BUTTON_UNMATCH:
+            this->handleUnmatchButtonClick();
             break;
     }
 }
@@ -171,6 +181,7 @@ void PlayEncountersDialog::handleNopeButtonClick() {
 }
 
 void PlayEncountersDialog::handleFavoriteButtonClick() {
+    // Just a placeholder - this action is not gonna happen in Encounters.
     emit statusChanged(QString());
     if(-1<iCurrentProfileIndex) {
         this->showCurrentProfile();
@@ -203,6 +214,45 @@ void PlayEncountersDialog::handleSkipButtonClick() {
             bUpdate=this->getNewBatch();
     if(bUpdate)
         this->showCurrentProfile();
+}
+
+void PlayEncountersDialog::handleBlockButtonClick() {
+    emit statusChanged(QString());
+    if(-1<iCurrentProfileIndex) {
+        // Blocking a profile in Encounters also implies voting Nope ...
+        // ... to the profile. Hence, the following line is useless, ...
+        // ... since the profile is being thrown away from the feed.
+        buplEncounters[iCurrentProfileIndex].bIsBlocked=true;
+        mchPhotoContents.remove(this->getCurrentProfileId());
+        mchVideoContents.remove(this->getCurrentProfileId());
+        buplEncounters.removeAt(iCurrentProfileIndex);
+        if(iCurrentProfileIndex==buplEncounters.count()) {
+            iCurrentProfileIndex--;
+            this->getNewBatch();
+        }
+        emit statusChanged(QStringLiteral("Profile blocked"));
+        this->showCurrentProfile();
+    }
+}
+
+void PlayEncountersDialog::handleUnblockButtonClick() {
+    // Just a placeholder - this action is not gonna happen in Encounters.
+    emit statusChanged(QString());
+    if(-1<iCurrentProfileIndex) {
+        buplEncounters[iCurrentProfileIndex].bIsBlocked=false;
+        emit statusChanged(QStringLiteral("Profile unblocked"));
+        this->showCurrentProfile();
+    }
+}
+
+void PlayEncountersDialog::handleUnmatchButtonClick() {
+    // Just a placeholder - this action is not gonna happen in Encounters.
+    emit statusChanged(QString());
+    if(-1<iCurrentProfileIndex) {
+        buplEncounters[iCurrentProfileIndex].bIsMatch=false;
+        emit statusChanged(QStringLiteral("Profile unmatched"));
+        this->showCurrentProfile();
+    }
 }
 
 void PlayEncountersDialog::showCurrentProfile() {

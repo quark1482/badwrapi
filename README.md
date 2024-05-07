@@ -6,6 +6,15 @@ Contains reverse-engineered #define's taken from the mobile apps Badoo,
 Bumble and the now-defunct Blendr.
 
 
+Updates _2024-05-07_ 🥳
+-------
+
+* New folder type supported: Blocked people.
+* A "danger" toolbar (Block/Unblock and Unmatch) appears in each profile.
+* Profiles with no albums show the profile picture instead (when available).
+* The logout operation now requires confirmation.
+
+
 Features
 --------
 
@@ -36,6 +45,7 @@ ToDo's
 - [x] Show "Matches".
 - [x] Show "Favorites".
 - [x] Show "Visitors".
+- [x] Show "Blocked people".
 - [ ] Implement chat.
 
 

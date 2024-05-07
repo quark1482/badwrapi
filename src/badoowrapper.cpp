@@ -109,12 +109,35 @@ BadooWrapper::BadooWrapper() {
     this->clearPeopleNearbySettings();
 }
 
+bool BadooWrapper::addToBlocked(QString sProfileId) {
+    bool          bResult=false;
+    QString       sError;
+    BadooAPIError baeError;
+    sError.clear();
+    emit statusChanged(QStringLiteral("Blocking profile..."));
+    if(BadooAPI::sendAddPersonToFolder(
+        sdSession.sSessionId,
+        sProfileId,
+        BLOCKED,
+        baeError
+    ))
+        bResult=true;
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
 bool BadooWrapper::addToFavorites(QString sProfileId) {
     bool          bResult=false;
     QString       sError;
     BadooAPIError baeError;
     sError.clear();
-    emit statusChanged(QStringLiteral("Adding person to favorites..."));
+    emit statusChanged(QStringLiteral("Adding profile to favorites..."));
     if(BadooAPI::sendAddPersonToFolder(
         sdSession.sSessionId,
         sProfileId,
@@ -463,6 +486,9 @@ QString BadooWrapper::getFolderName(FolderType ftType) {
         case FOLDER_TYPE_VISITORS:
             sResult=QStringLiteral("Visitors");
             break;
+        case FOLDER_TYPE_BLOCKED:
+            sResult=QStringLiteral("Blocked people");
+            break;
     }
     return sResult;
 }
@@ -579,6 +605,10 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
             bftFolder=PROFILE_VISITORS;
             blstSection=LIST_SECTION_TYPE_PROFILE_VISITORS;
             break;
+        case FOLDER_TYPE_BLOCKED:
+            bftFolder=BLOCKED;
+            blstSection=LIST_SECTION_TYPE_UNKNOWN;
+            break;
     }
     if(FOLDER_TYPE_UNKNOWN==ftType)
         sError=QStringLiteral("Unknown folder type");
@@ -621,7 +651,7 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
     QStringList slPhotos,
                 slVideos;
     sTitle=QStringLiteral("%1, %2, %3").arg(bupUser.sName).arg(bupUser.iAge).arg(bupUser.sCity);
-    sURL=QStringLiteral("%1/profile/0%2").arg(ENDPOINT_BASE).arg(bupUser.sUserId);
+    sURL=QStringLiteral("%1/profile/%2").arg(ENDPOINT_BASE).arg(bupUser.sUserId);
     sDetails=QStringLiteral(HTML_TABLE_PROFILE).
              arg(bupUser.sName).arg(bupUser.iAge).arg(bupUser.sAppearance).
              arg(
@@ -1071,16 +1101,70 @@ bool BadooWrapper::logout() {
     return bResult;
 }
 
+bool BadooWrapper::removeFromBlocked(QString sProfileId) {
+    bool          bResult=false;
+    QString       sError;
+    BadooAPIError baeError;
+    sError.clear();
+    emit statusChanged(QStringLiteral("Unblocking profile..."));
+    if(BadooAPI::sendRemovePersonFromSection(
+        sdSession.sSessionId,
+        sProfileId,
+        BLOCKED,
+        LIST_SECTION_TYPE_GENERAL,
+        SECTION_USER_DELETE,
+        baeError
+    ))
+        bResult=true;
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
 bool BadooWrapper::removeFromFavorites(QString sProfileId) {
     bool          bResult=false;
     QString       sError;
     BadooAPIError baeError;
     sError.clear();
-    emit statusChanged(QStringLiteral("Removing person from favorites..."));
-    if(BadooAPI::sendRemovePersonFromFolder(
+    emit statusChanged(QStringLiteral("Removing profile from favorites..."));
+    if(BadooAPI::sendRemovePersonFromSection(
         sdSession.sSessionId,
         sProfileId,
         FAVOURITES,
+        LIST_SECTION_TYPE_UNKNOWN,
+        SECTION_USER_DELETE,
+        baeError
+    ))
+        bResult=true;
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
+bool BadooWrapper::removeFromMatches(QString sProfileId) {
+    bool          bResult=false;
+    QString       sError;
+    BadooAPIError baeError;
+    sError.clear();
+    emit statusChanged(QStringLiteral("Unmatching profile..."));
+    // This is the correct and safest way of removing a match, with some unfortunate ...
+    // ... side effects, as it is described in FolderViewer::showStandaloneProfile().
+    if(BadooAPI::sendRemovePersonFromSection(
+        sdSession.sSessionId,
+        sProfileId,
+        FOLDER_TYPE_COMBINED_CONNECTIONS_ALL,
+        LIST_SECTION_TYPE_UNKNOWN,
+        SECTION_ACTION_TYPE_USER_DELETE_FOR_ALL,
         baeError
     ))
         bResult=true;

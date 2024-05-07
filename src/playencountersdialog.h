@@ -30,6 +30,9 @@ private:
     void    handleFavoriteButtonClick();
     void    handleLikeButtonClick();
     void    handleSkipButtonClick();
+    void    handleBlockButtonClick();
+    void    handleUnblockButtonClick();
+    void    handleUnmatchButtonClick();
     void    showCurrentProfile();
 signals:
     void statusChanged(QString);

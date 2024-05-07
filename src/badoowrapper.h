@@ -21,7 +21,8 @@ typedef enum {
     FOLDER_TYPE_LIKES,
     FOLDER_TYPE_MATCHES,
     FOLDER_TYPE_PEOPLE_NEARBY,
-    FOLDER_TYPE_VISITORS
+    FOLDER_TYPE_VISITORS,
+    FOLDER_TYPE_BLOCKED
 } FolderType; // High level forder type - because not every BadooFolderType is supported.
 
 typedef QHash<QString,QByteArrayList> MediaContentsHash;
@@ -58,6 +59,7 @@ class BadooWrapper:public QObject {
     Q_OBJECT
 public:
     BadooWrapper();
+    bool    addToBlocked(QString);
     bool    addToFavorites(QString);
     void    clearSessionDetails();
     template<typename T>
@@ -80,7 +82,9 @@ public:
     bool    loadSearchSettings();
     bool    login(QString,QString);
     bool    logout();
+    bool    removeFromBlocked(QString);
     bool    removeFromFavorites(QString);
+    bool    removeFromMatches(QString);
     bool    saveSearchSettings();
     void    setEncountersSettings(EncountersSettings);
     void    setPeopleNearbySettings(PeopleNearbySettings);

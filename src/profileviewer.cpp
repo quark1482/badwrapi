@@ -59,6 +59,19 @@ QWidget(wgtParent),ui(new Ui::ProfileViewer) {
     mctVideoControls=new MediaControls(mvwVideo,true);
     BadooAPI::clearUserProfile(bupProfileDetails);
     ui->setupUi(this);
+    tbtBlock.setCursor(Qt::CursorShape::PointingHandCursor);
+    tbtUnblock.setCursor(Qt::CursorShape::PointingHandCursor);
+    tbtUnmatch.setCursor(Qt::CursorShape::PointingHandCursor);
+    tbtBlock.setIcon(QIcon(QStringLiteral(":img/action-block.svg")));
+    tbtUnblock.setIcon(QIcon(QStringLiteral(":img/action-unblock.svg")));
+    tbtUnmatch.setIcon(QIcon(QStringLiteral(":img/action-unmatch.svg")));
+    tbtBlock.setToolTip(QStringLiteral("Block"));
+    tbtUnblock.setToolTip(QStringLiteral("Unblock"));
+    tbtUnmatch.setToolTip(QStringLiteral("Unmatch"));
+    tlbDanger.addWidget(&tbtBlock);
+    tlbDanger.addWidget(&tbtUnblock);
+    tlbDanger.addWidget(&tbtUnmatch);
+    tlbDanger.setParent(this);
     this->toggleMediaViewersIndependence();
     ui->grvPhotoGallery->setAlignment(Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop);
     ui->grvPhotoGallery->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
@@ -125,7 +138,24 @@ QWidget(wgtParent),ui(new Ui::ProfileViewer) {
             this,
             &ProfileViewer::skipButtonClicked
         );
-
+        connect(
+            &tbtBlock,
+            &QToolButton::clicked,
+            this,
+            &ProfileViewer::blockButtonClicked
+        );
+        connect(
+            &tbtUnblock,
+            &QToolButton::clicked,
+            this,
+            &ProfileViewer::unblockButtonClicked
+        );
+        connect(
+            &tbtUnmatch,
+            &QToolButton::clicked,
+            this,
+            &ProfileViewer::unmatchButtonClicked
+        );
         connect(
             mctPhotoControls,
             &MediaControls::first,
@@ -283,6 +313,12 @@ bool ProfileViewer::eventFilter(QObject *objO,
 }
 
 void ProfileViewer::resizeEvent(QResizeEvent *) {
+    tlbDanger.setGeometry(
+        this->width()-tlbDanger.sizeHint().width(),
+        0,
+        tlbDanger.sizeHint().width(),
+        tlbDanger.sizeHint().height()
+    );
     tmrDelayedResize.start(500);
 }
 
@@ -418,6 +454,67 @@ void ProfileViewer::likeButtonClicked() {
 void ProfileViewer::skipButtonClicked() {
     if(!bupProfileDetails.sUserId.isEmpty())
         emit buttonClicked(PROFILE_VIEWER_BUTTON_SKIP);
+}
+
+void ProfileViewer::blockButtonClicked() {
+    if(!bupProfileDetails.sUserId.isEmpty())
+        if(QMessageBox::StandardButton::Yes==QMessageBox::warning(
+            this,
+            QStringLiteral("Warning"),
+            QStringLiteral("Block this profile?"),
+            QMessageBox::StandardButton::Yes|QMessageBox::StandardButton::No,
+            QMessageBox::StandardButton::No
+        ))
+            if(bwProfile->addToBlocked(bupProfileDetails.sUserId)) {
+                emit buttonClicked(PROFILE_VIEWER_BUTTON_BLOCK);
+            }
+            else
+                QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    bwProfile->getLastError()
+                );
+}
+
+void ProfileViewer::unblockButtonClicked() {
+    if(!bupProfileDetails.sUserId.isEmpty())
+        if(QMessageBox::StandardButton::Yes==QMessageBox::warning(
+            this,
+            QStringLiteral("Warning"),
+            QStringLiteral("Unblock this profile?"),
+            QMessageBox::StandardButton::Yes|QMessageBox::StandardButton::No,
+            QMessageBox::StandardButton::No
+        ))
+            if(bwProfile->removeFromBlocked(bupProfileDetails.sUserId)) {
+                emit buttonClicked(PROFILE_VIEWER_BUTTON_UNBLOCK);
+            }
+            else
+                QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    bwProfile->getLastError()
+                );
+}
+
+void ProfileViewer::unmatchButtonClicked() {
+    if(!bupProfileDetails.sUserId.isEmpty())
+        if(QMessageBox::StandardButton::Yes==QMessageBox::warning(
+            this,
+            QStringLiteral("Warning"),
+            QStringLiteral("Unmatch this profile?\n"
+                           "This operation is not reversible!"),
+            QMessageBox::StandardButton::Yes|QMessageBox::StandardButton::No,
+            QMessageBox::StandardButton::No
+        ))
+            if(bwProfile->removeFromMatches(bupProfileDetails.sUserId)) {
+                emit buttonClicked(PROFILE_VIEWER_BUTTON_UNMATCH);
+            }
+            else
+                QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    bwProfile->getLastError()
+                );
 }
 
 void ProfileViewer::firstPhotoButtonClicked() {
@@ -892,6 +989,21 @@ void ProfileViewer::updateActionButtons() {
     ui->btnFavorite->setEnabled(bFavoriteEnabled);
     ui->btnLike->setEnabled(bVoteEnabled&bLikeEnabled);
     ui->btnSkip->setEnabled(bSkipEnabled);
+    tlbDanger.actions().at(PROFILE_VIEWER_DANGER_BUTTON_INDEX_BLOCK)->setVisible(
+        !bupProfileDetails.bIsBlocked
+    );
+    tlbDanger.actions().at(PROFILE_VIEWER_DANGER_BUTTON_INDEX_UNBLOCK)->setVisible(
+        bupProfileDetails.bIsBlocked
+    );
+    tlbDanger.actions().at(PROFILE_VIEWER_DANGER_BUTTON_INDEX_UNMATCH)->setVisible(
+        bupProfileDetails.bIsMatch
+    );
+    tlbDanger.setGeometry(
+        this->width()-tlbDanger.sizeHint().width(),
+        0,
+        tlbDanger.sizeHint().width(),
+        tlbDanger.sizeHint().height()
+    );
     for(const auto &b:this->findChildren<QPushButton *>())
         if(!b->isEnabled())
             b->setToolTip(QStringLiteral("Disabled in this mode"));

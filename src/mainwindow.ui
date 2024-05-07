@@ -38,6 +38,7 @@
     <addaction name="actMatches"/>
     <addaction name="mnuPeopleNearby"/>
     <addaction name="actVisitors"/>
+    <addaction name="actBlocked"/>
     <addaction name="separator"/>
     <addaction name="actExit"/>
    </widget>
@@ -172,6 +173,11 @@
   <action name="actMatches">
    <property name="text">
     <string>Matches</string>
+   </property>
+  </action>
+  <action name="actBlocked">
+   <property name="text">
+    <string>Blocked people</string>
    </property>
   </action>
  </widget>

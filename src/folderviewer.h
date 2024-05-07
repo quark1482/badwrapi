@@ -51,7 +51,7 @@ private:
     void configurePageButton(QPushButton *,QString,QString);
     void showStandaloneProfile(int);
     void updatePageWidgets(bool=false);
-    void updateProfileBadges(QRect,QRect,bool,bool,BadooVote,BadooVote,bool,bool,bool,int,QString);
+    void updateProfileBadges(QRect,QRect,bool,bool,bool,BadooVote,BadooVote,bool,bool,bool,int,QString);
     void updateProfileMediaCounters(QRect,int,int);
     void updateProfilePhoto(QRect,QByteArray,int);
     void updateProfileTitle(QRect,QString,int,QString);

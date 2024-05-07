@@ -38,7 +38,8 @@ private:
                          *dlgBrowseLikes,
                          *dlgBrowseMatches,
                          *dlgBrowsePeopleNearby,
-                         *dlgBrowseVisitors;
+                         *dlgBrowseVisitors,
+                         *dlgBrowseBlocked;
     PlayEncountersDialog *dlgEncounters;
     QMdiArea             mdiArea;
     BadooWrapper         bwMain;

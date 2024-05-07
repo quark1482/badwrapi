@@ -10,14 +10,23 @@ class ProfileViewer;
 }
 
 typedef enum {
-    PROFILE_VIEWER_BUTTON_COPY_URL= 1,
-    PROFILE_VIEWER_BUTTON_DOWNLOAD= 2,
-    PROFILE_VIEWER_BUTTON_BACK    = 4,
-    PROFILE_VIEWER_BUTTON_NOPE    = 8,
-    PROFILE_VIEWER_BUTTON_FAVORITE=16,
-    PROFILE_VIEWER_BUTTON_LIKE    =32,
-    PROFILE_VIEWER_BUTTON_SKIP    =64,
+    PROFILE_VIEWER_BUTTON_COPY_URL=  1,
+    PROFILE_VIEWER_BUTTON_DOWNLOAD=  2,
+    PROFILE_VIEWER_BUTTON_BACK    =  4,
+    PROFILE_VIEWER_BUTTON_NOPE    =  8,
+    PROFILE_VIEWER_BUTTON_FAVORITE= 16,
+    PROFILE_VIEWER_BUTTON_LIKE    = 32,
+    PROFILE_VIEWER_BUTTON_SKIP    = 64,
+    PROFILE_VIEWER_BUTTON_BLOCK   =128,
+    PROFILE_VIEWER_BUTTON_UNBLOCK =256,
+    PROFILE_VIEWER_BUTTON_UNMATCH =512
 } ProfileViewerButton;
+
+typedef enum {
+    PROFILE_VIEWER_DANGER_BUTTON_INDEX_BLOCK,
+    PROFILE_VIEWER_DANGER_BUTTON_INDEX_UNBLOCK,
+    PROFILE_VIEWER_DANGER_BUTTON_INDEX_UNMATCH
+} ProfileViewerDangerButtonIndex;
 
 class ProfileViewer:public QWidget {
     Q_OBJECT
@@ -38,6 +47,9 @@ private slots:
     void favoriteButtonClicked(bool);
     void likeButtonClicked();
     void skipButtonClicked();
+    void blockButtonClicked();
+    void unblockButtonClicked();
+    void unmatchButtonClicked();
     void firstPhotoButtonClicked();
     void previousPhotoButtonClicked();
     void nextPhotoButtonClicked();
@@ -69,6 +81,10 @@ private:
     QTimer            tmrDelayedResize;
     QGraphicsScene    grsPhotoGallery,
                       grsVideoGallery;
+    QToolBar          tlbDanger;
+    QToolButton       tbtBlock,
+                      tbtUnblock,
+                      tbtUnmatch;
     BadooWrapper      *bwProfile;
     MediaViewer       *mvwPhoto,
                       *mvwVideo;

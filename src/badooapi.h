@@ -55,6 +55,7 @@ typedef struct {
     bool        bIsMatch;
     bool        bIsFavorite;
     bool        bIsCrush;
+    bool        bIsBlocked;
     bool        bHasQuickChat;
     QString     sCountry;
     QString     sRegion;
@@ -131,6 +132,7 @@ public:
     static bool sendGetUserList(QString,BadooListFilterList,BadooFolderType,QString,int,int,BadooUserProfileList &,int &,BadooAPIError &);
     static bool sendLogin(QString,QString,QString,QString &,BadooAPIError &);
     static bool sendRemovePersonFromFolder(QString,QString,BadooFolderType,BadooAPIError &);
+    static bool sendRemovePersonFromSection(QString,QString,BadooFolderType,BadooListSectionType,BadooSectionActionType,BadooAPIError &);
     static bool sendSaveSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
     static bool sendSearchLocations(QString,QString,BadooSearchLocationList &,BadooAPIError &);
     static bool sendStartup(QString,QString &,QString &,BadooUserProfile &,BadooAPIError &);

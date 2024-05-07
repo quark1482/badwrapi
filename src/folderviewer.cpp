@@ -190,6 +190,7 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
     dlgProfile->setWindowModality(Qt::WindowModality::ApplicationModal);
     dlgProfile->setWindowTitle(QStringLiteral("View profile"));
     if(FOLDER_TYPE_LIKES==ftType)
+        // Adding someone to Favorites is not possible when browsing Likes.
         pvProfile->setActiveActionButtons(~PROFILE_VIEWER_BUTTON_FAVORITE);
     pvProfile->load(
         buplPageDetails.at(iIndex),
@@ -205,21 +206,18 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
             QString sMessage=QString();
             switch(pvbButton) {
                 case PROFILE_VIEWER_BUTTON_COPY_URL:
-                    if(-1<iIndex)
-                        sMessage=QStringLiteral("Profile URL copied to clipboard");
+                    sMessage=QStringLiteral("Profile URL copied to clipboard");
                     break;
                 case PROFILE_VIEWER_BUTTON_DOWNLOAD:
-                    if(-1<iIndex)
-                        sMessage=QStringLiteral("Profile saved to disk");
+                    sMessage=QStringLiteral("Profile saved to disk");
                     break;
                 case PROFILE_VIEWER_BUTTON_BACK:
-                    if(-1<iIndex)
-                        if(iIndex) {
-                            iIndex--;
-                            bUpdateProfile=true;
-                        }
-                        else
-                            sMessage=QStringLiteral("Already at this page's first profile");
+                    if(iIndex) {
+                        iIndex--;
+                        bUpdateProfile=true;
+                    }
+                    else
+                        sMessage=QStringLiteral("Already at this page's first profile");
                     break;
                 case PROFILE_VIEWER_BUTTON_NOPE:
                     // ToDo: (optional) remove profile from the page, if required.
@@ -241,13 +239,48 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                         buplPageDetails[iIndex].bIsMatch=true;
                     break;
                 case PROFILE_VIEWER_BUTTON_SKIP:
-                    if(-1<iIndex)
-                        if(iIndex<buplPageDetails.count()-1) {
-                            iIndex++;
-                            bUpdateProfile=true;
-                        }
-                        else
-                            sMessage=QStringLiteral("Already at this page's last profile");
+                    if(iIndex<buplPageDetails.count()-1) {
+                        iIndex++;
+                        bUpdateProfile=true;
+                    }
+                    else
+                        sMessage=QStringLiteral("Already at this page's last profile");
+                    break;
+                case PROFILE_VIEWER_BUTTON_BLOCK:
+                    buplPageDetails[iIndex].bIsBlocked=true;
+                    // The block action automatically votes Nope when the profile ...
+                    // ... does not have a recorded vote from the logged-in user.
+                    if(VOTE_NONE==buplPageDetails[iIndex].bvMyVote)
+                        buplPageDetails[iIndex].bvMyVote=VOTE_NO;
+                    sMessage=QStringLiteral("Profile blocked");
+                    bUpdateProfile=true;
+                    bUpdatePage=true;
+                    break;
+                case PROFILE_VIEWER_BUTTON_UNBLOCK:
+                    buplPageDetails[iIndex].bIsBlocked=false;
+                    sMessage=QStringLiteral("Profile unblocked");
+                    bUpdateProfile=true;
+                    bUpdatePage=true;
+                    break;
+                case PROFILE_VIEWER_BUTTON_UNMATCH:
+                    // ToDo: (optional) remove profile from the page, if required.
+                    buplPageDetails[iIndex].bIsMatch=false;
+                    // The unmatch action automatically blocks the profile ...
+                    // ... and sets both votes to None. But this in no way ...
+                    // ... means that a following unblock action makes the ...
+                    // ... users able to vote again and restore the match.
+                    // The votes for unmatched-and-then-unblocked profiles ...
+                    // ... are not forbidden, but they are not recorded in ...
+                    // ... the long run. So, even if you get a valid match ...
+                    // ... after a request to SERVER_ENCOUNTERS_VOTE, it's ...
+                    // ... basically a lie: another one to SERVER_GET_USER ...
+                    // ... will get my_vote and their_vote as VOTE_NONE.
+                    buplPageDetails[iIndex].bIsBlocked=true;
+                    buplPageDetails[iIndex].bvMyVote=VOTE_NONE;
+                    buplPageDetails[iIndex].bvTheirVote=VOTE_NONE;
+                    sMessage=QStringLiteral("Profile unmatched");
+                    bUpdateProfile=true;
+                    bUpdatePage=true;
                     break;
             }
             if(sMessage.isEmpty())
@@ -379,6 +412,7 @@ void FolderViewer::updatePageWidgets(bool bReset) {
         this->updateProfileBadges(
             recBadges,
             recPhoto,
+            p.bIsBlocked,
             p.bIsVerified,
             p.bIsMatch,
             p.bvMyVote,
@@ -399,6 +433,7 @@ void FolderViewer::updatePageWidgets(bool bReset) {
 
 void FolderViewer::updateProfileBadges(QRect     recBadges,
                                        QRect     recPhoto,
+                                       bool      bBlocked,
                                        bool      bVerified,
                                        bool      bMatch,
                                        BadooVote bvMyVote,
@@ -494,6 +529,20 @@ void FolderViewer::updateProfileBadges(QRect     recBadges,
             )
         );
         grpiBadge->setPos(recPhoto.x(),recPhoto.y());
+    }
+    if(bBlocked) {
+        grpiBadge=grsScene.addPixmap(QPixmap());
+        grpiBadge->setToolTip(QStringLiteral("You blocked this profile"));
+        pxmBadge.load(QStringLiteral(":img/badge-blocked.svg"));
+        grpiBadge->setPixmap(
+            pxmBadge.scaled(
+                recBadges.height(),
+                recBadges.height(),
+                Qt::AspectRatioMode::KeepAspectRatio,
+                Qt::TransformationMode::SmoothTransformation
+            )
+        );
+        grpiBadge->setPos(recPhoto.x()+recPhoto.width()-recBadges.height(),recPhoto.y());
     }
     iXOffset=-recBadges.height();
     for(const auto &b:pxmlBadges) {

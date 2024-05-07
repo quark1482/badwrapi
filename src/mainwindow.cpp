@@ -14,6 +14,7 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
     dlgBrowseMatches=nullptr;
     dlgBrowsePeopleNearby=nullptr;
     dlgBrowseVisitors=nullptr;
+    dlgBrowseBlocked=nullptr;
     dlgEncounters=nullptr;
     mdiArea.setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     mdiArea.setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -64,6 +65,12 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
         );
         connect(
             ui->actVisitors,
+            &QAction::triggered,
+            this,
+            &MainWindow::menuBrowseFolderTriggered
+        );
+        connect(
+            ui->actBlocked,
             &QAction::triggered,
             this,
             &MainWindow::menuBrowseFolderTriggered
@@ -149,6 +156,8 @@ MainWindow::~MainWindow() {
         delete dlgBrowsePeopleNearby;
     if(nullptr!=dlgBrowseVisitors)
         delete dlgBrowseVisitors;
+    if(nullptr!=dlgBrowseBlocked)
+        delete dlgBrowseBlocked;
     if(nullptr!=dlgEncounters)
         delete dlgEncounters;
     delete ui;
@@ -201,6 +210,8 @@ bool MainWindow::eventFilter(QObject *objO,
             dlgBrowsePeopleNearby=nullptr;
         else if(dlgBrowseVisitors==dlgChild)
             dlgBrowseVisitors=nullptr;
+        else if(dlgBrowseBlocked==dlgChild)
+            dlgBrowseBlocked=nullptr;
         else if(dlgEncounters==dlgChild)
             dlgEncounters=nullptr;
         delete dlgChild;
@@ -245,6 +256,10 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
     else if(ui->actVisitors==QObject::sender()) {
         dlgFolder=dlgBrowseVisitors;
         ftFolder=FOLDER_TYPE_VISITORS;
+    }
+    else if(ui->actBlocked==QObject::sender()) {
+        dlgFolder=dlgBrowseBlocked;
+        ftFolder=FOLDER_TYPE_BLOCKED;
     }
     if(bwMain.isLoggedIn())
         if(nullptr==dlgFolder) {
@@ -306,6 +321,9 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
                         break;
                     case FOLDER_TYPE_VISITORS:
                         dlgBrowseVisitors=dlgFolder;
+                        break;
+                    case FOLDER_TYPE_BLOCKED:
+                        dlgBrowseBlocked=dlgFolder;
                         break;
                 }
                 connect(
@@ -446,17 +464,25 @@ void MainWindow::menuLoginTriggered(bool) {
 
 void MainWindow::menuLogoutTriggered(bool) {
     if(bwMain.isLoggedIn())
-        if(!this->anyChildrenActive())
-            if(bwMain.logout()) {
-                dbMain->saveSession(QString(),QString(),QString(),QString(),QString());
-                ui->stbMain->showMessage(QStringLiteral("Logged out"));
-            }
-            else
-                QMessageBox::critical(
-                    this,
-                    QStringLiteral("Error"),
-                    bwMain.getLastError()
-                );
+        if(!this->anyChildrenActive()) {
+            if(QMessageBox::StandardButton::Yes==QMessageBox::warning(
+                this,
+                QStringLiteral("Warning"),
+                QStringLiteral("Do you really want to end your session?"),
+                QMessageBox::StandardButton::Yes|QMessageBox::StandardButton::No,
+                QMessageBox::StandardButton::No
+            ))
+                if(bwMain.logout()) {
+                    dbMain->saveSession(QString(),QString(),QString(),QString(),QString());
+                    ui->stbMain->showMessage(QStringLiteral("Logged out"));
+                }
+                else
+                    QMessageBox::critical(
+                        this,
+                        QStringLiteral("Error"),
+                        bwMain.getLastError()
+                    );
+        }
         else
             QMessageBox::critical(
                 this,
@@ -494,6 +520,7 @@ bool MainWindow::anyChildrenActive() {
            nullptr!=dlgBrowseMatches||
            nullptr!=dlgBrowsePeopleNearby||
            nullptr!=dlgBrowseVisitors||
+           nullptr!=dlgBrowseBlocked||
            nullptr!=dlgEncounters;
 }
 
@@ -990,6 +1017,21 @@ void MainWindow::showCustomProfile(QString sProfileId) {
                                 bupProfile.bIsMatch=true;
                             break;
                         case PROFILE_VIEWER_BUTTON_SKIP:
+                            break;
+                        case PROFILE_VIEWER_BUTTON_BLOCK:
+                            sMessage=QStringLiteral("Profile blocked");
+                            bupProfile.bIsBlocked=true;
+                            bUpdateProfile=true;
+                            break;
+                        case PROFILE_VIEWER_BUTTON_UNBLOCK:
+                            sMessage=QStringLiteral("Profile unblocked");
+                            bupProfile.bIsBlocked=false;
+                            bUpdateProfile=true;
+                            break;
+                        case PROFILE_VIEWER_BUTTON_UNMATCH:
+                            sMessage=QStringLiteral("Profile unmatched");
+                            bupProfile.bIsMatch=false;
+                            bUpdateProfile=true;
                             break;
                     }
                     if(sMessage.isEmpty())

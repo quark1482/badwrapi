@@ -21,6 +21,7 @@ BadooMessageNameHash bmnhMessages={
     {CLIENT_PERSON_NOTICE,QStringLiteral("person_notice")},
     {SERVER_GET_USER_LIST,QStringLiteral("server_get_user_list")},
     {CLIENT_USER_LIST,QStringLiteral("client_user_list")},
+    {SERVER_SECTION_USER_ACTION,QStringLiteral("server_section_user_action")},
     {SERVER_GET_CAPTCHA,QStringLiteral("server_get_captcha")},
     {CLIENT_GET_CAPTCHA,QStringLiteral("client_get_captcha")},
     {SERVER_CAPTCHA_ATTEMPT,QStringLiteral("server_captcha_attempt")},
@@ -54,6 +55,7 @@ BadooUserFieldList buflProjection={
     USER_FIELD_THEIR_VOTE,
     USER_FIELD_IS_MATCH,
     USER_FIELD_IS_CRUSH,
+    USER_FIELD_IS_BLOCKED,
     USER_FIELD_IS_FAVOURITE,
     USER_FIELD_QUICK_CHAT,         // Is free chat possible for the queried profile?
     USER_FIELD_MOOD_STATUS,        // 'Make me laugh', 'Looking for love', 'Thinking long-term', etc.
@@ -121,6 +123,7 @@ void BadooAPI::clearUserProfile(BadooUserProfile &bupProfile) {
     bupProfile.bIsMatch=false;
     bupProfile.bIsFavorite=false;
     bupProfile.bIsCrush=false;
+    bupProfile.bIsBlocked=false;
     bupProfile.bHasQuickChat=false;
     bupProfile.sCountry.clear();
     bupProfile.sRegion.clear();
@@ -400,17 +403,22 @@ bool BadooAPI::sendAddPersonToFolder(QString         sSessionId,
                                      QString         sUserId,
                                      BadooFolderType bftFolder,
                                      BadooAPIError   &baeError) {
-    bool           bResult=false;
-    QJsonObject    jsnMessage,
-                   jsnResponse;
-    RawHeadersHash rhhHeaders;
+    bool                     bResult=false;
+    QJsonObject              jsnMessage;
+    RawHeadersHash           rhhHeaders;
+    BadooMessageResponseHash bmrhResponses;
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("person_id"),sUserId);
     jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
-    const BadooMessagePair bmpMessage={SERVER_ADD_PERSON_TO_FOLDER,CLIENT_ACKNOWLEDGE_COMMAND};
-    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
-        // Ignores the response (simple acknowledge) if no error found.
-        bResult=true;
+    if(getResponse(SERVER_ADD_PERSON_TO_FOLDER,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError))
+        // Depending on the folder, the response could include these two different ...
+        // ... messages: CLIENT_ACKNOWLEDGE_COMMAND and / or CLIENT_PERSON_NOTICE.
+        // Once any of them is detected, it is safe to assume that the request was ...
+        // ... successful, and perfectly ignore the response if no error is found.
+        if(bmrhResponses.contains(CLIENT_ACKNOWLEDGE_COMMAND))
+            bResult=true;
+        else if(bmrhResponses.contains(CLIENT_PERSON_NOTICE))
+            bResult=true;
     if(!bResult) {
         if(noError(baeError))
             baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
@@ -807,6 +815,43 @@ bool BadooAPI::sendRemovePersonFromFolder(QString         sSessionId,
     jsnMessage.insert(QStringLiteral("person_id"),sUserId);
     jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
     const BadooMessagePair bmpMessage={SERVER_REMOVE_PERSON_FROM_FOLDER,CLIENT_PERSON_NOTICE};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
+        // Ignores the response since it does not seem to contain anything useful.
+        bResult=true;
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
+bool BadooAPI::sendRemovePersonFromSection(QString                sSessionId,
+                                           QString                sUserId,
+                                           BadooFolderType        bftFolder,
+                                           BadooListSectionType   blstSection,
+                                           BadooSectionActionType bsatAction,
+                                           BadooAPIError          &baeError) {
+    // This function supersedes (basically makes it obsolete) the existing function ...
+    // ... sendRemovePersonFromFolder(), because it is more flexible, reliable, and ...
+    // ... follows "the official way" of using the API.
+    bool           bResult=false;
+    QJsonObject    jsnUser,
+                   jsnMessage,
+                   jsnResponse;
+    QJsonArray     jsnUserList,
+                   jsnUserIds;
+    RawHeadersHash rhhHeaders;
+    clearError(baeError);
+    jsnUserIds.append(sUserId);
+    jsnUser.insert(QStringLiteral("person_id"),jsnUserIds);
+    if(LIST_SECTION_TYPE_UNKNOWN!=blstSection)
+        jsnUser.insert(QStringLiteral("section_id"),QString::number(blstSection));
+    jsnUserList.append(jsnUser);
+    jsnMessage.insert(QStringLiteral("user_list"),jsnUserList);
+    jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
+    jsnMessage.insert(QStringLiteral("action"),bsatAction);
+    const BadooMessagePair bmpMessage={SERVER_SECTION_USER_ACTION,CLIENT_PERSON_NOTICE};
     if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
         // Ignores the response since it does not seem to contain anything useful.
         bResult=true;
@@ -1430,11 +1475,15 @@ bool BadooAPI::parseResponse(QString                  sResponse,
                         bmtMessage=static_cast<BadooMessageType>(
                             jsnObj.value(QStringLiteral("message_type")).toInt()
                         );
-                        if(bmnhMessages.contains(bmtMessage))
+                        if(bmnhMessages.contains(bmtMessage)) {
+                            // Inserts an empty object in the response hash, in case ...
+                            // ... the respective response does not include anything ...
+                            // ... useful (e.g., CLIENT_ACKNOWLEDGE_COMMAND).
                             if(jsnObj.value(bmnhMessages.value(bmtMessage)).isObject()) {
                                 jsnResponse=jsnObj.value(bmnhMessages.value(bmtMessage)).toObject();
-                                bmrhResponses.insert(bmtMessage,jsnResponse);
                             }
+                            bmrhResponses.insert(bmtMessage,jsnResponse);
+                        }
                     }
                 }
             bResult=true;
@@ -1546,6 +1595,7 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     bupUser.bIsMatch=jsnUser.value(QStringLiteral("is_match")).toBool();
     bupUser.bIsFavorite=jsnUser.value(QStringLiteral("is_favourite")).toBool();
     bupUser.bIsCrush=jsnUser.value(QStringLiteral("is_crush")).toBool();
+    bupUser.bIsBlocked=jsnUser.value(QStringLiteral("is_blocked")).toBool();
     bupUser.bHasQuickChat=jsnUser.value(QStringLiteral("quick_chat")).isObject();
     if(jsnUser.value(QStringLiteral("country")).isObject()) {
         jsnObj=jsnUser.value(QStringLiteral("country")).toObject();
@@ -1588,6 +1638,11 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
                 bupUser.slVideos.append(slVideos);
             }
     }
+    // When not a single album is found, the profile photo (if there's any) ...
+    // ... is used as the only available media, to show something at least.
+    if(bupUser.slPhotos.isEmpty())
+        if(!bupUser.sProfilePhotoURL.isEmpty())
+            bupUser.slPhotos.append(bupUser.sProfilePhotoURL);
     if(jsnUser.value(QStringLiteral("tiw_idea")).isObject()) {
         jsnObj=jsnUser.value(QStringLiteral("tiw_idea")).toObject();
         bupUser.sIntent=jsnObj.value(QStringLiteral("tiw_phrase")).toString();
