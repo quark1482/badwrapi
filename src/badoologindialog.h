@@ -16,8 +16,8 @@ public slots:
     void okButtonClicked(bool);
 private:
     QVBoxLayout  vblMain;
-    QHBoxLayout  hblUser,hblPass,hblButtons;
-    QLabel       lblUser,lblPass;
+    QHBoxLayout  hblUser,hblPass,hblButtons,hblWarn;
+    QLabel       lblUser,lblPass,lblIcon,lblWarn;
     QLineEdit    ledUser,ledPass;
     QPushButton  btnOK,btnCancel;
     BadooWrapper *bwWrapper;

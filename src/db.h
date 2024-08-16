@@ -11,8 +11,7 @@
         SessionId     TEXT NOT NULL,
         DeviceId      TEXT NOT NULL,
         UserId        TEXT NOT NULL,
-        AccountId     TEXT NOT NULL,
-        ResponseToken TEXT NOT NULL
+        AccountId     TEXT NOT NULL
     );
 )"
 
@@ -45,11 +44,11 @@ public:
     bool    create();
     bool    exists();
     QString getLastError();
-    bool    loadSession(QString &,QString &,QString &,QString &,QString &);
+    bool    loadSession(QString &,QString &,QString &,QString &);
     bool    loadSetting(SettingsGroup,WidgetGeometry &);
     bool    loadSettings(WidgetGeometry &,WidgetGeometry &,WidgetGeometry &,WidgetGeometry &,WidgetGeometry &);
     bool    open();
-    bool    saveSession(QString,QString,QString,QString,QString);
+    bool    saveSession(QString,QString,QString,QString);
     bool    saveSetting(SettingsGroup,WidgetGeometry);
     bool    saveSettings(WidgetGeometry,WidgetGeometry,WidgetGeometry,WidgetGeometry,WidgetGeometry);
     void    setFilename(QString);

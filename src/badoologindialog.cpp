@@ -12,6 +12,15 @@ QDialog(wgtParent) {
     btnOK.setText(QStringLiteral("OK"));
     btnOK.setDefault(true);
     btnCancel.setText(QStringLiteral("Cancel"));
+    lblIcon.setPixmap(
+        QApplication::style()->standardPixmap(
+            QStyle::StandardPixmap::SP_MessageBoxWarning
+        )
+    );
+    lblWarn.setText(
+        QStringLiteral("<i>Leave the password field blank to<br>"
+                       "authenticate with PIN verification.</i>")
+    );
     hblUser.addWidget(&lblUser);
     hblUser.addStretch();
     hblUser.addWidget(&ledUser);
@@ -21,9 +30,13 @@ QDialog(wgtParent) {
     hblButtons.addStretch();
     hblButtons.addWidget(&btnOK);
     hblButtons.addWidget(&btnCancel);
+    hblWarn.addWidget(&lblIcon);
+    hblWarn.addWidget(&lblWarn);
+    hblWarn.addStretch();
     vblMain.addLayout(&hblUser);
     vblMain.addLayout(&hblPass);
     vblMain.addLayout(&hblButtons);
+    vblMain.addLayout(&hblWarn);
     this->setLayout(&vblMain);
     // Performs validations and accepts the dialog, if the OK button is pressed.
     connect(
@@ -55,16 +68,21 @@ void BadooLoginDialog::okButtonClicked(bool) {
         );
         ledUser.setFocus();
     }
-    else if(ledPass.text().isEmpty()) {
-        QMessageBox::critical(
-            this,
-            this->windowTitle(),
-            QStringLiteral("Missing Password")
-        );
-        ledPass.setFocus();
-    }
     else {
+        if(ledPass.text().isEmpty())
+            QMessageBox::warning(
+                this,
+                this->windowTitle(),
+                QStringLiteral("Missing Password.\n\n"
+                               "A verification pin will be sent to\n"
+                               "%1").arg(ledUser.text())
+            );
+        ledUser.setEnabled(false);
+        ledPass.setEnabled(false);
+        btnOK.setEnabled(false);
+        btnCancel.setEnabled(false);
         this->setCursor(Qt::CursorShape::BusyCursor);
+        QApplication::processEvents();
         bwWrapper->logout();
         if(bwWrapper->login(ledUser.text(),ledPass.text()))
             this->accept();
@@ -75,5 +93,9 @@ void BadooLoginDialog::okButtonClicked(bool) {
                 bwWrapper->getLastError()
             );
         this->unsetCursor();
+        ledUser.setEnabled(true);
+        ledPass.setEnabled(true);
+        btnOK.setEnabled(true);
+        btnCancel.setEnabled(true);
     }
 }

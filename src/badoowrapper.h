@@ -2,8 +2,10 @@
 #define BADOOWRAPPER_H
 
 #include "badooapi.h"
+#include "badoolocationdialog.h"
 #include "badoologindialog.h"
 #include "badoosearchsettingsdialog.h"
+#include "tageocoder.h"
 
 #define MAX_DOWNLOAD_TRIES 3
 
@@ -32,7 +34,6 @@ typedef struct {
     QString sDeviceId;
     QString sUserId;
     QString sAccountId;
-    QString sResponseToken;
 } SessionDetails;
 
 typedef struct {
@@ -76,22 +77,27 @@ public:
     void    getPeopleNearbySettings(PeopleNearbySettings &);
     bool    getProfile(QString,BadooUserProfile &);
     void    getSessionDetails(SessionDetails &);
-    void    getSessionDetails(QString &,QString &,QString &,QString &,QString &);
+    void    getSessionDetails(QString &,QString &,QString &,QString &);
+    bool    getVisibleStatus(bool &);
     bool    isLoggedIn();
     bool    loadOwnProfile();
     bool    loadSearchSettings();
     bool    login(QString,QString);
+    bool    loginBack();
     bool    logout();
     bool    removeFromBlocked(QString);
     bool    removeFromFavorites(QString);
     bool    removeFromMatches(QString);
     bool    saveSearchSettings();
     void    setEncountersSettings(EncountersSettings);
+    bool    setLocation(QString);
     void    setPeopleNearbySettings(PeopleNearbySettings);
     void    setSessionDetails(SessionDetails);
-    void    setSessionDetails(QString,QString,QString,QString,QString);
-    bool    showLogin(QWidget * =nullptr);
-    bool    showSearchSettings(BadooSettingsContextType,QWidget * =nullptr);
+    void    setSessionDetails(QString,QString,QString,QString);
+    bool    setVisibleStatus(bool);
+    bool    showLocationDialog(QWidget * =nullptr);
+    bool    showLoginDialog(QWidget * =nullptr);
+    bool    showSearchSettingsDialog(BadooSettingsContextType,QWidget * =nullptr);
     bool    vote(QString,bool,bool &);
     static QString getFolderName(FolderType);
     static QString getHTMLFromProfile(BadooUserProfile,bool=false,QString=QString(),QByteArrayList={},QByteArrayList={});

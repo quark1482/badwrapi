@@ -114,6 +114,11 @@ QDialog(wgtParent) {
         // Initializes the combo-box with the single location read from the settings.
         // Unfortunately, this request is mandatory because the API does not store ...
         // ... the location 'full name' (country, region, city) but a short name.
+        // 2024-08-11: And no. This cannot be inferred from the logged-in profile, ...
+        // ... since that stores the current location and not the one selected for ...
+        // ... nearby searches. -I know it's confusing. So have this fact in mind: ...
+        // ... It's possible to be in a given location and still search for people ...
+        // ... somewhere else. Like customizing the nearby search-.
         sCurrentLocationCode.clear();
         if(BadooAPI::sendSearchLocations(
             sdDetails.sSessionId,
@@ -307,6 +312,12 @@ QDialog(wgtParent) {
         this,
         &BadooSearchSettingsDialog::reject
     );
+
+    if(SETTINGS_CONTEXT_TYPE_PEOPLE_NEARBY==bsctContext) {
+        // Makes the location immediately writable.
+        cboLocation.setFocus();
+        cboLocation.lineEdit()->selectAll();
+    }
 }
 
 bool BadooSearchSettingsDialog::show() {
@@ -337,7 +348,11 @@ void BadooSearchSettingsDialog::locationTextEdited(const QString &) {
 }
 
 void BadooSearchSettingsDialog::locationTextEditTimeout() {
+    int                     iScrollBarWidth=cboLocation.style()->pixelMetric(
+                                QStyle::PixelMetric::PM_ScrollBarExtent
+                            );
     QString                 sText;
+    QFontMetrics            ftmLocation(cboLocation.font());
     BadooAPIError           baeError;
     BadooSearchLocationList bsllList;
     SessionDetails          sdDetails;
@@ -352,9 +367,18 @@ void BadooSearchSettingsDialog::locationTextEditTimeout() {
     if(sText.length()) {
         // Avoids calling the API for just a single-letter.
         if(sText.length()>1) {
+            int iMaxLocLen=ftmLocation.boundingRect(QStringLiteral("City not found")).width(),
+                iDialogMargins=this->width()-cboLocation.width(),
+                iTextMargins=cboLocation.width()-cboLocation.lineEdit()->width(),
+                iNewDialogWidth=iDialogMargins+iTextMargins;
             cboLocation.setEnabled(false);
             if(BadooAPI::sendSearchLocations(sdDetails.sSessionId,sText,bsllList,baeError))
-                for(const auto &l:bsllList)
+                for(const auto &l:bsllList) {
+                    // Calculates the width (in pixels) of the longest location in the ...
+                    // ... drop-down list, the way no item is shown with an ellipsis.
+                    int iThisLocLen=ftmLocation.boundingRect(l.sLocationName).width();
+                    if(iMaxLocLen<iThisLocLen)
+                        iMaxLocLen=iThisLocLen;
                     cboLocation.addItem(
                         l.sLocationName,
                         QVariant::fromValue(
@@ -364,10 +388,29 @@ void BadooSearchSettingsDialog::locationTextEditTimeout() {
                             })
                         )
                     );
+                }
             if(!cboLocation.count()) {
                 cboLocation.addItem(QStringLiteral("City not found"));
                 auto *simModel=qobject_cast<QStandardItemModel *>(cboLocation.model());
                 simModel->item(0,0)->setFlags(Qt::ItemFlag::NoItemFlags);
+            }
+            // Calculates the new width of the dialog, the way the location combo-box ...
+            // ... line-edit is resized with the exact space to hold the longest item ...
+            // ... available, so it can be fully visible without truncation.
+            iNewDialogWidth+=iMaxLocLen;
+            if(cboLocation.count()>cboLocation.maxVisibleItems())
+                iNewDialogWidth+=iScrollBarWidth;
+            if(iNewDialogWidth<this->sizeHint().width())
+                iNewDialogWidth=this->sizeHint().width();
+            if(iNewDialogWidth!=this->width()) {
+                this->setFixedWidth(iNewDialogWidth);
+                // Centers the now-resized dialog in its container.
+                if(this->parentWidget()!=nullptr) {
+                    QRect recParent=this->parentWidget()->geometry();
+                    QRect recDialog=this->geometry();
+                    recDialog.setLeft(recParent.left()+recParent.width()/2-recDialog.width()/2);
+                    this->setGeometry(recDialog);
+                }
             }
             cboLocation.setEnabled(true);
             cboLocation.showPopup();

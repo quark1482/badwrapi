@@ -2,22 +2,20 @@
 Demo application and wrapper class made in Qt/C++ as a proof of concept
 on how to connect to the Badoo network from a desktop program.
 
-Contains reverse-engineered #define's taken from the mobile apps Badoo,
-Bumble and the now-defunct Blendr.
+Based on reverse-engineering works on the website, and the mobile apps\
+Badoo, Bumble and the now-defunct Blendr.
 
 
-Updates _2024-05-07_ 🥳
+Updates
 -------
-
-* New folder type supported: Blocked people.
-* A "danger" toolbar (Block/Unblock and Unmatch) appears in each profile.
-* Profiles with no albums show the profile picture instead (when available).
-* The logout operation now requires confirmation.
+Look [here](UPDATES.md) for details.
 
 
 Features
 --------
 
+* Allows you to quickly toggle your online status between hidden and visible.
+* Makes you able to move to any supported location in the world.
 * Automatically imports the user "search settings" and allows modifications.
 * Plays the "Encounters" game, displaying the -complete- profiles.
 * Allows you to "skip" profiles, for later.
@@ -47,6 +45,22 @@ ToDo's
 - [x] Show "Visitors".
 - [x] Show "Blocked people".
 - [ ] Implement chat.
+
+
+Technical notes
+---------------
+Look [here](TECH.md) for details.
+
+
+Known issues
+------------
+
+_2024-08-15_: The People nearby search Distance setting is broken at this time.\
+The API returns multiple choices, as usual. But no matter what you choose, It\
+always results in a selected radius of 50km.\
+Both the mobile and the web app removed this from the options, so I think the\
+API cannot be tricked into accepting other values.\
+Not sure if this will be needed again. I'll keep it, for potential future use.
 
 
 Getting involved

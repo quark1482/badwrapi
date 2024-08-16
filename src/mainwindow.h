@@ -8,6 +8,13 @@
 #include "db.h"
 #include "playencountersdialog.h"
 
+// Comment this line to disable the custom HTTP user-agent:
+#define HTTP_USER_AGENT "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+
+// Comment this line to disable the HTTP proxy support:
+// #define HTTP_PROXY_HOST "127.0.0.1"
+// #define HTTP_PROXY_PORT 8080
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
     class MainWindow;
@@ -26,10 +33,12 @@ private slots:
     void menuBrowseFolderTriggered(bool);
     void menuBrowseProfileTriggered(bool);
     void menuEncountersTriggered(bool);
+    void menuLocationTriggered(bool);
     void menuLoginTriggered(bool);
     void menuLogoutTriggered(bool);
     void menuEncountersSettingsTriggered(bool);
     void menuPeopleNearbySettingsTriggered(bool);
+    void menuVisibilityTriggered(bool);
     void wrapperStatusChanged(QString);
 private:
     Ui::MainWindow       *ui;
@@ -44,6 +53,7 @@ private:
     QMdiArea             mdiArea;
     BadooWrapper         bwMain;
     DB                   *dbMain;
+    QNetworkProxy        *pxyMain;
     bool anyChildrenActive();
     bool getCustomFolderParameters(BadooFolderType &,BadooListSectionType &,BadooListFilterList &,int &);
     bool postInit();
@@ -51,5 +61,7 @@ private:
     void showChildDialog(SettingsGroup,QDialog *);
     void showCustomProfile(QString);
     void showSettings(BadooSettingsContextType);
+    void testAndSetLocation(bool=false);
+    void testAndSetVisibility(bool=false);
 };
 #endif // MAINWINDOW_H

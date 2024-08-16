@@ -5,19 +5,18 @@
 #include <QApplication>
 #include <QLabel>
 #include <QInputDialog>
+#include <QIntValidator>
 #include <QNetworkCookie>
 #include "badooenums.h"
 #include "httprequest.h"
 
-#define ENDPOINT_BASE    "https://badoo.com"
+#define DOMAIN_BASE       "badoo.com"
 
-#define ENDPOINT_WEBAPI  "https://badoo.com/mwebapi.phtml" // New end-point (Sep/2023).
+#define PATH_API_ENDPOINT "/mwebapi.phtml" // 2023-09-07: new end-point
 
-#define ENDPOINT_SESSION "https://badoo.com/ws/set_session_cookie.phtml"
+#define SIGNATURE_MAGIC   "whitetelevisionbulbelectionroofhorseflying"
 
-#define ENDPOINT_SIGNOUT "https://badoo.com/signout"
-
-#define SIGNATURE_MAGIC  "whitetelevisionbulbelectionroofhorseflying"
+#define VERSION_WEBAPP    "6.2467.0" // Formerly "1.0.00", the minimum acceptable.
 
 typedef QPair<int,int> BadooIntRange;
 
@@ -105,13 +104,13 @@ typedef QList<BadooFeatureType> BadooFeatureTypeList;
 
 typedef QList<BadooMinorFeature> BadooMinorFeatureList;
 
+typedef QList<BadooUIScreenType> BadooUIScreenTypeList;
+
 typedef QHash<int,BadooIndexedString> BadooIntKeyStrValueHash;
 
 typedef QHash<QString,BadooIndexedString> BadooStrKeyStrValueHash;
 
 typedef bool BadooCAPTCHASolver(QByteArray,QString &,QString &);
-
-extern BadooCAPTCHASolver *bcsCAPTCHASolver;
 
 class BadooAPI {
 public:
@@ -120,22 +119,31 @@ public:
     static bool downloadMediaResource(QString,QString,QString &,QString &);
     static void getFullFileContents(QString,QByteArray &);
     static bool getPreLoginParameters(QString &,QString &);
-    static bool getPostLoginParameters(QString,QString &,QString &);
     static bool searchListSectionIdByType(QString,BadooFolderType,BadooListSectionType,QString &,QString &,BadooAPIError &);
     static bool sendAddPersonToFolder(QString,QString,BadooFolderType,BadooAPIError &);
     static bool sendCAPTCHAAttempt(QString,QString,QString,QString,bool &,BadooAPIError &);
+    static bool sendCheckVerificationPin(QString,QString,QString &,QString &,QString &,BadooAPIError &);
+    static bool sendConfirmScreenStory(QString,QString,BadooAPIError &);
     static bool sendEncountersVote(QString,QString,bool,bool &,BadooAPIError &);
+    static bool sendGetAppSettings(QString,QVariantHash &,BadooAPIError &);
     static bool sendGetCAPTCHA(QString,QString,QString &,BadooAPIError &);
     static bool sendGetEncounters(QString,QString,int,BadooUserProfileList &,BadooAPIError &);
     static bool sendGetSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
     static bool sendGetUser(QString,QString,BadooUserProfile &,BadooAPIError &);
     static bool sendGetUserList(QString,BadooListFilterList,BadooFolderType,QString,int,int,BadooUserProfileList &,int &,BadooAPIError &);
-    static bool sendLogin(QString,QString,QString,QString &,BadooAPIError &);
+    static bool sendLogin(QString,QString,QString,QString &,QString &,QString &,BadooAPIError &);
+    static bool sendLogout(QString,BadooAPIError &);
     static bool sendRemovePersonFromFolder(QString,QString,BadooFolderType,BadooAPIError &);
     static bool sendRemovePersonFromSection(QString,QString,BadooFolderType,BadooListSectionType,BadooSectionActionType,BadooAPIError &);
+    static bool sendSaveAppSettings(QString,QVariantHash,BadooAPIError &);
     static bool sendSaveSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
     static bool sendSearchLocations(QString,QString,BadooSearchLocationList &,BadooAPIError &);
-    static bool sendStartup(QString,QString &,QString &,BadooUserProfile &,BadooAPIError &);
+    static bool sendStartup(QString,QString &,QString &,QString &,QString &,BadooUserProfile &,BadooAPIError &);
+    static bool sendUpdateLocation(QString,float,float,BadooAPIError &);
+    static void setAgent(QString);
+    static void setProxy(QNetworkProxy *);
+    static void setServer(QString);
+    static void setSolver(BadooCAPTCHASolver *);
 private:
     static bool    CAPTCHAHandler(QString,BadooAPIError &);
     static void    clearError(BadooAPIError &);
@@ -143,11 +151,14 @@ private:
     static QString fixURL(QString);
     static bool    getResponse(BadooMessagePair,QString,QJsonObject,RawHeadersHash &,QJsonObject &,BadooAPIError &);
     static bool    getResponse(BadooMessageType,QString,QJsonObject,RawHeadersHash &,BadooMessageResponseHash &,BadooAPIError &);
+    static QString getSessionFromHeaders(RawHeadersHash);
+    static QString getUSAStateNameFromCode(QString);
     static bool    manualCAPTCHASolver(QByteArray,QString &,QString &);
     static bool    noError(BadooAPIError);
     static void    parseAlbum(QJsonObject,QString &,QStringList &,QStringList &);
     static void    parseError(QJsonObject,BadooAPIError &);
     static void    parseFailure(QJsonObject,QString &);
+    static void    parseHostChange(QJsonObject,QString &,bool &);
     static void    parseLocation(QJsonObject,BadooLocationType &,int &,QString &,int &,QString &,int &,QString &);
     static void    parseOnlineStatus(QString,int &);
     static bool    parseResponse(BadooMessageType,QString,QJsonObject &,QJsonObject &,QString &);
@@ -155,6 +166,10 @@ private:
     static void    parseSearchSettings(QJsonObject,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &);
     static void    parseUserProfile(QJsonObject,BadooUserProfile &);
     static bool    sendMessage(BadooMessageType,QString,QJsonObject,RawHeadersHash &,QString &,QString &);
+    static inline  QString            sAPIServer=QStringLiteral(DOMAIN_BASE),
+                                      sAPIUserAgent=QStringLiteral("Mozilla/5.0");
+    static inline  QNetworkProxy      *pxyAPIProxy=nullptr;
+    static inline  BadooCAPTCHASolver *bcsCAPTCHASolver=manualCAPTCHASolver;
 };
 
 #endif // BADOOAPI_H

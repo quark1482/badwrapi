@@ -9,9 +9,10 @@ endfunction(prepend)
 prepend(SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}
         badooapi.h badooapi.cpp
         badooenums.h
+        badoolocationdialog.h badoolocationdialog.cpp
         badoologindialog.h badoologindialog.cpp
-        badoowrapper.h badoowrapper.cpp
         badoosearchsettingsdialog.h badoosearchsettingsdialog.cpp
+        badoowrapper.h badoowrapper.cpp
         browsefolderdialog.h browsefolderdialog.cpp
         db.h db.cpp
         folderviewer.h folderviewer.cpp
@@ -22,6 +23,7 @@ prepend(SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}
         mediaviewer.h mediaviewer.cpp
         playencountersdialog.h playencountersdialog.cpp
         profileviewer.h profileviewer.cpp profileviewer.ui
+        tageocoder.h tageocoder.cpp
         badwrapi.rc
 )
 

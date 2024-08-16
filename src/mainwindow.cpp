@@ -2,11 +2,13 @@
 #include "./ui_mainwindow.h"
 
 #define APP_TITLE "Badoo API wrapper demo"
+
 #define DB_NAME   "BadWrAPI-demo.db"
 
 MainWindow::MainWindow(QWidget *parent):
 QMainWindow(parent),ui(new Ui::MainWindow) {
     dbMain=new DB;
+    pxyMain=new QNetworkProxy(QNetworkProxy::ProxyType::NoProxy);
     ui->setupUi(this);
     dlgBrowseCustom=nullptr;
     dlgBrowseFavorites=nullptr;
@@ -20,6 +22,17 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
     mdiArea.setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     this->setCentralWidget(&mdiArea);
     this->setWindowTitle(QStringLiteral(APP_TITLE));
+#if defined(HTTP_USER_AGENT)
+    BadooAPI::setAgent(QStringLiteral(HTTP_USER_AGENT));
+    TAGeoCoder::setAgent(QStringLiteral(HTTP_USER_AGENT));
+#endif
+#if defined(HTTP_PROXY_HOST)&&defined(HTTP_PROXY_PORT)
+    pxyMain->setType(QNetworkProxy::ProxyType::HttpProxy);
+    pxyMain->setHostName(QStringLiteral(HTTP_PROXY_HOST));
+    pxyMain->setPort(HTTP_PROXY_PORT);
+    BadooAPI::setProxy(pxyMain);
+    TAGeoCoder::setProxy(pxyMain);
+#endif
     do {
         connect(
             ui->actEncounters,
@@ -94,6 +107,12 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
             &MainWindow::close
         );
         connect(
+            ui->actLocation,
+            &QAction::triggered,
+            this,
+            &MainWindow::menuLocationTriggered
+        );
+        connect(
             ui->actLogin,
             &QAction::triggered,
             this,
@@ -104,6 +123,12 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
             &QAction::triggered,
             this,
             &MainWindow::menuLogoutTriggered
+        );
+        connect(
+            ui->actVisibility,
+            &QAction::triggered,
+            this,
+            &MainWindow::menuVisibilityTriggered
         );
         connect(
             ui->actEncountersSettings,
@@ -144,6 +169,7 @@ MainWindow::~MainWindow() {
     wggGeometry.recRect=this->normalGeometry();
     dbMain->saveSetting(stgMAIN,wggGeometry);
     delete dbMain;
+    delete pxyMain;
     if(nullptr!=dlgBrowseCustom)
         delete dlgBrowseCustom;
     if(nullptr!=dlgBrowseFavorites)
@@ -385,10 +411,14 @@ void MainWindow::menuBrowseProfileTriggered(bool) {
                 QString sProfile=idProfile.textValue().trimmed();
                 if(sProfile.isEmpty())
                     break;
-                if(sProfile.startsWith(ENDPOINT_BASE))
-                    sProfile=QUrl(sProfile).
-                             adjusted(QUrl::UrlFormattingOption::StripTrailingSlash).
-                             fileName();
+                QUrl urlProfile=QUrl(sProfile);
+                if(urlProfile.isValid()) {
+                    QString sSubdomain=QStringLiteral(".%1").arg(DOMAIN_BASE);
+                    if(urlProfile.host()==DOMAIN_BASE||urlProfile.host().endsWith(sSubdomain))
+                        sProfile=urlProfile.
+                                 adjusted(QUrl::UrlFormattingOption::StripTrailingSlash).
+                                 fileName();
+                }
                 if(sProfile.startsWith('0'))
                     sProfile.remove(0,1);
                 if(BadooWrapper::isValidUserId(sProfile)) {
@@ -443,7 +473,11 @@ void MainWindow::menuEncountersTriggered(bool) {
             this,
             QStringLiteral("Error"),
             QStringLiteral("Not logged in")
-        );
+                    );
+}
+
+void MainWindow::menuLocationTriggered(bool) {
+    this->testAndSetLocation(true);
 }
 
 void MainWindow::menuLoginTriggered(bool) {
@@ -454,10 +488,24 @@ void MainWindow::menuLoginTriggered(bool) {
             QStringLiteral("Already logged in")
         );
     else
-        if(bwMain.showLogin(this)) {
-            QString sSes,sDev,sUsr,sAcc,sTok;
-            bwMain.getSessionDetails(sSes,sDev,sUsr,sAcc,sTok);
-            dbMain->saveSession(sSes,sDev,sUsr,sAcc,sTok);
+        if(bwMain.showLoginDialog(this)) {
+            QString sSes,sDev,sUsr,sAcc;
+            bwMain.getSessionDetails(sSes,sDev,sUsr,sAcc);
+            do {
+                if(dbMain->saveSession(sSes,sDev,sUsr,sAcc))
+                    break;
+                else if(QMessageBox::StandardButton::Cancel==QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    dbMain->getLastError(),
+                    QMessageBox::StandardButton::Retry|
+                    QMessageBox::StandardButton::Cancel,
+                    QMessageBox::StandardButton::Retry
+                ))
+                    break;
+            } while(true);
+            this->testAndSetLocation();
+            this->testAndSetVisibility();
             ui->stbMain->showMessage(QStringLiteral("Logged in"));
         }
 }
@@ -473,7 +521,9 @@ void MainWindow::menuLogoutTriggered(bool) {
                 QMessageBox::StandardButton::No
             ))
                 if(bwMain.logout()) {
-                    dbMain->saveSession(QString(),QString(),QString(),QString(),QString());
+                    dbMain->saveSession(QString(),QString(),QString(),QString());
+                    this->testAndSetLocation();
+                    this->testAndSetVisibility();
                     ui->stbMain->showMessage(QStringLiteral("Logged out"));
                 }
                 else
@@ -503,6 +553,10 @@ void MainWindow::menuEncountersSettingsTriggered(bool) {
 
 void MainWindow::menuPeopleNearbySettingsTriggered(bool) {
     showSettings(SETTINGS_CONTEXT_TYPE_PEOPLE_NEARBY);
+}
+
+void MainWindow::menuVisibilityTriggered(bool) {
+    this->testAndSetVisibility(true);
 }
 
 void MainWindow::wrapperStatusChanged(QString sStatus) {
@@ -567,6 +621,9 @@ void getCustomFolderParameters_Helper() {
     ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_MESSAGES_AND_ACTIVITY);
     ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_BEST_BETS);
     ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_BFF_CONTACTS);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_DISCOVER_FOR_YOU);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_COMPATIBLE_PEOPLE);
+    ADD_CONSTANT_TO_HASH(hshBadooFolderNames,FOLDER_TYPE_COMPLIMENTS);
     for(const auto &k:hshBadooFolderNames.keys())
         hshBadooFolderNames[k].remove(QStringLiteral("FOLDER_TYPE_"));
     ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_UNKNOWN);
@@ -603,6 +660,10 @@ void getCustomFolderParameters_Helper() {
     ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_NEW);
     ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_NEARBY);
     ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_BEELINE_RECENTLY_ACTIVE);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_PNB_CLIPS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_COLLECTION);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_CONNECTIONS_CHAT_REQUESTS);
+    ADD_CONSTANT_TO_HASH(hshBadooSectionNames,LIST_SECTION_TYPE_FREEMIUM);
     for(const auto &k:hshBadooSectionNames.keys())
         hshBadooSectionNames[k].remove(QStringLiteral("LIST_SECTION_TYPE_"));
     ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ONLINE);
@@ -619,6 +680,11 @@ void getCustomFolderParameters_Helper() {
     ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_HOT);
     ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_STREAMING);
     ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ENCOUNTERS);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_MOST_COMPATIBLE);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ALIGNED_INTENTIONS);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ALIGNED_LIFESTYLE);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ALIGNED_MUSIC);
+    ADD_CONSTANT_TO_HASH(hshBadooFilterNames,LIST_FILTER_ALIGNED_LANGUAGE);
     for(const auto &k:hshBadooFilterNames.keys())
         hshBadooFilterNames[k].remove(QStringLiteral("LIST_FILTER_"));
 }
@@ -837,13 +903,13 @@ bool MainWindow::postInit() {
                     break;
             }
         }
-    QString sSes,sDev,sUsr,sAcc,sTok;
+    QString sSes,sDev,sUsr,sAcc;
     // Restores the saved session, when available.
-    if(dbMain->loadSession(sSes,sDev,sUsr,sAcc,sTok)) {
-        bwMain.setSessionDetails(sSes,sDev,sUsr,sAcc,sTok);
+    if(dbMain->loadSession(sSes,sDev,sUsr,sAcc)) {
+        bwMain.setSessionDetails(sSes,sDev,sUsr,sAcc);
         if(bwMain.isLoggedIn()) {
             do {
-                if(bwMain.loadOwnProfile()) {
+                if(bwMain.loginBack()) {
                     iButton=QMessageBox::StandardButton::NoButton;
                     break;
                 }
@@ -876,13 +942,17 @@ bool MainWindow::postInit() {
                 return false;
             else if(QMessageBox::StandardButton::Ignore==iButton) {
                 if(bwMain.logout())
-                    dbMain->saveSession(QString(),QString(),QString(),QString(),QString());
+                    dbMain->saveSession(QString(),QString(),QString(),QString());
                 // Clears the session even if the API or DB operations failed.
                 bwMain.clearSessionDetails();
-            } else
-                ui->stbMain->showMessage(QStringLiteral("Logged in"));
+            }
         }
     }
+    // Initializes the variable menu icons and captions.
+    this->testAndSetLocation();
+    this->testAndSetVisibility();
+    if(bwMain.isLoggedIn())
+        ui->stbMain->showMessage(QStringLiteral("Logged in"));
     return true;
 }
 
@@ -1094,7 +1164,7 @@ void MainWindow::showCustomProfile(QString sProfileId) {
 void MainWindow::showSettings(BadooSettingsContextType bsctContext) {
     if(bwMain.isLoggedIn())
         if(bwMain.loadSearchSettings()) {
-            if(bwMain.showSearchSettings(bsctContext,this))
+            if(bwMain.showSearchSettingsDialog(bsctContext,this))
                 ui->stbMain->showMessage(QStringLiteral("Settings saved"));
         }
         else
@@ -1104,6 +1174,162 @@ void MainWindow::showSettings(BadooSettingsContextType bsctContext) {
                 bwMain.getLastError()
             );
     else
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Error"),
+            QStringLiteral("Not logged in")
+        );
+}
+
+void MainWindow::testAndSetLocation(bool bChange) {
+    ui->actLocation->setText(QStringLiteral("Current location: UNKNOWN"));
+    if(bwMain.isLoggedIn()) {
+        bool bTestOK=false,
+             bSetOK=false;
+        do {
+            if(bwMain.loadOwnProfile()) {
+                bTestOK=true;
+                break;
+            }
+            else {
+                int iButton=QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    bwMain.getLastError(),
+                    QMessageBox::StandardButton::Retry|
+                    QMessageBox::StandardButton::Ignore,
+                    QMessageBox::StandardButton::Retry
+                );
+                if(QMessageBox::StandardButton::Ignore==iButton)
+                    break;
+            }
+        } while(true);
+        if(bTestOK)
+            if(bChange)
+                if(bwMain.showLocationDialog(this))
+                    do {
+                        if(bwMain.loadOwnProfile()) {
+                            bSetOK=true;
+                            break;
+                        }
+                        else {
+                            int iButton=QMessageBox::critical(
+                                this,
+                                QStringLiteral("Error"),
+                                bwMain.getLastError(),
+                                QMessageBox::StandardButton::Retry|
+                                QMessageBox::StandardButton::Ignore,
+                                QMessageBox::StandardButton::Retry
+                            );
+                            if(QMessageBox::StandardButton::Ignore==iButton)
+                                break;
+                        }
+                    } while(true);
+        if(bTestOK) {
+            BadooUserProfile bupUser;
+            (void)bwMain.getLoggedInProfile(bupUser);
+            if(bChange)
+                if(bSetOK)
+                    QMessageBox::information(
+                        this,
+                        QStringLiteral(APP_TITLE),
+                        QStringLiteral("You are now in %1.").arg(bupUser.sCity)
+                    );
+            ui->actLocation->setText(
+                QStringLiteral("Current location: %1").arg(bupUser.sCity)
+            );
+        }
+    }
+    else if(bChange)
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Error"),
+            QStringLiteral("Not logged in")
+        );
+}
+
+void MainWindow::testAndSetVisibility(bool bToggle) {
+    ui->actVisibility->setText(QStringLiteral("Online status: OFFLINE"));
+    ui->actVisibility->setIcon(
+        QIcon(QStringLiteral(":img/badge-offline.svg"))
+    );
+    if(bwMain.isLoggedIn()) {
+        bool bTestOK=false,
+             bSetOK=false,
+             bIsVisible=false;
+        do {
+            if(bwMain.getVisibleStatus(bIsVisible)) {
+                bTestOK=true;
+                break;
+            }
+            else {
+                int iButton=QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    bwMain.getLastError(),
+                    QMessageBox::StandardButton::Retry|
+                    QMessageBox::StandardButton::Ignore,
+                    QMessageBox::StandardButton::Retry
+                );
+                if(QMessageBox::StandardButton::Ignore==iButton)
+                    break;
+            }
+        } while(true);
+        if(bTestOK) {
+            if(bToggle) {
+                do {
+                    if(bwMain.setVisibleStatus(!bIsVisible)) {
+                        bSetOK=true;
+                        break;
+                    }
+                    else {
+                        int iButton=QMessageBox::critical(
+                            this,
+                            QStringLiteral("Error"),
+                            bwMain.getLastError(),
+                            QMessageBox::StandardButton::Retry|
+                            QMessageBox::StandardButton::Ignore,
+                            QMessageBox::StandardButton::Retry
+                        );
+                        if(QMessageBox::StandardButton::Ignore==iButton)
+                            break;
+                    }
+                } while(true);
+            }
+        }
+        if(bTestOK) {
+            if(bToggle)
+                if(bSetOK) {
+                    QString sVisibility;
+                    bIsVisible=!bIsVisible;
+                    sVisibility=bIsVisible?QStringLiteral("VISIBLE"):QStringLiteral("HIDDEN");
+                    QMessageBox::information(
+                        this,
+                        QStringLiteral(APP_TITLE),
+                        QStringLiteral("You are %1 now.").arg(sVisibility)
+                    );
+                }
+            if(bIsVisible) {
+                ui->actVisibility->setText(QStringLiteral("Online status: VISIBLE"));
+                ui->actVisibility->setIcon(
+                    QIcon(QStringLiteral(":img/badge-online.svg"))
+                );
+            }
+            else {
+                ui->actVisibility->setText(QStringLiteral("Online status: HIDDEN"));
+                ui->actVisibility->setIcon(
+                    QIcon(QStringLiteral(":img/badge-offline-hidden.svg"))
+                );
+            }
+        }
+        else {
+            ui->actVisibility->setText(QStringLiteral("Online status: UNKNOWN"));
+            ui->actVisibility->setIcon(
+                QIcon(QStringLiteral(":img/badge-offline-unknown.svg"))
+            );
+        }
+    }
+    else if(bToggle)
         QMessageBox::critical(
             this,
             QStringLiteral("Error"),

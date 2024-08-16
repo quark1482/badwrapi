@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<path fill-rule="evenodd" d="M 11.27 1 C 5.605 1 1 5.932 1 11.992 C 1 21.44 11.253 30 11.253 30 C 11.253 30 21.542 21.44 21.542 11.99 C 21.54 5.928 16.908 1 11.27 1 Z M 11.281 15.509 C 9.161 15.509 7.433 13.732 7.433 11.549 C 7.433 9.365 9.16 7.588 11.281 7.588 C 13.403 7.588 15.129 9.365 15.129 11.548 C 15.129 13.732 13.403 15.508 11.281 15.508 L 11.281 15.509 Z" clip-rule="evenodd" style="paint-order: fill; fill-rule: evenodd; fill: rgb(186, 20, 20);"></path>
+</svg>

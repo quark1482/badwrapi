@@ -99,15 +99,13 @@ QString DB::getLastError() {
 bool DB::loadSession(QString &sSessionId,
                      QString &sDeviceId,
                      QString &sUserId,
-                     QString &sAccountId,
-                     QString &sResponseToken) {
+                     QString &sAccountId) {
     bool bResult=false;
     sLastError.clear();
     sSessionId.clear();
     sDeviceId.clear();
     sUserId.clear();
     sAccountId.clear();
-    sResponseToken.clear();
     if(!dbDatabase.isOpen())
         sLastError=QStringLiteral("The DB is not open");
     else {
@@ -117,8 +115,7 @@ bool DB::loadSession(QString &sSessionId,
             "Select SessionId,"
                    "DeviceId,"
                    "UserId,"
-                   "AccountId,"
-                   "ResponseToken "
+                   "AccountId "
             "From Session"
         );
         if(!qryQuery.exec(sSQL))
@@ -130,7 +127,6 @@ bool DB::loadSession(QString &sSessionId,
                 sDeviceId=qryQuery.value(1).toString();
                 sUserId=qryQuery.value(2).toString();
                 sAccountId=qryQuery.value(3).toString();
-                sResponseToken=qryQuery.value(4).toString();
             }
             bResult=true;
         }
@@ -279,14 +275,12 @@ bool DB::open() {
 bool DB::saveSession(QString sSessionId,
                      QString sDeviceId,
                      QString sUserId,
-                     QString sAccountId,
-                     QString sResponseToken) {
+                     QString sAccountId) {
     bool bResult=false,
          bClear=sSessionId.isEmpty()&&
                 sDeviceId.isEmpty()&&
                 sUserId.isEmpty()&&
-                sAccountId.isEmpty()&&
-                sResponseToken.isEmpty();
+                sAccountId.isEmpty();
     sLastError.clear();
     if(!dbDatabase.isOpen())
         sLastError=QStringLiteral("The DB is not open");
@@ -309,17 +303,15 @@ bool DB::saveSession(QString sSessionId,
                     "SessionId,"
                     "DeviceId,"
                     "UserId,"
-                    "AccountId,"
-                    "ResponseToken"
+                    "AccountId"
                 ") "
-                "Values (?,?,?,?,?)"
+                "Values (?,?,?,?)"
             );
             qryQuery.prepare(sSQL);
             qryQuery.addBindValue(sSessionId);
             qryQuery.addBindValue(sDeviceId);
             qryQuery.addBindValue(sUserId);
             qryQuery.addBindValue(sAccountId);
-            qryQuery.addBindValue(sResponseToken);
             if(!qryQuery.exec())
                 sLastError=QStringLiteral("The script saveSession(insert) failed: %1").
                            arg(qryQuery.lastError().text());
@@ -332,9 +324,10 @@ bool DB::saveSession(QString sSessionId,
             if(!dbDatabase.commit()) {
                 sLastError=QStringLiteral("The DB transaction(saveSession) did not commit: %1").
                            arg(dbDatabase.lastError().text());
-                (void)dbDatabase.rollback();
                 bResult=false;
             }
+        if(!bResult)
+            (void)dbDatabase.rollback();;
     }
     return bResult;
 }

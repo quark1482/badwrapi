@@ -2,15 +2,26 @@
 
 #define DEFAULT_ERROR_MESSAGE "Unexpected response"
 
+// Message types this class is able to handle. The hash key is the API request type, ...
+// ... and the string value is the name of the object to send/receive in the body of ...
+// ... the request/response. -Notice that it's possible that these values are empty, ...
+// ... meaning that it's not required to include/expect them in the mentioned body-, ...
+// ... and even when they have a value, it's possible that the value is used only to ...
+// ... identify our requests, as query parameters. See the comment in sendMessage().
 BadooMessageNameHash bmnhMessages={
     {CLIENT_SERVER_ERROR,QStringLiteral("server_error_message")},
     {SERVER_APP_STARTUP,QStringLiteral("server_app_startup")},
     {CLIENT_STARTUP,QStringLiteral("client_startup")},
+    {SERVER_UPDATE_LOCATION,QStringLiteral("server_update_location")},
     {SERVER_LOGIN_BY_PASSWORD,QStringLiteral("server_login_by_password")},
     {CLIENT_LOGIN_SUCCESS,QStringLiteral("client_login_success")},
-    {CLIENT_LOGIN_FAILURE,"form_failure"},
+    {CLIENT_LOGIN_FAILURE,QStringLiteral("form_failure")},
     {SERVER_SEARCH_LOCATIONS,QStringLiteral("server_search_locations")},
     {CLIENT_LOCATIONS,QStringLiteral("client_locations")},
+    {SERVER_GET_APP_SETTINGS,QStringLiteral("app_settings")},
+    {CLIENT_APP_SETTINGS,QStringLiteral("app_settings")},
+    {SERVER_SAVE_APP_SETTINGS,QStringLiteral("app_settings")},
+    {SERVER_SIGNOUT,QStringLiteral("server_signout")},
     {SERVER_REMOVE_PERSON_FROM_FOLDER,QStringLiteral("server_folder_action")},
     {SERVER_ADD_PERSON_TO_FOLDER,QStringLiteral("server_folder_action")},
     {SERVER_ENCOUNTERS_VOTE,QStringLiteral("server_encounters_vote")},
@@ -26,15 +37,23 @@ BadooMessageNameHash bmnhMessages={
     {CLIENT_GET_CAPTCHA,QStringLiteral("client_get_captcha")},
     {SERVER_CAPTCHA_ATTEMPT,QStringLiteral("server_captcha_attempt")},
     {CLIENT_CAPTCHA_ATTEMPT,QStringLiteral("client_captcha_attempt")},
-    {CLIENT_ACKNOWLEDGE_COMMAND,""},
+    {CLIENT_ACKNOWLEDGE_COMMAND,QString()},
     {SERVER_GET_USER,QStringLiteral("server_get_user")},
     {CLIENT_USER,QStringLiteral("user")},
     {SERVER_GET_SEARCH_SETTINGS,QStringLiteral("server_get_search_settings")},
-    {SERVER_SAVE_SEARCH_SETTINGS,"server_save_search_settings"},
+    {SERVER_SAVE_SEARCH_SETTINGS,QStringLiteral("server_save_search_settings")},
     {CLIENT_SEARCH_SETTINGS,QStringLiteral("client_search_settings")},
     {CLIENT_SEARCH_SETTINGS_FAILURE,QStringLiteral("search_settings_failure")},
-}; // Fun fact: the message names are not always a direct lower-case "translation" of the key constant names.
+    {CLIENT_SCREEN_STORY,QStringLiteral("client_screen_story")},
+    {SERVER_CONFIRM_SCREEN_STORY,QStringLiteral("server_confirm_screen_story")},
+    {SERVER_CHECK_VERIFICATION_PIN,QStringLiteral("server_check_verification_pin")},
+};
+// Fun fact: the message names are not always a direct lower-case 'translation' ...
+// ... of the key constant names. This is Usually harmless for CLIENT_ messages ...
+// ... but brings some annoyances for the SERVER_counterparts. See the comments ...
+// ... about it in sendMessage().
 
+// User profile fields requested by this class.
 BadooUserFieldList buflProjection={
     USER_FIELD_COUNTRY,
     USER_FIELD_REGION,
@@ -69,38 +88,44 @@ BadooAlbumTypeList batlAlbums={ // This is the 'request_albums' array content ..
 };
 
 // Features list requested by the web app. Used only for testing sendStartup().
+// Include the following values in server_app_startup.supported_features[].
 auto debugFeatures={
-    1,2,4,6,7,8,9,10,11,13,15,18,19,20,21,25,27,28,29,32,36,37,38,39,42,44,46,50,
-    53,62,64,70,73,75,92,96,100,101,103,106,108,109,111,113,121,127,132,136,139,
-    143,155,160,163,176,177,183,190,197,201,204,209,223,232,237,243,247,248,250,
-    259,264,268,281,282,296,301,302,304,308,310,314,316,324,327,333
+    1,2,4,6,7,8,9,10,11,13,15,18,19,20,21,25,27,28,29,32,36,37,38,39,42,44,46,
+    50,53,62,64,70,73,75,92,96,100,101,103,106,108,109,111,113,121,127,132,136,
+    139,143,155,160,163,176,177,183,190,193,197,201,204,209,223,232,237,243,247,
+    248,250,259,264,268,281,282,296,301,302,304,308,310,314,316,324,327,333,372
+};
+
+// Features list requested by this class.
+BadooFeatureTypeList bftlFeatures={
+    ALLOW_OPEN_PEOPLE_NEARBY,               // Required to get albums for the folder NEARBY_PEOPLE_XXX.
+    ALLOW_OPEN_ENCOUNTERS,                  // Required for requesting SERVER_GET_ENCOUNTERS.
+    ALLOW_ENCOUNTERS_VOTE,                  // Required for well, voting.
+    ALLOW_MULTIMEDIA,                       // Required for multimedia chat messages.
+    ALLOW_CONTACTS_FOR_CREDITS,             // Required to make the 'quick_chat' user field valid.
+    ALLOW_CRUSH,                            // Required to detect crushes.
+    ALLOW_GENERIC_SERVER_SIDE_REGISTRATION, // Required for logging in by pin verification.
+    ALLOW_BADOO_PROFILE_MOOD_STATUS,        // Required to include moods in user profiles.
 };
 
 // Minor features list requested by the web app. Used only for testing sendStartup().
+// Include the following values in server_app_startup.supported_minor_features[].
 auto debugMinorFeatures={
     2,3,8,14,17,19,20,22,24,35,36,39,40,41,42,46,48,55,60,62,63,70,71,76,81,83,93,
     100,104,108,114,115,118,121,122,127,130,131,134,136,139,142,146,148,152,153,163,
     164,168,170,171,175,178,179,180,181,182,183,184,188,192,194,196,202,207,208,214,
     216,218,220,221,223,226,230,233,234,236,243,244,245,247,250,252,254,260,264,266,
     267,268,269,273,275,277,278,279,280,284,285,290,292,297,302,305,306,313,319,320,
-    328,336,337,352,354,355,363,365,369,377,382,383,390,391,392,394,396,400,404,410,
-    413,418,426,427,436,440,450,453,455,462,470,471,479,483,487,488,490,493,495,498,
-    501,504,505,511,514,524,527,530,537,538,542,549,555,558,560,561,562,567,576,582,
-    584,592,594,596,605,607,610,611,613,615,616,620,629,630,631,638,644,645,648,650,
-    657,659,662,664,667,669,674,675,677,678,679,681,682,688,691,693,696,702,705,707,
-    708,725,731,735,748,750,753,754,757,767,774,776,784,829,901
+    328,332,336,337,352,354,355,363,365,369,377,382,383,390,391,392,394,396,400,404,
+    410,413,418,420,426,427,436,440,450,453,455,462,470,471,479,483,487,488,490,493,
+    495,498,501,504,505,511,514,524,527,530,533,537,538,542,549,555,558,560,561,562,
+    567,576,582,584,592,594,596,605,607,610,611,613,615,616,620,629,630,631,638,644,
+    645,648,650,657,659,662,664,667,669,674,675,677,678,679,681,682,688,690,691,693,
+    696,702,705,707,708,725,731,735,742,748,750,753,754,757,767,774,776,784,829,877,
+    901
 };
 
-BadooFeatureTypeList bftlFeatures={
-    ALLOW_OPEN_PEOPLE_NEARBY,        // Required to get albums for the folder NEARBY_PEOPLE_XXX.
-    ALLOW_OPEN_ENCOUNTERS,           // Required for requesting SERVER_GET_ENCOUNTERS.
-    ALLOW_ENCOUNTERS_VOTE,           // Required for well, voting.
-    ALLOW_MULTIMEDIA,                // Required for multimedia chat messages.
-    ALLOW_CONTACTS_FOR_CREDITS,      // Required to make the 'quick_chat' user field valid.
-    ALLOW_CRUSH,                     // Required to detect crushes.
-    ALLOW_BADOO_PROFILE_MOOD_STATUS, // Required to include moods in user profiles.
-};
-
+// Minor features list requested by this class.
 BadooMinorFeatureList bmflMinorFeatures={
     MINOR_FEATURE_ENCOUNTER_SETTINGS_DISTANCE_SLIDER,  // Allows setting a 'distance away' in encounters.
     MINOR_FEATURE_REDESIGN_MERGE_ALBUMS,               // Puts everything in a single album.
@@ -108,10 +133,87 @@ BadooMinorFeatureList bmflMinorFeatures={
     MINOR_FEATURE_NO_ENCOUNTERS_ALBUM_IN_PROFILE_MODE, // Avoids a lot of repeated photos.
     MINOR_FEATURE_COMBINED_CONNECTIONS_V2,             // Allows querying the visitors folder.
     MINOR_FEATURE_SEPARATE_MATCH_FOLDER,               // Allows querying the matches folder.
+    MINOR_FEATURE_SERVER_SIDE_SCREEN_STORIES,          // Allows filling out server forms.
     MINOR_FEATURE_CHAT_PLAY_AUDIO,                     // Accepts audio clips in chat messages.
 };
 
-BadooCAPTCHASolver *bcsCAPTCHASolver=nullptr;
+// UI screen types requested by the web app. Used only for testing sendStartup().
+// Include the following values in server_app_startup.supported_screens[].
+// Supplied items are objects ({type,version}). Version can be left out.
+auto debugScreenTypes=std::vector<std::vector<int>>{
+    {124,6},{127,2},{128,2},{129,2},{132,1},{133,1},{134,1},{135,1},
+    {143,1},{231,0},{322,0},{346,0},{347,0},{396,0},{398,0},{400,1},
+    {411,0},{413,0},{504,0},{506,0},{508,0},{523,0},{535,0},{537,0}
+};
+
+// UI screen types requested by this class.
+BadooUIScreenTypeList buistlScreenTypes={
+    UI_SCREEN_TYPE_BADOO_MOBILE_REGISTRATION_PIN,                // Minimum, mandatory screens ...
+    UI_SCREEN_TYPE_BADOO_MOBILE_REGISTRATION_LANDING_WITH_INPUT, // ... allowing the client to ...
+    UI_SCREEN_TYPE_BADOO_MOBILE_REGISTRATION_MW_SIGN_IN,         // ... fill out the requested ...
+    UI_SCREEN_TYPE_BADOO_MOBILE_REGISTRATION_MW_RETURNING_USER,  // ... basic login steps.
+};
+
+// Onboarding page types requested by the web app. Used only for testing sendStartup().
+// Include the following values in server_app_startup.supported_onboarding_types[].
+// Not required for sendStartup() to work. Probably can be shortened to [2,15,16,19].
+auto debugOnboardingTypes={1,2,6,10,16,17,18,19,20,23,26,59,62,66,72,73,76};
+
+// The API returns the USA region names as ANSI two-letter codes, ...
+// ... making the resulting location name a little tricky to find ...
+// ... back using the same API's SERVER_SEARCH_LOCATIONS request!
+QVariantHash vhUSAStates={
+    {QStringLiteral("AL"),QStringLiteral("Alabama")},
+    {QStringLiteral("AK"),QStringLiteral("Alaska")},
+    {QStringLiteral("AZ"),QStringLiteral("Arizona")},
+    {QStringLiteral("AR"),QStringLiteral("Arkansas")},
+    {QStringLiteral("CA"),QStringLiteral("California")},
+    {QStringLiteral("CO"),QStringLiteral("Colorado")},
+    {QStringLiteral("CT"),QStringLiteral("Connecticut")},
+    {QStringLiteral("DE"),QStringLiteral("Delaware")},
+    {QStringLiteral("FL"),QStringLiteral("Florida")},
+    {QStringLiteral("GA"),QStringLiteral("Georgia")},
+    {QStringLiteral("HI"),QStringLiteral("Hawaii")},
+    {QStringLiteral("ID"),QStringLiteral("Idaho")},
+    {QStringLiteral("IL"),QStringLiteral("Illinois")},
+    {QStringLiteral("IN"),QStringLiteral("Indiana")},
+    {QStringLiteral("IA"),QStringLiteral("Iowa")},
+    {QStringLiteral("KS"),QStringLiteral("Kansas")},
+    {QStringLiteral("KY"),QStringLiteral("Kentucky")},
+    {QStringLiteral("LA"),QStringLiteral("Louisiana")},
+    {QStringLiteral("ME"),QStringLiteral("Maine")},
+    {QStringLiteral("MD"),QStringLiteral("Maryland")},
+    {QStringLiteral("MA"),QStringLiteral("Massachusetts")},
+    {QStringLiteral("MI"),QStringLiteral("Michigan")},
+    {QStringLiteral("MN"),QStringLiteral("Minnesota")},
+    {QStringLiteral("MS"),QStringLiteral("Mississippi")},
+    {QStringLiteral("MO"),QStringLiteral("Missouri")},
+    {QStringLiteral("MT"),QStringLiteral("Montana")},
+    {QStringLiteral("NE"),QStringLiteral("Nebraska")},
+    {QStringLiteral("NV"),QStringLiteral("Nevada")},
+    {QStringLiteral("NH"),QStringLiteral("New Hampshire")},
+    {QStringLiteral("NJ"),QStringLiteral("New Jersey")},
+    {QStringLiteral("NM"),QStringLiteral("New Mexico")},
+    {QStringLiteral("NY"),QStringLiteral("New York")},
+    {QStringLiteral("NC"),QStringLiteral("North Carolina")},
+    {QStringLiteral("ND"),QStringLiteral("North Dakota")},
+    {QStringLiteral("OH"),QStringLiteral("Ohio")},
+    {QStringLiteral("OK"),QStringLiteral("Oklahoma")},
+    {QStringLiteral("OR"),QStringLiteral("Oregon")},
+    {QStringLiteral("PA"),QStringLiteral("Pennsylvania")},
+    {QStringLiteral("RI"),QStringLiteral("Rhode Island")},
+    {QStringLiteral("SC"),QStringLiteral("South Carolina")},
+    {QStringLiteral("SD"),QStringLiteral("South Dakota")},
+    {QStringLiteral("TN"),QStringLiteral("Tennessee")},
+    {QStringLiteral("TX"),QStringLiteral("Texas")},
+    {QStringLiteral("UT"),QStringLiteral("Utah")},
+    {QStringLiteral("VT"),QStringLiteral("Vermont")},
+    {QStringLiteral("VA"),QStringLiteral("Virginia")},
+    {QStringLiteral("WA"),QStringLiteral("Washington")},
+    {QStringLiteral("WV"),QStringLiteral("West Virginia")},
+    {QStringLiteral("WI"),QStringLiteral("Wisconsin")},
+    {QStringLiteral("WY"),QStringLiteral("Wyoming")}
+};
 
 void BadooAPI::clearUserProfile(BadooUserProfile &bupProfile) {
     bupProfile.sUserId.clear();
@@ -162,11 +264,16 @@ bool BadooAPI::downloadMediaResource(QString    sSessionId,
         QUrl(sResourceURL),
         {
             {
+                QStringLiteral("user-agent").toUtf8(),
+                sAPIUserAgent.toUtf8()
+            },
+            {
                 QStringLiteral("cookie").toUtf8(),
                 QStringLiteral("session=%1").arg(sSessionId).toUtf8()
             }
         },
         {},
+        pxyAPIProxy,
         uiResCode,
         abtResponse,
         rhhHeaders,
@@ -256,9 +363,15 @@ bool BadooAPI::getPreLoginParameters(QString &sDeviceId,
     sDeviceId.clear();
     sError.clear();
     HTTPRequest::get(
-        QUrl(QStringLiteral(ENDPOINT_BASE)),
+        QUrl(QStringLiteral("https://%1").arg(DOMAIN_BASE)),
+        {
+            {
+                QStringLiteral("user-agent").toUtf8(),
+                sAPIUserAgent.toUtf8()
+            }
+        },
         {},
-        {},
+        pxyAPIProxy,
         uiResCode,
         abtResponse,
         rhhHeaders,
@@ -296,67 +409,6 @@ bool BadooAPI::getPreLoginParameters(QString &sDeviceId,
     return bResult;
 }
 
-bool BadooAPI::getPostLoginParameters(QString sSessionId,
-                                      QString &sResponseToken,
-                                      QString &sError) {
-    bool           bResult=false;
-    uint           uiResCode;
-    QString        sRequest,
-                   sContentType;
-    QByteArray     abtResponse;
-    RawHeadersHash rhhHeaders;
-    sResponseToken.clear();
-    sError.clear();
-    sRequest=QStringLiteral("new_session_id=%1").arg(sSessionId);
-    HTTPRequest::post(
-        QUrl(QStringLiteral(ENDPOINT_SESSION)),
-        sRequest.toUtf8(),
-        {
-            {
-                QStringLiteral("content-type").toUtf8(),
-                QStringLiteral(HTTP_HEADER_CONTENT_TYPE_FORM).toUtf8()
-            },
-            {
-                QStringLiteral("cookie").toUtf8(),
-                QStringLiteral("session=%1").arg(sSessionId).toUtf8()
-            }
-        },
-        {},
-        uiResCode,
-        abtResponse,
-        rhhHeaders,
-        sError
-    );
-    sContentType=rhhHeaders.value(QStringLiteral("content-type").toUtf8());
-    if(HTTP_STATUS_OK==uiResCode)
-        if(sContentType.startsWith(QStringLiteral("text/"))) {
-            QJsonDocument jsnDoc;
-            QJsonObject   jsnObj;
-            jsnDoc=QJsonDocument::fromJson(abtResponse);
-            if(!jsnDoc.isNull()) {
-                jsnObj=jsnDoc.object();
-                if(jsnObj.value(QStringLiteral("success")).isBool()) {
-                    bResult=jsnObj.value(QStringLiteral("success")).toBool();
-                    if(bResult)
-                        // No idea about what does 'rt' mean, so I just named it 'Response Token'.
-                        sResponseToken=jsnObj.value(QStringLiteral("rt")).toString();
-                }
-            }
-        }
-        else
-            sError=QStringLiteral("Unexpected content type: %1").
-                   arg(sContentType);
-    else if(HTTP_STATUS_INVALID!=uiResCode)
-        sError=QStringLiteral("Unexpected response code: %1").
-               arg(uiResCode);
-    if(!bResult) {
-        if(sError.isEmpty())
-            sError=QStringLiteral(DEFAULT_ERROR_MESSAGE);
-        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
-    }
-    return bResult;
-}
-
 bool BadooAPI::searchListSectionIdByType(QString              sSessionId,
                                          BadooFolderType      bftFolder,
                                          BadooListSectionType blstSectionType,
@@ -377,7 +429,7 @@ bool BadooAPI::searchListSectionIdByType(QString              sSessionId,
             QJsonObject jsnObj;
             QJsonArray  jsnSection;
             jsnSection=jsnResponse.value(QStringLiteral("section")).toArray();
-            for(const auto &o:qAsConst(jsnSection))
+            for(const auto &o:jsnSection)
                 if(o.isObject()) {
                     jsnObj=o.toObject();
                     if(jsnObj.value(QStringLiteral("section_type")).isDouble()) {
@@ -457,6 +509,72 @@ bool BadooAPI::sendCAPTCHAAttempt(QString       sSessionId,
     return bResult;
 }
 
+bool BadooAPI::sendCheckVerificationPin(QString       sSessionId,
+                                        QString       sPin,
+                                        QString       &sStoryId,
+                                        QString       &sFlowId,
+                                        QString       &sNewSessionId,
+                                        BadooAPIError &baeError) {
+    bool                     bResult=false;
+    QJsonObject              jsnMessage,
+                             jsnContext;
+    RawHeadersHash           rhhHeaders;
+    BadooMessageResponseHash bmrhResponses;
+    sNewSessionId.clear();
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("pin"),sPin);
+    jsnContext.insert(QStringLiteral("flow_id"),sFlowId);
+    jsnContext.insert(QStringLiteral("screen_id"),QString::number(UI_SCREEN_TYPE_BADOO_MOBILE_REGISTRATION_PIN));
+    jsnMessage.insert(QStringLiteral("screen_context"),jsnContext);
+    if(getResponse(SERVER_CHECK_VERIFICATION_PIN,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
+        if(bmrhResponses.contains(CLIENT_LOGIN_SUCCESS)) {
+            sNewSessionId=bmrhResponses.value(CLIENT_LOGIN_SUCCESS).value(QStringLiteral("session_id")).toString();
+            if(sNewSessionId.isEmpty())
+                sNewSessionId=getSessionFromHeaders(rhhHeaders);
+            // This step is not required at all, but it can provide an extra ...
+            // ... validation, somewhat picky: Story Id should be 'terminal' ...
+            // ... and Flow Id should be empty.
+            if(bmrhResponses.contains(CLIENT_SCREEN_STORY)) {
+                // Gets the final 'Screen Story'.
+                if(bmrhResponses.value(CLIENT_SCREEN_STORY).value(QStringLiteral("screen_story")).isObject()) {
+                    QJsonObject jsnStory=bmrhResponses.value(CLIENT_SCREEN_STORY).value(QStringLiteral("screen_story")).toObject();
+                    sStoryId=jsnStory.value(QStringLiteral("id")).toString();
+                    sFlowId=jsnStory.value(QStringLiteral("flow_id")).toString();
+                }
+            }
+        }
+        else if(bmrhResponses.contains(CLIENT_LOGIN_FAILURE))
+            parseFailure(bmrhResponses.value(CLIENT_LOGIN_FAILURE),baeError.sErrorMessage);
+        bResult=!sNewSessionId.isEmpty();
+    }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
+bool BadooAPI::sendConfirmScreenStory(QString       sSessionId,
+                                      QString       sStoryId,
+                                      BadooAPIError &baeError) {
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("screen_story_id"),sStoryId);
+    const BadooMessagePair bmpMessage={SERVER_CONFIRM_SCREEN_STORY,CLIENT_ACKNOWLEDGE_COMMAND};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
+        bResult=true;
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
 bool BadooAPI::sendEncountersVote(QString       sSessionId,
                                   QString       sUserId,
                                   bool          bLike,
@@ -481,6 +599,27 @@ bool BadooAPI::sendEncountersVote(QString       sSessionId,
         // ... and only checks for the match condition.
         if(GAME_SUCCESS==jsnResponse.value(QStringLiteral("vote_response_type")).toInt())
             bMatch=true;
+        bResult=true;
+    }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
+bool BadooAPI::sendGetAppSettings(QString       sSessionId,
+                                  QVariantHash  &vhAppSettingsHash,
+                                  BadooAPIError &baeError) {
+    bool           bResult=false;
+    QJsonObject    jsnResponse;
+    RawHeadersHash rhhHeaders;
+    vhAppSettingsHash.clear();
+    clearError(baeError);
+    const BadooMessagePair bmpMessage={SERVER_GET_APP_SETTINGS,CLIENT_APP_SETTINGS};
+    if(getResponse(bmpMessage,sSessionId,QJsonObject(),rhhHeaders,jsnResponse,baeError)) {
+        vhAppSettingsHash=jsnResponse.toVariantHash();
         bResult=true;
     }
     if(!bResult) {
@@ -554,7 +693,7 @@ bool BadooAPI::sendGetEncounters(QString              sSessionId,
                 QJsonArray       jsnUsers;
                 BadooUserProfile bupUser;
                 jsnUsers=bmrhResponses.value(CLIENT_ENCOUNTERS).value(QStringLiteral("results")).toArray();
-                for(const auto &u:qAsConst(jsnUsers))
+                for(const auto &u:jsnUsers)
                     if(u.isObject()) {
                         if(u.toObject().value(QStringLiteral("user")).isObject()) {
                             jsnUser=u.toObject().value(QStringLiteral("user")).toObject();
@@ -732,12 +871,12 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
                 // ... and use the helper function searchListSectionIdByType() to find ...
                 // ... the correct value.
                 jsnSections=jsnResponse.value(QStringLiteral("section")).toArray();
-                for(const auto &o:qAsConst(jsnSections))
+                for(const auto &o:jsnSections)
                     if(o.isObject()) {
                         jsnSection=o.toObject();
                         if(jsnSection.value(QStringLiteral("users")).isArray()) {
                             jsnUsers=jsnSection.value(QStringLiteral("users")).toArray();
-                            for(const auto &u:qAsConst(jsnUsers))
+                            for(const auto &u:jsnUsers)
                                 if(u.isObject()) {
                                     parseUserProfile(u.toObject(),bupUser);
                                     buplUsers.append(bupUser);
@@ -760,6 +899,8 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
 bool BadooAPI::sendLogin(QString       sSessionId,
                          QString       sUsername,
                          QString       sPassword,
+                         QString       &sStoryId,
+                         QString       &sFlowId,
                          QString       &sNewSessionId,
                          BadooAPIError &baeError) {
     bool                     bResult=false;
@@ -769,32 +910,85 @@ bool BadooAPI::sendLogin(QString       sSessionId,
     sNewSessionId.clear();
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("user"),sUsername);
-    jsnMessage.insert(QStringLiteral("password"),sPassword);
-    jsnMessage.insert(QStringLiteral("remember_me"),true);
-    if(getResponse(SERVER_LOGIN_BY_PASSWORD,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
-        if(bmrhResponses.contains(CLIENT_LOGIN_SUCCESS)) {
-            sNewSessionId=bmrhResponses.value(CLIENT_LOGIN_SUCCESS).value(QStringLiteral("session_id")).toString();
-            if(sNewSessionId.isEmpty()) {
-                // Searches for the authenticated Session Id in the returned cookies.
-                if(rhhHeaders.contains(QStringLiteral("set-cookie").toUtf8())) {
-                    QList<QNetworkCookie> nclCookies=QNetworkCookie::parseCookies(
-                        rhhHeaders.value(QStringLiteral("set-cookie").toUtf8())
-                    );
-                    for(const auto &c:nclCookies)
-                        if(!c.name().compare(
-                            QStringLiteral("session").toUtf8(),
-                            Qt::CaseSensitivity::CaseInsensitive
-                        )) {
-                            sNewSessionId=QByteArray::fromPercentEncoding(c.value());
-                            break;
+    // No password supplied means authentication through pin verification.
+    if(sPassword.isEmpty()) {
+        (void)sendConfirmScreenStory(sSessionId,sStoryId,baeError);
+        QJsonObject jsnContext;
+        jsnContext.insert(QStringLiteral("flow_id"),sFlowId);
+        jsnContext.insert(QStringLiteral("screen_id"),QString::number(UI_SCREEN_TYPE_BADOO_MOBILE_REGISTRATION_MW_SIGN_IN));
+        jsnMessage.insert(QStringLiteral("screen_context"),jsnContext);
+        if(getResponse(SERVER_LOGIN_BY_PASSWORD,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
+            if(bmrhResponses.contains(CLIENT_SCREEN_STORY)) {
+                // Gets the following 'Screen Story' (it should be the verification pin).
+                if(bmrhResponses.value(CLIENT_SCREEN_STORY).value(QStringLiteral("screen_story")).isObject()) {
+                    QJsonObject jsnStory=bmrhResponses.value(CLIENT_SCREEN_STORY).value(QStringLiteral("screen_story")).toObject();
+                    sStoryId=jsnStory.value(QStringLiteral("id")).toString();
+                    sFlowId=jsnStory.value(QStringLiteral("flow_id")).toString();
+                }
+                if(!sStoryId.isEmpty()) {
+                    QInputDialog  idPin;
+                    QLineEdit     *ledPin;
+                    QIntValidator vldDigits(0,999999);
+                    idPin.setWindowFlag(Qt::WindowType::MSWindowsFixedSizeDialogHint);
+                    idPin.setWindowFlag(Qt::WindowType::CustomizeWindowHint);
+                    idPin.setWindowFlag(Qt::WindowType::WindowSystemMenuHint,false);
+                    idPin.setWindowModality(Qt::WindowModality::ApplicationModal);
+                    idPin.setWindowTitle(QStringLiteral("Enter verification pin"));
+                    idPin.adjustSize();
+                    idPin.show();
+                    idPin.findChild<QLabel *>()->hide();
+                    ledPin=idPin.findChild<QLineEdit *>();
+                    ledPin->setAlignment(Qt::AlignmentFlag::AlignRight);
+                    ledPin->setMaxLength(6);
+                    ledPin->setValidator(&vldDigits);
+                    if(QDialog::DialogCode::Rejected==idPin.exec())
+                        baeError.sErrorMessage=QStringLiteral("Pin verification ignored by user");
+                    else {
+                        QString sPin=idPin.textValue().trimmed();
+                        if(sPin.isEmpty())
+                            baeError.sErrorMessage=QStringLiteral("Pin verification ignored by user");
+                        else {
+                            (void)sendConfirmScreenStory(sSessionId,sStoryId,baeError);
+                            bResult=sendCheckVerificationPin(sSessionId,sPin,sStoryId,sFlowId,sNewSessionId,baeError);
                         }
+                    }
                 }
             }
+            else if(bmrhResponses.contains(CLIENT_LOGIN_FAILURE))
+                parseFailure(bmrhResponses.value(CLIENT_LOGIN_FAILURE),baeError.sErrorMessage);
+            bResult=!sNewSessionId.isEmpty();
         }
-        else if(bmrhResponses.contains(CLIENT_LOGIN_FAILURE))
-            parseFailure(bmrhResponses.value(CLIENT_LOGIN_FAILURE),baeError.sErrorMessage);
-        bResult=!sNewSessionId.isEmpty();
     }
+    else {
+        jsnMessage.insert(QStringLiteral("password"),sPassword);
+        if(getResponse(SERVER_LOGIN_BY_PASSWORD,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
+            if(bmrhResponses.contains(CLIENT_LOGIN_SUCCESS)) {
+                sNewSessionId=bmrhResponses.value(CLIENT_LOGIN_SUCCESS).value(QStringLiteral("session_id")).toString();
+                if(sNewSessionId.isEmpty())
+                    sNewSessionId=getSessionFromHeaders(rhhHeaders);
+            }
+            else if(bmrhResponses.contains(CLIENT_LOGIN_FAILURE))
+                parseFailure(bmrhResponses.value(CLIENT_LOGIN_FAILURE),baeError.sErrorMessage);
+            bResult=!sNewSessionId.isEmpty();
+        }
+    }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
+bool BadooAPI::sendLogout(QString       sSessionId,
+                          BadooAPIError &baeError) {
+    bool           bResult=false;
+    QJsonObject    jsnResponse;
+    RawHeadersHash rhhHeaders;
+    clearError(baeError);
+    const BadooMessagePair bmpMessage={SERVER_SIGNOUT,CLIENT_ACKNOWLEDGE_COMMAND};
+    if(getResponse(bmpMessage,sSessionId,QJsonObject(),rhhHeaders,jsnResponse,baeError))
+        bResult=true;
     if(!bResult) {
         if(noError(baeError))
             baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
@@ -855,6 +1049,28 @@ bool BadooAPI::sendRemovePersonFromSection(QString                sSessionId,
     if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
         // Ignores the response since it does not seem to contain anything useful.
         bResult=true;
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
+bool BadooAPI::sendSaveAppSettings(QString       sSessionId,
+                                   QVariantHash  vhAppSettingsHash,
+                                   BadooAPIError &baeError) {
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
+    clearError(baeError);
+    jsnMessage=QJsonObject::fromVariantHash(vhAppSettingsHash);
+    const BadooMessagePair bmpMessage={SERVER_SAVE_APP_SETTINGS,CLIENT_APP_SETTINGS};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
+        // As long as we get CLIENT_APP_SETTINGS in the response, we're good to go.
+        bResult=true;
+    }
     if(!bResult) {
         if(noError(baeError))
             baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
@@ -948,7 +1164,7 @@ bool BadooAPI::sendSearchLocations(QString                 sSessionId,
     if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         if(jsnResponse.value(QStringLiteral("locations")).isArray()) {
             QJsonArray jsnLocations=jsnResponse.value(QStringLiteral("locations")).toArray();
-            for(const auto &l:qAsConst(jsnLocations))
+            for(const auto &l:jsnLocations)
                 if(l.isObject()) {
                     BadooLocationType bltLocationType;
                     int               iCountryId,
@@ -1024,6 +1240,8 @@ bool BadooAPI::sendSearchLocations(QString                 sSessionId,
 bool BadooAPI::sendStartup(QString          sDeviceId,
                            QString          &sSessionId,
                            QString          &sAccountId,
+                           QString          &sStoryId,
+                           QString          &sFlowId,
                            BadooUserProfile &bupUser,
                            BadooAPIError    &baeError) {
     bool                     bResult=false;
@@ -1031,35 +1249,81 @@ bool BadooAPI::sendStartup(QString          sDeviceId,
                              jsnFieldFilter;
     QJsonArray               jsnFeatures,
                              jsnMinorFeatures,
+                             jsnScreens,
                              jsnProjection;
     RawHeadersHash           rhhHeaders;
     BadooMessageResponseHash bmrhResponses;
     sAccountId.clear();
+    sStoryId.clear();
+    sFlowId.clear();
     clearUserProfile(bupUser);
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("app_build"),QStringLiteral("Webapp"));
     jsnMessage.insert(QStringLiteral("app_name"),QStringLiteral("BMA/Webapp"));
-    jsnMessage.insert(QStringLiteral("app_version"),QStringLiteral("1.0.00"));
-    jsnMessage.insert(QStringLiteral("user_agent"),QString());
+    jsnMessage.insert(QStringLiteral("app_version"),QStringLiteral(VERSION_WEBAPP));
+    // The following block of startup options can be left out with no effect at all:
+    jsnMessage.insert(QStringLiteral("app_platform_type"),PLATFORM_WINDOWS);
+    jsnMessage.insert(QStringLiteral("app_product_type"),APP_PRODUCT_TYPE_BADOO);
+    jsnMessage.insert(QStringLiteral("app_domain"),QStringLiteral("com.badoo"));
+    jsnMessage.insert(QStringLiteral("build_configuration"),BUILD_CONFIGURATION_TYPE_PRODUCTION);
+    jsnMessage.insert(QStringLiteral("build_fingerprint"),QStringLiteral(VERSION_WEBAPP));
+    // End of non-required startup options.
     jsnMessage.insert(QStringLiteral("screen_width"),0);
     jsnMessage.insert(QStringLiteral("screen_height"),0);
     jsnMessage.insert(QStringLiteral("language"),0);
-    for(const auto &f:bftlFeatures)
+    for(const auto &f:bftlFeatures)//debugFeatures//
         jsnFeatures.append(f);
     jsnMessage.insert(QStringLiteral("supported_features"),jsnFeatures);
-    for(const auto &f:bmflMinorFeatures)
+    for(const auto &f:bmflMinorFeatures)//debugMinorFeatures//
         jsnMinorFeatures.append(f);
     jsnMessage.insert(QStringLiteral("supported_minor_features"),jsnMinorFeatures);
+    for(const auto &s:buistlScreenTypes) {//debugScreenTypes//
+        QJsonObject jsnScreen;
+        jsnScreen.insert(QStringLiteral("type"),s);//s[0]//
+        jsnScreens.append(jsnScreen);
+    }
+    jsnMessage.insert(QStringLiteral("supported_screens"),jsnScreens);
     for(const auto &f:buflProjection)
         jsnProjection.append(f);
     jsnFieldFilter.insert(QStringLiteral("projection"),jsnProjection);
     jsnMessage.insert(QStringLiteral("user_field_filter_client_login_success"),jsnFieldFilter);
     jsnMessage.insert(QStringLiteral("open_udid"),sDeviceId);
+    // This field causes the weirdest behavior when it's mishandled, ...
+    // ... and it was the source of an issue that had me doing tests ...
+    // ... for several hours.
+    // Originally, I was passing it as an empty string, just because ...
+    // ... the server allowed this. And in fact, still does it, but: ...
+    // ... #1. As an empty string, the request finishes ok. However, ...
+    // ...     in the following requests, the session gets 'broken', ...
+    // ...     causing the error 'Session not found', and a password ...
+    // ...     reset (by the server), which is really annoying.      ...
+    // ... #2. If it's not supplied, SERVER_APP_STARTUP fails, so we ...
+    // ...     have a dead end here. Listed only for reference.      ...
+    // ... #3. Any non-empty string will work, apparently. No matter ...
+    // ...     if it is (not) matching the User-Agent header we send ...
+    // ...     along with the other requests made by the class.
+    jsnMessage.insert(QStringLiteral("user_agent"),sAPIUserAgent);
     if(getResponse(SERVER_APP_STARTUP,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
         if(bmrhResponses.contains(CLIENT_STARTUP)) {
+            bool        bReconnect;
+            QString     sNewServer;
+            QJsonObject jsnStartUp=bmrhResponses.value(CLIENT_STARTUP);
             // Fills the (anonymous) Session Id at the very beginning.
             if(sSessionId.isEmpty())
-                sSessionId=bmrhResponses.value(CLIENT_STARTUP).value(QStringLiteral("anonymous_session_id")).toString();
+                sSessionId=jsnStartUp.value(QStringLiteral("anonymous_session_id")).toString();
+            // Changes the server, if requested.
+            parseHostChange(jsnStartUp,sNewServer,bReconnect);
+            if(!sNewServer.isEmpty())
+                setServer(sNewServer);
+        }
+        // ToDo: (optional) process CLIENT_SESSION_CHANGED when it's found (just in case).
+        if(bmrhResponses.contains(CLIENT_SCREEN_STORY)) {
+            // Gets a 'Screen Story' in case the server is requesting us to fill it out.
+            if(bmrhResponses.value(CLIENT_SCREEN_STORY).value(QStringLiteral("screen_story")).isObject()) {
+                QJsonObject jsnStory=bmrhResponses.value(CLIENT_SCREEN_STORY).value(QStringLiteral("screen_story")).toObject();
+                sStoryId=jsnStory.value(QStringLiteral("id")).toString();
+                sFlowId=jsnStory.value(QStringLiteral("flow_id")).toString();
+            }
         }
         if(bmrhResponses.contains(CLIENT_LOGIN_SUCCESS)) {
             if(bmrhResponses.value(CLIENT_LOGIN_SUCCESS).value(QStringLiteral("user_info")).isObject())
@@ -1069,6 +1333,7 @@ bool BadooAPI::sendStartup(QString          sDeviceId,
                 );
             sAccountId=bmrhResponses.value(CLIENT_LOGIN_SUCCESS).value(QStringLiteral("encrypted_user_id")).toString();
         }
+        // ToDo: (optional) process CLIENT_CURRENT_USER if CLIENT_LOGIN_SUCCESS is not found.
         bResult=true; // Result depends on the stage SERVER_APP_STARTUP is requested.
     }
     if(!bResult) {
@@ -1079,23 +1344,67 @@ bool BadooAPI::sendStartup(QString          sDeviceId,
     return bResult;
 }
 
+bool BadooAPI::sendUpdateLocation(QString       sSessionId,
+                                  float         fLatitude,
+                                  float         fLongitude,
+                                  BadooAPIError &baeError) {
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnLocationObj,
+                   jsnResponse;
+    QJsonArray     jsnLocationArr;
+    RawHeadersHash rhhHeaders;
+    clearError(baeError);
+    jsnLocationObj.insert(QStringLiteral("latitude"),fLatitude);
+    jsnLocationObj.insert(QStringLiteral("longitude"),fLongitude);
+    jsnLocationArr.append(jsnLocationObj);
+    jsnMessage.insert(QStringLiteral("location"),jsnLocationArr);
+    const BadooMessagePair bmpMessage={SERVER_UPDATE_LOCATION,CLIENT_ACKNOWLEDGE_COMMAND};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
+        bResult=true;
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
+void BadooAPI::setAgent(QString sAgent) {
+    sAPIUserAgent=sAgent;
+}
+
+void BadooAPI::setProxy(QNetworkProxy *pxyProxy) {
+    pxyAPIProxy=pxyProxy;
+}
+
+void BadooAPI::setServer(QString sServer) {
+    // This method is not required and should not be invoked directly.
+    // It's here only because the other member variables have a public ...
+    // ... setter which modifies the API behavior. But this one is not ...
+    // ... intended to be used outside this class unless you know what ...
+    // ... you are doing.
+    sAPIServer=sServer;
+}
+
+void BadooAPI::setSolver(BadooCAPTCHASolver *bcsSolver) {
+    bcsCAPTCHASolver=bcsSolver;
+}
+
 bool BadooAPI::CAPTCHAHandler(QString       sSessionId,
                               BadooAPIError &baeError) {
-    bool               bResult=false;
-    QString            sCAPTCHAId,
-                       sCAPTCHAURL,
-                       sAnswer,
-                       sError;
-    QByteArray         abtCAPTCHA;
-    BadooCAPTCHASolver *bcsSolver=bcsCAPTCHASolver;
-    if(nullptr==bcsSolver)
-        bcsSolver=manualCAPTCHASolver;
+    bool       bResult=false;
+    QString    sCAPTCHAId,
+               sCAPTCHAURL,
+               sAnswer,
+               sError;
+    QByteArray abtCAPTCHA;
     sCAPTCHAId=baeError.sErrorId;
     clearError(baeError);
     while(true) {
         if(sendGetCAPTCHA(sSessionId,sCAPTCHAId,sCAPTCHAURL,baeError))
             if(downloadMediaResource(sSessionId,sCAPTCHAURL,abtCAPTCHA,sError))
-                if(bcsSolver(abtCAPTCHA,sAnswer,sError))
+                if(bcsCAPTCHASolver(abtCAPTCHA,sAnswer,sError))
                     if(sendCAPTCHAAttempt(sSessionId,sCAPTCHAId,sCAPTCHAURL,sAnswer,bResult,baeError)) {
                         if(!bResult)
                             continue; // Only retries when it's a wrong CAPTCHA answer.
@@ -1210,6 +1519,29 @@ bool BadooAPI::getResponse(BadooMessageType         bmtMessage,
     return bResult;
 }
 
+QString BadooAPI::getSessionFromHeaders(RawHeadersHash rhhHeaders) {
+    QString sResult;
+    sResult.clear();
+    if(rhhHeaders.contains(QStringLiteral("set-cookie").toUtf8())) {
+        QList<QNetworkCookie> nclCookies=QNetworkCookie::parseCookies(
+            rhhHeaders.value(QStringLiteral("set-cookie").toUtf8())
+        );
+        for(const auto &c:nclCookies)
+            if(!c.name().compare(
+                QStringLiteral("session").toUtf8(),
+                Qt::CaseSensitivity::CaseInsensitive
+            )) {
+                sResult=QByteArray::fromPercentEncoding(c.value());
+                break;
+            }
+    }
+    return sResult;
+}
+
+QString BadooAPI::getUSAStateNameFromCode(QString sCode) {
+    return vhUSAStates.value(sCode,sCode).toString();
+}
+
 bool BadooAPI::manualCAPTCHASolver(QByteArray abtCAPTCHA,
                                    QString    &sAnswer,
                                    QString    &sError) {
@@ -1266,7 +1598,7 @@ void BadooAPI::parseAlbum(QJsonObject jsnAlbum,
     sOwnerId=jsnAlbum.value(QStringLiteral("owner_id")).toString();
     if(jsnAlbum.value(QStringLiteral("photos")).isArray()) {
         jsnPhotos=jsnAlbum.value(QStringLiteral("photos")).toArray();
-        for(const auto &p:qAsConst(jsnPhotos))
+        for(const auto &p:jsnPhotos)
             if(p.isObject()) {
                 QString     sURL;
                 QJsonObject jsnObj;
@@ -1297,15 +1629,82 @@ void BadooAPI::parseError(QJsonObject   jsnError,
 
 void BadooAPI::parseFailure(QJsonObject jsnFailure,
                             QString     &sFailure) {
-    QJsonArray jsnErrors;
+    QJsonObject jsnError;
+    QJsonArray  jsnErrors;
     sFailure.clear();
-    if(jsnFailure.value(QStringLiteral("errors")).isArray()) {
+    if(jsnFailure.value(QStringLiteral("failure")).isObject()) {
+        jsnError=jsnFailure.value(QStringLiteral("failure")).toObject();
+        sFailure=jsnError.value(QStringLiteral("error_message")).toString();
+    }
+    else if(jsnFailure.value(QStringLiteral("errors")).isArray()) {
         jsnErrors=jsnFailure.value(QStringLiteral("errors")).toArray();
-        for(const auto &e:qAsConst(jsnErrors))
+        for(const auto &e:jsnErrors)
             if(e.isObject()) {
                 sFailure=e.toObject().value(QStringLiteral("error")).toString();
                 break;
             }
+    }
+}
+
+void BadooAPI::parseHostChange(QJsonObject jsnStartup,
+                               QString     &sNewHost,
+                               bool        &bReconnect) {
+    // This routine checks the CLIENT_STARTUP response message looking for a ...
+    // ... 'server change', which means that for the next requests, this new ...
+    // ... host must be used instead.
+    // As of 2024-08-12, failing to do that will result in successive errors ...
+    // ... for most of the API methods: 'Wrong platform blah blah blah'. And ...
+    // ... because of this, we cannot use hardcoded host names anymore.
+    sNewHost.clear();
+    bReconnect=false;
+    // Apparently, there is a 'host' field in every CLIENT_STARTUP response, ...
+    // ... so we start from that one.
+    if(jsnStartup.contains(QStringLiteral("host"))) {
+        QJsonValue jsnHost=jsnStartup.value(QStringLiteral("host"));
+        // Why is it an array? What would mean if there's more than one item ...
+        // ... inside? Why returning this field when there's already one for ...
+        // ... the same goal (change_host)? Too many questions.
+        if(jsnHost.isArray()) {
+            for(const auto &h:jsnHost.toArray())
+                if(h.isString()) {
+                    QString sHost=h.toString().trimmed();
+                    if(!sHost.isEmpty()) {
+                        sNewHost=sHost;
+                        break;
+                    }
+                }
+        }
+        else if(jsnHost.isString()) // Just in case haha.
+            sNewHost=jsnHost.toString();
+    }
+    // The actual 'server change' request comes when we find a 'change_host' ...
+    // ... field in the response.
+    if(jsnStartup.contains(QStringLiteral("change_host"))) {
+        QJsonValue jsnChangeHost=jsnStartup.value(QStringLiteral("change_host"));
+        if(jsnChangeHost.isObject()) {
+            QJsonObject jsnHost=jsnChangeHost.toObject();
+            // Why name this array 'secure_hosts'? Does this mean that there ...
+            // ... are insecure hosts then? C'mon!
+            if(jsnHost.contains(QStringLiteral("secure_hosts"))) {
+                QJsonValue jsnSecureHosts=jsnHost.value(QStringLiteral("secure_hosts"));
+                if(jsnSecureHosts.isArray())
+                    for(const auto &h:jsnSecureHosts.toArray())
+                        if(h.isString()) {
+                            QString sHost=h.toString().trimmed();
+                            if(!sHost.isEmpty()) {
+                                sNewHost=sHost;
+                                break;
+                            }
+                        }
+            }
+            // As of 2024-08-12, a reconnection request doesn't seem to have ...
+            // ... any effect in the way we use the API after this point..
+            if(jsnHost.contains(QStringLiteral("must_reconnect"))) {
+                QJsonValue jsnReconnect=jsnHost.value(QStringLiteral("must_reconnect"));
+                if(jsnReconnect.isBool())
+                    bReconnect=jsnReconnect.toBool();
+            }
+        }
     }
 }
 
@@ -1399,6 +1798,43 @@ void BadooAPI::parseOnlineStatus(QString sStatus,
     }
 }
 
+/* Anatomy of a Badoo API response:
+
+{
+  "$gpb"         : "badoo.bma.BadooMessage",
+  "message_type" : <root BadooMessageType>,
+  "version"      : 1,
+  "message_id"   : <request's message_id>,
+  "body"         : [
+    {
+      "$gpb"         : "badoo.bma.MessageBody",
+      "message_type" : <individual BadooMessageType>,
+      "<response message object name>" : {
+        "$gpb" : "badoo.bma.<internal message name>",
+        "<sample numeric parameter name>" : 0,
+        "<sample string parameter name>"  : "",
+        "<sample boolean parameter name>" : false,
+        "<sample object parameter name>"  : {}
+      }
+    }
+  ],
+  "responses_count" : <body array's length>,
+  "vhost"           : ""
+}
+
+-The body array can include more than one response message.
+ So we see a 'root' and an 'individual' message types here.
+
+-The message_id will match the value sent with the request.
+ We can either ignore this or increase the value each time.
+
+-Some server responses aren't including the message object.
+ E.g., CLIENT_ACKNOWLEDGE_COMMAND is always received empty.
+
+-I have no idea about the field vhost, and what could mean.
+ It appears in the responses but always as an empty string.
+*/
+
 bool BadooAPI::parseResponse(BadooMessageType bmtMessage,
                              QString          sResponse,
                              QJsonObject      &jsnResponse,
@@ -1416,7 +1852,7 @@ bool BadooAPI::parseResponse(BadooMessageType bmtMessage,
         jsnObj=jsnDoc.object();
         if(jsnObj.value(QStringLiteral("body")).isArray()) {
             jsnArr=jsnObj.value(QStringLiteral("body")).toArray();
-            for(const auto &o:qAsConst(jsnArr))
+            for(const auto &o:jsnArr)
                 if(o.isObject()) {
                     jsnObj=o.toObject();
                     if(jsnObj.value(bmnhMessages.value(CLIENT_SERVER_ERROR)).isObject()) {
@@ -1464,7 +1900,7 @@ bool BadooAPI::parseResponse(QString                  sResponse,
         jsnObj=jsnDoc.object();
         if(jsnObj.value(QStringLiteral("body")).isArray()) {
             jsnArr=jsnObj.value(QStringLiteral("body")).toArray();
-            for(const auto &o:qAsConst(jsnArr))
+            for(const auto &o:jsnArr)
                 if(o.isObject()) {
                     jsnObj=o.toObject();
                     if(jsnObj.value(bmnhMessages.value(CLIENT_SERVER_ERROR)).isObject())
@@ -1517,7 +1953,7 @@ void BadooAPI::parseSearchSettings(QJsonObject             jsnSettings,
         jsnSet=jsnSettings.value(QStringLiteral("current_settings")).toObject();
         if(jsnSet.value(QStringLiteral("gender")).isArray()) {
             jsnArr=jsnSet.value(QStringLiteral("gender")).toArray();
-            for(const auto &g:qAsConst(jsnArr))
+            for(const auto &g:jsnArr)
                 if(g.isDouble())
                     bssSettings.bstlGenders.append(
                         static_cast<BadooSexType>(g.toInt())
@@ -1550,7 +1986,7 @@ void BadooAPI::parseSearchSettings(QJsonObject             jsnSettings,
             birDistanceRange.second=jsnObj.value(QStringLiteral("max_value")).toInt();
             if(jsnObj.value(QStringLiteral("fixed_values")).isArray()) {
                 jsnArr=jsnObj.value(QStringLiteral("fixed_values")).toArray();
-                for(const auto &d:qAsConst(jsnArr))
+                for(const auto &d:jsnArr)
                     if(d.isObject()) {
                         jsnObj=d.toObject();
                         bsksvhDistanceHash.insert(
@@ -1566,7 +2002,7 @@ void BadooAPI::parseSearchSettings(QJsonObject             jsnSettings,
         }
         if(jsnSet.value(QStringLiteral("tiw_ideas")).isArray()) {
             jsnArr=jsnSet.value(QStringLiteral("tiw_ideas")).toArray();
-            for(const auto &i:qAsConst(jsnArr))
+            for(const auto &i:jsnArr)
                 if(i.isObject()) {
                     jsnObj=i.toObject();
                     biksvhIntentHash.insert(
@@ -1584,6 +2020,7 @@ void BadooAPI::parseSearchSettings(QJsonObject             jsnSettings,
 
 void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
                                 BadooUserProfile &bupUser) {
+    bool        bInUSA=false;
     QJsonObject jsnObj;
     QJsonArray  jsnArr;
     clearUserProfile(bupUser);
@@ -1599,11 +2036,14 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     bupUser.bHasQuickChat=jsnUser.value(QStringLiteral("quick_chat")).isObject();
     if(jsnUser.value(QStringLiteral("country")).isObject()) {
         jsnObj=jsnUser.value(QStringLiteral("country")).toObject();
+        bInUSA=!jsnObj.value(QStringLiteral("iso_code")).toString().compare("US");
         bupUser.sCountry=jsnObj.value(QStringLiteral("name")).toString();
     }
     if(jsnUser.value(QStringLiteral("region")).isObject()) {
         jsnObj=jsnUser.value(QStringLiteral("region")).toObject();
         bupUser.sRegion=jsnObj.value(QStringLiteral("name")).toString();
+        if(bInUSA)
+            bupUser.sRegion=getUSAStateNameFromCode(bupUser.sRegion);
     }
     if(jsnUser.value(QStringLiteral("city")).isObject()) {
         jsnObj=jsnUser.value(QStringLiteral("city")).toObject();
@@ -1620,7 +2060,7 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     }
     if(jsnUser.value(QStringLiteral("albums")).isArray()) {
         jsnArr=jsnUser.value(QStringLiteral("albums")).toArray();
-        for(const auto &a:qAsConst(jsnArr))
+        for(const auto &a:jsnArr)
             if(a.isObject()) {
                 QString     sOwnerId;
                 QStringList slPhotos,
@@ -1659,7 +2099,7 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     );
     if(jsnUser.value(QStringLiteral("profile_fields")).isArray()) {
         jsnArr=jsnUser.value(QStringLiteral("profile_fields")).toArray();
-        for(const auto &a:qAsConst(jsnArr))
+        for(const auto &a:jsnArr)
             if(a.isObject()) {
                 int     iType;
                 QString sValue;
@@ -1696,6 +2136,39 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     }
 }
 
+/* Anatomy of a Badoo API request:
+
+{
+  "$gpb" : "badoo.bma.BadooMessage",
+  "body" : [
+    {
+      "message_type" : <BadooMessageType>,
+      "<request message object name>" : {
+        "<sample numeric parameter name>" : 0,
+        "<sample string parameter name>"  : "",
+        "<sample boolean parameter name>" : false,
+        "<sample object parameter name>"  : {}
+      }
+    }
+  ],
+  "message_id"    : <numeric sequence>,
+  "message_type"  : <BadooMessageType>,
+  "version"       : 1,
+  "is_background" : false
+}
+
+-We can ignore the message_id or give it a numeric value.
+
+-I have no idea about the use of the field is_background.
+ It does not seem to modify anything so we can ignore it.
+
+-In principle, the body array can have multiple messages.
+ But for simplicity, we place one single request at time.
+
+-The body array elements don't have to include a message.
+ E.g., SERVER_SIGNOUT needs a message_type. Nothing else.
+*/
+
 bool BadooAPI::sendMessage(BadooMessageType bmtMessage,
                            QString          sSessionId,
                            QJsonObject      jsnMessage,
@@ -1718,7 +2191,9 @@ bool BadooAPI::sendMessage(BadooMessageType bmtMessage,
     sError.clear();
     if(bmnhMessages.contains(bmtMessage)) {
         jsnBody.insert(QStringLiteral("message_type"),bmtMessage);
-        jsnBody.insert(bmnhMessages.value(bmtMessage),jsnMessage);
+        if(!bmnhMessages.value(bmtMessage).isEmpty())
+            if(!jsnMessage.isEmpty())
+                jsnBody.insert(bmnhMessages.value(bmtMessage),jsnMessage);
         jsnArr.append(jsnBody);
         jsnObj.insert(QStringLiteral("$gpb"),QStringLiteral("badoo.bma.BadooMessage"));
         jsnObj.insert(QStringLiteral("body"),jsnArr);
@@ -1730,13 +2205,26 @@ bool BadooAPI::sendMessage(BadooMessageType bmtMessage,
             QStringLiteral("%1%2").arg(sRequest,QStringLiteral(SIGNATURE_MAGIC)).toUtf8(),
             QCryptographicHash::Algorithm::Md5
         ).toHex();
-        urlEndPoint=QUrl(QStringLiteral(ENDPOINT_WEBAPI));
-        // The parameter is not required at all, but identifies the request during debug.
-        urlEndPoint.setQuery(bmnhMessages.value(bmtMessage).toUpper());
+        urlEndPoint=QUrl(QStringLiteral("https://%1%2").arg(sAPIServer,PATH_API_ENDPOINT));
+        // The query parameter is not required at all, but identifies the request ...
+        // ... so we can tell it apart during debug.
+        // An infamous exception to this happens for the SERVER_SAVE_APP_SETTINGS ...
+        // ... message, whos object must be named 'app_settings' and not what the ...
+        // ... logic says ('server_save_app_settings'). Because of this, I've set ...
+        // ... the name 'app_settings' for all the APP_SETTINGS messages, even if ...
+        // ... they don't experience the issue (like SERVER_GET_APP_SETTINGS), in ...
+        // ... a way of having just some kind of standardization. -As I mentioned ...
+        // ... above, the query parameter is only a request convention-.
+        if(!bmnhMessages.value(bmtMessage).isEmpty())
+            urlEndPoint.setQuery(bmnhMessages.value(bmtMessage).toUpper());
         HTTPRequest::post(
             urlEndPoint,
             sRequest.toUtf8(),
             {
+                {
+                    QStringLiteral("user-agent").toUtf8(),
+                    sAPIUserAgent.toUtf8()
+                },
                 {
                     QStringLiteral("content-type").toUtf8(),
                     QStringLiteral(HTTP_HEADER_CONTENT_TYPE_JSON).toUtf8()
@@ -1755,6 +2243,7 @@ bool BadooAPI::sendMessage(BadooMessageType bmtMessage,
                 }
             },
             {},
+            pxyAPIProxy,
             uiResCode,
             abtBody,
             rhhHeaders,

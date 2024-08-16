@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+  <g transform="matrix(0.058634, 0, 0, 0.058619, 0, 6.4)">
+    <path d="M 0 177.418 C 27.131 140.872 140.269 0 272.888 0 C 405.413 0 518.625 140.872 545.757 177.418 C 518.626 213.999 405.424 354.823 272.869 354.836 C 140.295 354.823 27.112 213.999 0 177.418 Z" style="fill: rgb(255, 255, 255); stroke: rgb(0, 0, 0); stroke-width: 20px;"></path>
+    <circle style="stroke: rgb(0, 0, 0); fill: rgb(91, 160, 211); stroke-width: 1.73516px;" cx="32" cy="31.65" r="9.5" transform="matrix(10.526316, 0, 0, 12.526316, -63.942141, -219.057898)"></circle>
+  </g>
+</svg>

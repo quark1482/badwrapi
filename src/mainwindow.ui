@@ -17,7 +17,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>21</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnuDemo">
@@ -28,11 +28,17 @@
      <property name="title">
       <string>People nearby</string>
      </property>
+     <property name="icon">
+      <iconset>
+       <normalon>:/img/badge-pin.svg</normalon>
+      </iconset>
+     </property>
      <addaction name="actAllPeopleNearby"/>
      <addaction name="actOnlinePeopleNearby"/>
      <addaction name="actNewPeopleNearby"/>
     </widget>
     <addaction name="actEncounters"/>
+    <addaction name="separator"/>
     <addaction name="actFavorites"/>
     <addaction name="actLikes"/>
     <addaction name="actMatches"/>
@@ -56,6 +62,9 @@
     <addaction name="actLogin"/>
     <addaction name="actLogout"/>
     <addaction name="separator"/>
+    <addaction name="actVisibility"/>
+    <addaction name="actLocation"/>
+    <addaction name="separator"/>
     <addaction name="mnuSearchSettings"/>
    </widget>
    <widget class="QMenu" name="menuTools">
@@ -71,6 +80,9 @@
   </widget>
   <widget class="QStatusBar" name="stbMain"/>
   <action name="actLogin">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Login</string>
    </property>
@@ -91,6 +103,11 @@
    </property>
   </action>
   <action name="actEncounters">
+   <property name="icon">
+    <iconset>
+     <normalon>:/img/badge-encounters.svg</normalon>
+    </iconset>
+   </property>
    <property name="text">
     <string>Encounters</string>
    </property>
@@ -101,11 +118,21 @@
    </property>
   </action>
   <action name="actLikes">
+   <property name="icon">
+    <iconset>
+     <normalon>:/img/badge-liked-you.svg</normalon>
+    </iconset>
+   </property>
    <property name="text">
     <string>Likes</string>
    </property>
   </action>
   <action name="actVisitors">
+   <property name="icon">
+    <iconset>
+     <normalon>:/img/badge-view.svg</normalon>
+    </iconset>
+   </property>
    <property name="text">
     <string>Visitors</string>
    </property>
@@ -166,18 +193,51 @@
    </property>
   </action>
   <action name="actFavorites">
+   <property name="icon">
+    <iconset>
+     <normalon>:/img/badge-favorite.svg</normalon>
+    </iconset>
+   </property>
    <property name="text">
     <string>Favorites</string>
    </property>
   </action>
   <action name="actMatches">
+   <property name="icon">
+    <iconset>
+     <normalon>:/img/badge-match.svg</normalon>
+    </iconset>
+   </property>
    <property name="text">
     <string>Matches</string>
    </property>
   </action>
   <action name="actBlocked">
+   <property name="icon">
+    <iconset>
+     <normalon>:/img/badge-blocked.svg</normalon>
+    </iconset>
+   </property>
    <property name="text">
     <string>Blocked people</string>
+   </property>
+  </action>
+  <action name="actVisibility">
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Online status</string>
+   </property>
+  </action>
+  <action name="actLocation">
+   <property name="icon">
+    <iconset>
+     <normalon>:/img/badge-location.svg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Current location</string>
    </property>
   </action>
  </widget>

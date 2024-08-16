@@ -3,6 +3,7 @@
 void HTTPRequest::get(QUrl            urlURL,
                       RawHeadersHash  rhhRequestHeaders,
                       AttributesList  alAttributes,
+                      QNetworkProxy   *pxyProxy,
                       uint            &uiResponseCode,
                       QByteArray      &abtResponseContents,
                       RawHeadersHash  &rhhResponseHeaders,
@@ -13,6 +14,7 @@ void HTTPRequest::get(QUrl            urlURL,
         QByteArray(),
         rhhRequestHeaders,
         alAttributes,
+        pxyProxy,
         uiResponseCode,
         abtResponseContents,
         rhhResponseHeaders,
@@ -25,6 +27,7 @@ void HTTPRequest::get(QUrl            urlURL,
 void HTTPRequest::head(QUrl            urlURL,
                        RawHeadersHash  rhhRequestHeaders,
                        AttributesList  alAttributes,
+                       QNetworkProxy   *pxyProxy,
                        uint            &uiResponseCode,
                        RawHeadersHash  &rhhResponseHeaders,
                        QString         &sError) {
@@ -35,6 +38,7 @@ void HTTPRequest::head(QUrl            urlURL,
         QByteArray(),
         rhhRequestHeaders,
         alAttributes,
+        pxyProxy,
         uiResponseCode,
         abtDummy,
         rhhResponseHeaders,
@@ -48,6 +52,7 @@ void HTTPRequest::post(QUrl            urlURL,
                        QByteArray      abtPayload,
                        RawHeadersHash  rhhRequestHeaders,
                        AttributesList  alAttributes,
+                       QNetworkProxy   *pxyProxy,
                        uint            &uiResponseCode,
                        QByteArray      &abtResponseContents,
                        RawHeadersHash  &rhhResponseHeaders,
@@ -58,6 +63,7 @@ void HTTPRequest::post(QUrl            urlURL,
         abtPayload,
         rhhRequestHeaders,
         alAttributes,
+        pxyProxy,
         uiResponseCode,
         abtResponseContents,
         rhhResponseHeaders,
@@ -72,6 +78,7 @@ void HTTPRequest::rawMethod(HTTPMethod      hmMethod,
                             QByteArray      abtPayload,
                             RawHeadersHash  rhhRequestHeaders,
                             AttributesList  alAttributes,
+                            QNetworkProxy   *pxyProxy,
                             uint            &uiResponseCode,
                             QByteArray      &abtResponseContents,
                             RawHeadersHash  &rhhResponseHeaders,
@@ -84,6 +91,8 @@ void HTTPRequest::rawMethod(HTTPMethod      hmMethod,
     abtResponseContents.clear();
     rhhResponseHeaders.clear();
     sError.clear();
+    if(pxyProxy!=nullptr)
+        namManager.setProxy(*pxyProxy);
     namManager.setTransferTimeout();
     nrqRequest.setUrl(urlURL);
     abtlHeaders=rhhRequestHeaders.keys();
@@ -119,8 +128,10 @@ void HTTPRequest::rawMethod(HTTPMethod      hmMethod,
                 // If the same field appears multiple times in the headers, their values ...
                 // ... are unified in a single entry, separated by semicolon-and-space.
                 // Usual examples: 'set-cookie' and 'content-security-policy'.
+                // 2024-08-10: I am returning them separated by new-lines, because the ...
+                // ... semicolon-and-space approach is also used in one-line headers.
                 rhhResponseHeaders[h.first.toLower()].append(
-                    QStringLiteral("; %1").arg(h.second).toUtf8()
+                    QStringLiteral("\n%1").arg(h.second).toUtf8()
                 );
             else
                 rhhResponseHeaders.insert(h.first.toLower(),h.second);

@@ -160,7 +160,6 @@ void BadooWrapper::clearSessionDetails() {
     sdSession.sDeviceId.clear();
     sdSession.sUserId.clear();
     sdSession.sAccountId.clear();
-    sdSession.sResponseToken.clear();
 }
 
 template bool BadooWrapper::downloadMultiMediaResources<QString>(
@@ -594,11 +593,16 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
             blstSection=LIST_SECTION_TYPE_WANT_TO_MEET_YOU_UNVOTED;
             break;
         case FOLDER_TYPE_MATCHES:
-            bftFolder=MATCHES;
+            // 2024-08-11: for a bunch of days, the folder type MATCHES was not ...
+            // ... returning any profile. So I implemented this workaround, and ...
+            // ... kept using it. Here, I'm grabbing all the profiles that were ...
+            // ... included in a 'you got a match' notification.
+            bftFolder=ALL_MESSAGES;
             blstSection=LIST_SECTION_TYPE_UNKNOWN;
+            blflFilters.append(LIST_FILTER_MATCHED);
             break;
         case FOLDER_TYPE_PEOPLE_NEARBY:
-            bftFolder=NEARBY_PEOPLE_WEB;
+            bftFolder=NEARBY_PEOPLE;
             blstSection=LIST_SECTION_TYPE_UNKNOWN;
             break;
         case FOLDER_TYPE_VISITORS:
@@ -651,7 +655,7 @@ QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
     QStringList slPhotos,
                 slVideos;
     sTitle=QStringLiteral("%1, %2, %3").arg(bupUser.sName).arg(bupUser.iAge).arg(bupUser.sCity);
-    sURL=QStringLiteral("%1/profile/%2").arg(ENDPOINT_BASE).arg(bupUser.sUserId);
+    sURL=QStringLiteral("https://%1/profile/%2").arg(DOMAIN_BASE).arg(bupUser.sUserId);
     sDetails=QStringLiteral(HTML_TABLE_PROFILE).
              arg(bupUser.sName).arg(bupUser.iAge).arg(bupUser.sAppearance).
              arg(
@@ -833,13 +837,38 @@ void BadooWrapper::getSessionDetails(SessionDetails &sdDetails) {
 void BadooWrapper::getSessionDetails(QString &sSessionId,
                                      QString &sDeviceId,
                                      QString &sUserId,
-                                     QString &sAccountId,
-                                     QString &sResponseToken) {
+                                     QString &sAccountId) {
     sSessionId=sdSession.sSessionId;
     sDeviceId=sdSession.sDeviceId;
     sUserId=sdSession.sUserId;
     sAccountId=sdSession.sAccountId;
-    sResponseToken=sdSession.sResponseToken;
+}
+
+bool BadooWrapper::getVisibleStatus(bool &bVisible) {
+    bool          bResult=false;
+    QString       sError;
+    QVariantHash  vhAppSettings;
+    BadooAPIError baeError;
+    sError.clear();
+    bVisible=false;
+    emit statusChanged(QStringLiteral("Querying visibility status..."));
+    if(BadooAPI::sendGetAppSettings(sdSession.sSessionId,vhAppSettings,baeError)) {
+        QString sKey=QStringLiteral("privacy_show_online_status");
+        if(vhAppSettings.contains(sKey)&&vhAppSettings[sKey].typeId()==QMetaType::Type::Bool) {
+            bVisible=vhAppSettings[sKey].toBool();
+            bResult=true;
+        }
+        else
+            sError=QStringLiteral("Could not find the visibility setting");
+    }
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
 }
 
 QString BadooWrapper::getTextFromBoolean(bool bBoolean) {
@@ -922,7 +951,7 @@ bool BadooWrapper::isValidUserId(QString sUserId) {
 }
 
 bool BadooWrapper::isLoggedIn() {
-    return !sdSession.sSessionId.isEmpty()&&!sdSession.sResponseToken.isEmpty();
+    return !sdSession.sSessionId.isEmpty();
 }
 
 bool BadooWrapper::loadOwnProfile() {
@@ -1015,24 +1044,55 @@ bool BadooWrapper::login(QString sUsername,
                      sSessionId,
                      sDeviceId,
                      sAccountId,
-                     sResponseToken,
+                     sStoryId,
+                     sFlowId,
                      sError;
     BadooUserProfile bupUser;
     BadooAPIError    baeError;
-    this->clearSessionDetails();
     sAnonSessionId.clear();
     sError.clear();
     emit statusChanged(QStringLiteral("Logging in..."));
+    this->clearSessionDetails();
     if(BadooAPI::getPreLoginParameters(sDeviceId,sError))
-        if(BadooAPI::sendStartup(sDeviceId,sAnonSessionId,sAccountId,bupUser,baeError))
-            if(BadooAPI::sendLogin(sAnonSessionId,sUsername,sPassword,sSessionId,baeError))
-                if(BadooAPI::sendStartup(sDeviceId,sSessionId,sAccountId,bupUser,baeError))
-                    if(BadooAPI::getPostLoginParameters(sSessionId,sResponseToken,sError))
-                        bResult=true;
+        if(BadooAPI::sendStartup(sDeviceId,sAnonSessionId,sAccountId,sStoryId,sFlowId,bupUser,baeError))
+            if(BadooAPI::sendLogin(sAnonSessionId,sUsername,sPassword,sStoryId,sFlowId,sSessionId,baeError))
+                if(BadooAPI::sendStartup(sDeviceId,sSessionId,sAccountId,sStoryId,sFlowId,bupUser,baeError))
+                    bResult=true;
     emit statusChanged(QString());
     if(bResult) {
         bupSelf=bupUser;
-        this->setSessionDetails(sSessionId,sDeviceId,bupUser.sUserId,sAccountId,sResponseToken);
+        this->setSessionDetails(sSessionId,sDeviceId,bupUser.sUserId,sAccountId);
+    }
+    else {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
+bool BadooWrapper::loginBack() {
+    bool             bResult=false;
+    QString          sSessionId,
+                     sDeviceId,
+                     sUserId,
+                     sAccountId,
+                     sStoryId,
+                     sFlowId,
+                     sError;
+    BadooUserProfile bupUser;
+    BadooAPIError    baeError;
+    sError.clear();
+    emit statusChanged(QStringLiteral("Logging back in..."));
+    this->getSessionDetails(sSessionId,sDeviceId,sUserId,sAccountId);
+    if(BadooAPI::sendStartup(sDeviceId,sSessionId,sAccountId,sStoryId,sFlowId,bupUser,baeError))
+        bResult=true;
+    emit statusChanged(QString());
+    if(bResult) {
+        // Pure convention. None of these values should change after the above startup.
+        bupSelf=bupUser;
+        this->setSessionDetails(sSessionId,sDeviceId,bupUser.sUserId,sAccountId);
     }
     else {
         if(sError.isEmpty())
@@ -1045,58 +1105,23 @@ bool BadooWrapper::login(QString sUsername,
 
 bool BadooWrapper::logout() {
     bool           bResult=false;
-    uint           uiResCode;
-    QString        sContentType,
-                   sError;
-    QByteArray     abtResponse;
-    QUrl           urlEndPoint;
-    QUrlQuery      qryEndPoint;
-    RawHeadersHash rhhHeaders;
+    QString        sError;
+    BadooAPIError  baeError;
     sError.clear();
     if(this->isLoggedIn()) {
-        urlEndPoint=QUrl(QStringLiteral(ENDPOINT_SIGNOUT));
-        qryEndPoint.addQueryItem(QStringLiteral("rt"),sdSession.sResponseToken);
-        urlEndPoint.setQuery(qryEndPoint);
         emit statusChanged(QStringLiteral("Logging out..."));
-        HTTPRequest::get(
-            urlEndPoint,
-            {
-                {
-                    QStringLiteral("cookie").toUtf8(),
-                    QStringLiteral("session=%1").arg(sdSession.sSessionId).toUtf8()
-                }
-            },
-            {
-                {
-                    QNetworkRequest::Attribute::RedirectPolicyAttribute,
-                    QNetworkRequest::RedirectPolicy::ManualRedirectPolicy
-                }
-            },
-            uiResCode,
-            abtResponse,
-            rhhHeaders,
-            sError
-        );
+        bResult=BadooAPI::sendLogout(sdSession.sSessionId,baeError);
         emit statusChanged(QString());
-        sContentType=rhhHeaders.value(QStringLiteral("content-type").toUtf8());
-        if(HTTP_STATUS_FOUND==uiResCode)
-            // A redirection is more than enough to detect the successful logout.
-            // By pure convention, we also verify the Content-Type header.
-            if(sContentType.startsWith(QStringLiteral(HTTP_HEADER_CONTENT_TYPE_HTML)))
-                bResult=true;
-            else
-                sError=QStringLiteral("Unexpected content type: %1").
-                       arg(sContentType);
-        else if(HTTP_STATUS_INVALID!=uiResCode)
-            sError=QStringLiteral("Unexpected response code: %1").
-                   arg(uiResCode);
     }
     else
         bResult=true;
     if(bResult)
         this->clearSessionDetails();
-    else
+    else {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
         sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
     sLastError=sError;
     return bResult;
 }
@@ -1158,7 +1183,7 @@ bool BadooWrapper::removeFromMatches(QString sProfileId) {
     sError.clear();
     emit statusChanged(QStringLiteral("Unmatching profile..."));
     // This is the correct and safest way of removing a match, with some unfortunate ...
-    // ... side effects, as it is described in FolderViewer::showStandaloneProfile().
+    // ... side effects, as it's described in FolderViewer::showStandaloneProfile().
     if(BadooAPI::sendRemovePersonFromSection(
         sdSession.sSessionId,
         sProfileId,
@@ -1262,6 +1287,40 @@ void BadooWrapper::setEncountersSettings(EncountersSettings esNew) {
     esEncounters=esNew;
 }
 
+bool BadooWrapper::setLocation(QString sLocation) {
+    bool             bResult=false;
+    float            fLat,
+                     fLng;
+    QString          sSessionId,
+                     sDeviceId,
+                     sUserId,
+                     sAccountId,
+                     sStoryId,
+                     sFlowId,
+                     sError;
+    BadooUserProfile bupUser;
+    BadooAPIError    baeError;
+    sError.clear();
+    emit statusChanged(QStringLiteral("Changing location..."));
+    this->getSessionDetails(sSessionId,sDeviceId,sUserId,sAccountId);
+    if(TAGeoCoder::getLatLng(sLocation,fLat,fLng,sError))
+        if(BadooAPI::sendUpdateLocation(sdSession.sSessionId,fLat,fLng,baeError))
+            if(BadooAPI::sendStartup(sDeviceId,sSessionId,sAccountId,sStoryId,sFlowId,bupUser,baeError))
+                bResult=true;
+    emit statusChanged(QString());
+    if(bResult) {
+        bupSelf=bupUser;
+        this->setSessionDetails(sSessionId,sDeviceId,bupUser.sUserId,sAccountId);
+    }
+    else {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
 void BadooWrapper::setPeopleNearbySettings(PeopleNearbySettings pnsNew) {
     pnsPeopleNearby=pnsNew;
 }
@@ -1273,16 +1332,54 @@ void BadooWrapper::setSessionDetails(SessionDetails sdNewDetails) {
 void BadooWrapper::setSessionDetails(QString sNewSessionId,
                                      QString sNewDeviceId,
                                      QString sNewUserId,
-                                     QString sNewAccountId,
-                                     QString sNewResponseToken) {
+                                     QString sNewAccountId) {
     sdSession.sSessionId=sNewSessionId;
     sdSession.sDeviceId=sNewDeviceId;
     sdSession.sUserId=sNewUserId;
     sdSession.sAccountId=sNewAccountId;
-    sdSession.sResponseToken=sNewResponseToken;
 }
 
-bool BadooWrapper::showLogin(QWidget *wgtParent) {
+bool BadooWrapper::setVisibleStatus(bool bVisible) {
+    bool          bResult=false;
+    QString       sError;
+    QVariantHash  vhAppSettings;
+    BadooAPIError baeError;
+    sError.clear();
+    if(bVisible)
+        emit statusChanged(QStringLiteral("Becoming visible..."));
+    else
+        emit statusChanged(QStringLiteral("Becoming invisible..."));
+    vhAppSettings={{QStringLiteral("privacy_show_online_status"),bVisible}};
+    if(BadooAPI::sendSaveAppSettings(sdSession.sSessionId,vhAppSettings,baeError))
+        bResult=true;
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
+bool BadooWrapper::showLocationDialog(QWidget *wgtParent) {
+    bool                bResult=false;
+    QString             sError;
+    BadooLocationDialog bldLocation(this,wgtParent);
+    if(bldLocation.show())
+        bResult=true;
+    else
+        sError=QStringLiteral("Dialog canceled by user");
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=this->getLastError();
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
+bool BadooWrapper::showLoginDialog(QWidget *wgtParent) {
     bool             bResult=false;
     QString          sError;
     BadooLoginDialog bldLogin(this,wgtParent);
@@ -1300,8 +1397,8 @@ bool BadooWrapper::showLogin(QWidget *wgtParent) {
     return bResult;
 }
 
-bool BadooWrapper::showSearchSettings(BadooSettingsContextType bsctContext,
-                                      QWidget                  *wgtParent) {
+bool BadooWrapper::showSearchSettingsDialog(BadooSettingsContextType bsctContext,
+                                            QWidget                  *wgtParent) {
     bool                      bResult=false;
     QString                   sError;
     BadooSearchSettingsDialog bssdSettings(bsctContext,this,wgtParent);

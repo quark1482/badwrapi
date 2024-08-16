@@ -3,6 +3,7 @@
 
 #include <QApplication>
 #include <QNetworkAccessManager>
+#include <QNetworkProxy>
 #include <QNetworkRequest>
 #include <QNetworkReply>
 
@@ -48,11 +49,11 @@ typedef QList<QPair<QNetworkRequest::Attribute,QVariant>> AttributesList;
 
 class HTTPRequest {
 public:
-    static void get(QUrl,RawHeadersHash,AttributesList,uint &,QByteArray &,RawHeadersHash &,QString &);
-    static void head(QUrl,RawHeadersHash,AttributesList,uint &,RawHeadersHash &,QString &);
-    static void post(QUrl,QByteArray,RawHeadersHash,AttributesList,uint &,QByteArray &,RawHeadersHash &,QString &);
+    static void get(QUrl,RawHeadersHash,AttributesList,QNetworkProxy *,uint &,QByteArray &,RawHeadersHash &,QString &);
+    static void head(QUrl,RawHeadersHash,AttributesList,QNetworkProxy *,uint &,RawHeadersHash &,QString &);
+    static void post(QUrl,QByteArray,RawHeadersHash,AttributesList,QNetworkProxy *,uint &,QByteArray &,RawHeadersHash &,QString &);
 private:
-    static void rawMethod(HTTPMethod,QUrl,QByteArray,RawHeadersHash,AttributesList,uint &,QByteArray &,RawHeadersHash &,QString &);
+    static void rawMethod(HTTPMethod,QUrl,QByteArray,RawHeadersHash,AttributesList,QNetworkProxy *,uint &,QByteArray &,RawHeadersHash &,QString &);
 };
 
 #endif // HTTPREQUEST_H

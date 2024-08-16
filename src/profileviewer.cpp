@@ -342,8 +342,8 @@ void ProfileViewer::delayedResizeTimeout() {
 
 void ProfileViewer::copyURLButtonClicked() {
     if(!bupProfileDetails.sUserId.isEmpty()) {
-        QString sURL=QStringLiteral("%1/profile/%2").
-                     arg(ENDPOINT_BASE).
+        QString sURL=QStringLiteral("https://%1/profile/%2").
+                     arg(DOMAIN_BASE).
                      arg(bupProfileDetails.sUserId);
         QGuiApplication::clipboard()->setText(sURL);
         emit buttonClicked(PROFILE_VIEWER_BUTTON_COPY_URL);
