@@ -31,7 +31,8 @@ private slots:
     void nextButtonClicked();
     void lastButtonClicked();
 private:
-    QByteArray           abtPlaceholderPhoto;
+    QByteArray           abtPlaceholderPhoto,
+                         abtFailurePhoto;
     QVBoxLayout          vblLayout;
     QHBoxLayout          hblLayout;
     QLabel               lblPageTitle;
@@ -49,13 +50,16 @@ private:
     FolderType           ftType;
     DB                   *dbFolder;
     void configurePageButton(QPushButton *,QString,QString);
+    bool showChatWithProfile(int);
+    bool showQuickChatWithProfile(int);
     void showStandaloneProfile(int);
     void updatePageWidgets(bool=false);
-    void updateProfileBadges(QRect,QRect,bool,bool,bool,BadooVote,BadooVote,bool,bool,bool,int,QString);
+    void updateProfileBadges(QRect,QRect,bool,bool,bool,BadooVote,BadooVote,bool,bool,bool,bool,int,QString,ChatDirection,int);
     void updateProfileMediaCounters(QRect,int,int);
     void updateProfilePhoto(QRect,QByteArray,int);
     void updateProfileTitle(QRect,QString,int,QString);
 signals:
+    void badgeClicked(int,BadgeAction);
     void buttonClicked(FolderViewerButton);
 };
 

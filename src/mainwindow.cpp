@@ -11,6 +11,7 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
     pxyMain=new QNetworkProxy(QNetworkProxy::ProxyType::NoProxy);
     ui->setupUi(this);
     dlgBrowseCustom=nullptr;
+    dlgBrowseChats=nullptr;
     dlgBrowseFavorites=nullptr;
     dlgBrowseLikes=nullptr;
     dlgBrowseMatches=nullptr;
@@ -39,6 +40,12 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
             &QAction::triggered,
             this,
             &MainWindow::menuEncountersTriggered
+        );
+        connect(
+            ui->actChats,
+            &QAction::triggered,
+            this,
+            &MainWindow::menuBrowseFolderTriggered
         );
         connect(
             ui->actFavorites,
@@ -99,6 +106,12 @@ QMainWindow(parent),ui(new Ui::MainWindow) {
             &QAction::triggered,
             this,
             &MainWindow::menuBrowseProfileTriggered
+        );
+        connect(
+            ui->actSessionDetails,
+            &QAction::triggered,
+            this,
+            &MainWindow::menuEditSessionTriggered
         );
         connect(
             ui->actExit,
@@ -172,6 +185,8 @@ MainWindow::~MainWindow() {
     delete pxyMain;
     if(nullptr!=dlgBrowseCustom)
         delete dlgBrowseCustom;
+    if(nullptr!=dlgBrowseChats)
+        delete dlgBrowseChats;
     if(nullptr!=dlgBrowseFavorites)
         delete dlgBrowseFavorites;
     if(nullptr!=dlgBrowseLikes)
@@ -226,6 +241,8 @@ bool MainWindow::eventFilter(QObject *objO,
         dbMain->saveSetting(stgGroup,wggGeometry);
         if(dlgBrowseCustom==dlgChild)
             dlgBrowseCustom=nullptr;
+        else if(dlgBrowseChats==dlgChild)
+            dlgBrowseChats=nullptr;
         else if(dlgBrowseFavorites==dlgChild)
             dlgBrowseFavorites=nullptr;
         else if(dlgBrowseLikes==dlgChild)
@@ -241,6 +258,7 @@ bool MainWindow::eventFilter(QObject *objO,
         else if(dlgEncounters==dlgChild)
             dlgEncounters=nullptr;
         delete dlgChild;
+        return true; // 2024-10-20: This was missing. Potential crash.
     }
     return QObject::eventFilter(objO,evnE);
 }
@@ -252,6 +270,10 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
     if(ui->actCustomFolder==QObject::sender()) {
         dlgFolder=dlgBrowseCustom;
         ftFolder=FOLDER_TYPE_UNKNOWN;
+    }
+    else if(ui->actChats==QObject::sender()) {
+        dlgFolder=dlgBrowseChats;
+        ftFolder=FOLDER_TYPE_CHATS;
     }
     else if(ui->actFavorites==QObject::sender()) {
         dlgFolder=dlgBrowseFavorites;
@@ -333,6 +355,9 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
                     case FOLDER_TYPE_UNKNOWN:
                         dlgBrowseCustom=dlgFolder;
                         break;
+                    case FOLDER_TYPE_CHATS:
+                        dlgBrowseChats=dlgFolder;
+                        break;
                     case FOLDER_TYPE_FAVORITES:
                         dlgBrowseFavorites=dlgFolder;
                         break;
@@ -381,9 +406,13 @@ void MainWindow::menuBrowseFolderTriggered(bool) {
 void MainWindow::menuBrowseProfileTriggered(bool) {
     if(bwMain.isLoggedIn()) {
         QInputDialog idProfile(this);
-        QHBoxLayout  hblWarning;
+        QVBoxLayout  *vblMainLayout;
+        QHBoxLayout  hblProfile,
+                     hblWarning;
         QLabel       lblWarningIcon,
                      lblWarningText;
+        QLineEdit    *ledProfile;
+        QPushButton  btnPaste(&idProfile);
         // Forces the resize of the QInputDialog to something more adequate by ...
         // ... setting its QLabel to some maximum length string before showing ...
         // ... the dialog itself.
@@ -392,7 +421,15 @@ void MainWindow::menuBrowseProfileTriggered(bool) {
         idProfile.setWindowModality(Qt::WindowModality::ApplicationModal);
         idProfile.setWindowTitle(QStringLiteral("Custom profile"));
         idProfile.show();
-        idProfile.setLabelText(QStringLiteral("Profile URL or Id:"));
+        vblMainLayout=qobject_cast<QVBoxLayout *>(idProfile.layout());
+        // Moves the QLineEdit (Profile URL or Id) to its own QHBoxLayout ...
+        // ... and adds a QPushButton (paste from clipboard) at the side.
+        ledProfile=idProfile.findChild<QLineEdit *>();
+        idProfile.layout()->removeWidget(ledProfile);
+        hblProfile.addWidget(ledProfile);
+        hblProfile.addWidget(&btnPaste);
+        btnPaste.setIcon(QIcon(QStringLiteral(":/img/tool-paste.png")));
+        vblMainLayout->insertLayout(1,&hblProfile);
         lblWarningIcon.setPixmap(
             QApplication::style()->standardPixmap(
                 QStyle::StandardPixmap::SP_MessageBoxWarning
@@ -405,7 +442,21 @@ void MainWindow::menuBrowseProfileTriggered(bool) {
         hblWarning.addWidget(&lblWarningIcon);
         hblWarning.addWidget(&lblWarningText);
         hblWarning.addStretch();
-        qobject_cast<QVBoxLayout *>(idProfile.layout())->addLayout(&hblWarning);
+        vblMainLayout->addLayout(&hblWarning);
+        idProfile.setLabelText(QStringLiteral("Profile URL or Id:"));
+        idProfile.setTabOrder({ledProfile,&btnPaste});
+        connect(
+            &btnPaste,
+            &QPushButton::clicked,
+            [=](bool) {
+                QClipboard *clpBoard=QApplication::clipboard();
+                if(clpBoard->mimeData()->hasText()) {
+                    ledProfile->setText(clpBoard->text().trimmed());
+                    ledProfile->selectAll();
+                    ledProfile->setFocus();
+                }
+            }
+        );
         while(true)
             if(QDialog::DialogCode::Accepted==idProfile.exec()) {
                 QString sProfile=idProfile.textValue().trimmed();
@@ -444,6 +495,58 @@ void MainWindow::menuBrowseProfileTriggered(bool) {
         );
 }
 
+void MainWindow::menuEditSessionTriggered(bool) {
+    bool           bSuccess;
+    QString        sSes,sDev,sUsr,sAcc;
+    SessionDetails sdCopy;
+    bwMain.getSessionDetails(sSes,sDev,sUsr,sAcc);
+    bwMain.getSessionDetails(sdCopy);
+    if(this->editSessionDetails(sSes,sDev,sUsr,sAcc)) {
+        bwMain.setSessionDetails(sSes,sDev,sUsr,sAcc);
+        bSuccess=false;
+        do {
+            if(bwMain.loginBack()) {
+                bSuccess=true;
+                break;
+            }
+            else if(QMessageBox::StandardButton::Cancel==QMessageBox::critical(
+                this,
+                QStringLiteral("Error"),
+                dbMain->getLastError(),
+                QMessageBox::StandardButton::Retry|
+                QMessageBox::StandardButton::Cancel,
+                QMessageBox::StandardButton::Retry
+            ))
+                break;
+        } while(true);
+        if(bSuccess) {
+            bSuccess=false;
+            do {
+                if(dbMain->saveSession(sSes,sDev,sUsr,sAcc)) {
+                    bSuccess=true;
+                    break;
+                }
+                else if(QMessageBox::StandardButton::Cancel==QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    dbMain->getLastError(),
+                    QMessageBox::StandardButton::Retry|
+                    QMessageBox::StandardButton::Cancel,
+                    QMessageBox::StandardButton::Retry
+                ))
+                    break;
+            } while(true);
+        }
+        if(bSuccess) {
+            this->testAndSetLocation();
+            this->testAndSetVisibility();
+            ui->stbMain->showMessage(QStringLiteral("Session edited"));
+        }
+        else
+            bwMain.setSessionDetails(sdCopy);
+    }
+}
+
 void MainWindow::menuEncountersTriggered(bool) {
     if(bwMain.isLoggedIn())
         if(nullptr==dlgEncounters) {
@@ -473,7 +576,7 @@ void MainWindow::menuEncountersTriggered(bool) {
             this,
             QStringLiteral("Error"),
             QStringLiteral("Not logged in")
-                    );
+        );
 }
 
 void MainWindow::menuLocationTriggered(bool) {
@@ -569,6 +672,7 @@ void MainWindow::wrapperStatusChanged(QString sStatus) {
 bool MainWindow::anyChildrenActive() {
     // Checks for any (||) active dialog.
     return nullptr!=dlgBrowseCustom||
+           nullptr!=dlgBrowseChats||
            nullptr!=dlgBrowseFavorites||
            nullptr!=dlgBrowseLikes||
            nullptr!=dlgBrowseMatches||
@@ -576,6 +680,277 @@ bool MainWindow::anyChildrenActive() {
            nullptr!=dlgBrowseVisitors||
            nullptr!=dlgBrowseBlocked||
            nullptr!=dlgEncounters;
+}
+
+bool MainWindow::editSessionDetails(QString &sSessionId,
+                                    QString &sDeviceId,
+                                    QString &sUserId,
+                                    QString &sAccountId) {
+    bool        bResult=false;
+    int         iMinEditWidth;
+    QDialog     dlgESDetails(this);
+    QVBoxLayout vblESDetails;
+    QFormLayout fmlSession;
+    QHBoxLayout hblSession,
+                hblDevice,
+                hblUser,
+                hblAccount,
+                hblButtons,
+                hblWarning;
+    QLabel      lblWarningIcon,
+                lblWarningText;
+    QLineEdit   ledSessionId,
+                ledDeviceId,
+                ledUserId,
+                ledAccountId;
+    QPushButton btnCopySessionId,
+                btnPasteSessionId,
+                btnCopyDeviceId,
+                btnPasteDeviceId,
+                btnCopyUserId,
+                btnPasteUserId,
+                btnCopyAccountId,
+                btnPasteAccountId,
+                btnOK,
+                btnCancel;
+    QFontMetrics ftmUserId(ledUserId.font());
+    // Forces the resize of the dialog to something more adequate by ...
+    // ... setting the minimum width of one of its QLineEdit widgets ...
+    // ... to the minimum string size the widget should hold, so the ...
+    // ... contents can be completely seen without having to scroll.
+    iMinEditWidth=ftmUserId.horizontalAdvance(QStringLiteral("W"))*MIN_USER_ID_LENGTH;
+    ledUserId.setMinimumWidth(iMinEditWidth);
+    ledSessionId.setSizePolicy(
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Preferred
+    );
+    ledDeviceId.setSizePolicy(
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Preferred
+    );
+    ledUserId.setSizePolicy(
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Preferred
+    );
+    ledAccountId.setSizePolicy(
+        QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Preferred
+    );
+    ledSessionId.setText(sSessionId);
+    ledDeviceId.setText(sDeviceId);
+    ledUserId.setText(sUserId);
+    ledAccountId.setText(sAccountId);
+    ledSessionId.setToolTip(
+        QStringLiteral(
+            "Found in:\n"
+            "-Cookies as 'session'"
+        )
+    );
+    ledDeviceId.setToolTip(
+        QStringLiteral(
+            "Found in:\n"
+            "-Request cookies as 'device_id'\n"
+            "-SERVER_APP_STARTUP request as 'open_udid.'"
+        )
+    );
+    ledUserId.setToolTip(
+        QStringLiteral(
+            "Found in:\n"
+            "-Cookies as 'uid', 'HDR-X-User-id' or 'X-User-id'\n"
+            "-SERVER_APP_STARTUP response as 'client_login_success.user_info.user_id'\n"
+            "-SERVER_APP_STARTUP response as 'user.user_id'"
+        )
+    );
+    ledAccountId.setToolTip(
+        QStringLiteral(
+            "Found in:\n"
+            "-SERVER_APP_STARTUP response as 'client_login_success.encrypted_user_id'"
+        )
+    );
+    btnCopySessionId.setIcon(QIcon(QStringLiteral(":/img/tool-copy.png")));
+    btnPasteSessionId.setIcon(QIcon(QStringLiteral(":/img/tool-paste.png")));
+    btnCopyDeviceId.setIcon(QIcon(QStringLiteral(":/img/tool-copy.png")));
+    btnPasteDeviceId.setIcon(QIcon(QStringLiteral(":/img/tool-paste.png")));
+    btnCopyUserId.setIcon(QIcon(QStringLiteral(":/img/tool-copy.png")));
+    btnPasteUserId.setIcon(QIcon(QStringLiteral(":/img/tool-paste.png")));
+    btnCopyAccountId.setIcon(QIcon(QStringLiteral(":/img/tool-copy.png")));
+    btnPasteAccountId.setIcon(QIcon(QStringLiteral(":/img/tool-paste.png")));
+    btnOK.setDefault(true);
+    btnOK.setText(QStringLiteral("OK"));
+    btnCancel.setText(QStringLiteral("Cancel"));
+    lblWarningIcon.setPixmap(
+        QApplication::style()->standardPixmap(
+            QStyle::StandardPixmap::SP_MessageBoxWarning
+        )
+    );
+    lblWarningText.setText(
+        QStringLiteral(
+            "<i>Warning: hitting OK will overwrite the current session and all its details,"
+            " both in memory and disk.<br>"
+            "So have this into account if you plan to restore the previous session later,"
+            " for whatever reason.</i>"
+        )
+    );
+    hblSession.addWidget(&ledSessionId);
+    hblSession.addWidget(&btnCopySessionId);
+    hblSession.addWidget(&btnPasteSessionId);
+    hblDevice.addWidget(&ledDeviceId);
+    hblDevice.addWidget(&btnCopyDeviceId);
+    hblDevice.addWidget(&btnPasteDeviceId);
+    hblUser.addWidget(&ledUserId);
+    hblUser.addWidget(&btnCopyUserId);
+    hblUser.addWidget(&btnPasteUserId);
+    hblAccount.addWidget(&ledAccountId);
+    hblAccount.addWidget(&btnCopyAccountId);
+    hblAccount.addWidget(&btnPasteAccountId);
+    fmlSession.addRow(QStringLiteral("Session id:"),&hblSession);
+    fmlSession.addRow(QStringLiteral("Device id:"),&hblDevice);
+    fmlSession.addRow(QStringLiteral("User id:"),&hblUser);
+    fmlSession.addRow(QStringLiteral("Account id:"),&hblAccount);
+    hblButtons.addStretch();
+    hblButtons.addWidget(&btnOK);
+    hblButtons.addWidget(&btnCancel);
+    hblWarning.addWidget(&lblWarningIcon);
+    hblWarning.addWidget(&lblWarningText);
+    hblWarning.addStretch();
+    vblESDetails.addLayout(&fmlSession);
+    vblESDetails.addLayout(&hblButtons);
+    vblESDetails.addLayout(&hblWarning);
+    dlgESDetails.setLayout(&vblESDetails);
+    dlgESDetails.setWindowFlag(Qt::WindowType::MSWindowsFixedSizeDialogHint);
+    dlgESDetails.setWindowModality(Qt::WindowModality::ApplicationModal);
+    dlgESDetails.setWindowTitle(QStringLiteral("Edit session details"));
+    auto fnCopy=[](QLineEdit *ledText) {
+        QString sText=ledText->text().trimmed();
+        if(!sText.isEmpty())
+            QApplication::clipboard()->setText(sText);
+    };
+    auto fnPaste=[](QLineEdit *ledText) {
+        QClipboard *clpBoard=QApplication::clipboard();
+        if(clpBoard->mimeData()->hasText()) {
+            ledText->setText(clpBoard->text().trimmed());
+            ledText->selectAll();
+            ledText->setFocus();
+        }
+    };
+    connect(
+        &btnCopySessionId,
+        &QPushButton::clicked,
+        [&](bool) {
+            fnCopy(&ledSessionId);
+        }
+    );
+    connect(
+        &btnPasteSessionId,
+        &QPushButton::clicked,
+        [&](bool) {
+            fnPaste(&ledSessionId);
+        }
+    );
+    connect(
+        &btnCopyDeviceId,
+        &QPushButton::clicked,
+        [&](bool) {
+            fnCopy(&ledDeviceId);
+        }
+    );
+    connect(
+        &btnPasteDeviceId,
+        &QPushButton::clicked,
+        [&](bool) {
+            fnPaste(&ledDeviceId);
+        }
+    );
+    connect(
+        &btnCopyUserId,
+        &QPushButton::clicked,
+        [&](bool) {
+            fnCopy(&ledUserId);
+        }
+    );
+    connect(
+        &btnPasteUserId,
+        &QPushButton::clicked,
+        [&](bool) {
+            fnPaste(&ledUserId);
+        }
+    );
+    connect(
+        &btnCopyAccountId,
+        &QPushButton::clicked,
+        [&](bool) {
+            fnCopy(&ledAccountId);
+        }
+    );
+    connect(
+        &btnPasteAccountId,
+        &QPushButton::clicked,
+        [&](bool) {
+            fnPaste(&ledAccountId);
+        }
+    );
+    connect(
+        &btnOK,
+        &QPushButton::clicked,
+        [&]() {
+            QString sNewSessionId=ledSessionId.text().trimmed(),
+                    sNewDeviceId=ledDeviceId.text().trimmed(),
+                    sNewUserId=ledUserId.text().trimmed(),
+                    sNewAccountId=ledAccountId.text().trimmed();
+            if(!BadooWrapper::isValidSessionId(sNewSessionId)) {
+                QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    QStringLiteral("Invalid Session id")
+                );
+                ledSessionId.selectAll();
+                ledSessionId.setFocus();
+            }
+            else if(!BadooWrapper::isValidDeviceId(sNewDeviceId)) {
+                QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    QStringLiteral("Invalid Device id")
+                );
+                ledDeviceId.selectAll();
+                ledDeviceId.setFocus();
+            }
+            else if(!BadooWrapper::isValidUserId(sNewUserId)) {
+                QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    QStringLiteral("Invalid User id")
+                );
+                ledUserId.selectAll();
+                ledUserId.setFocus();
+            }
+            else if(!BadooWrapper::isValidAccountId(sNewAccountId)) {
+                QMessageBox::critical(
+                    this,
+                    QStringLiteral("Error"),
+                    QStringLiteral("Invalid Account id")
+                );
+                ledAccountId.selectAll();
+                ledAccountId.setFocus();
+            }
+            else {
+                sSessionId=sNewSessionId;
+                sDeviceId=sNewDeviceId;
+                sUserId=sNewUserId;
+                sAccountId=sNewAccountId;
+                dlgESDetails.accept();
+            }
+        }
+    );
+    connect(
+        &btnCancel,
+        &QPushButton::clicked,
+        &dlgESDetails,
+        &QDialog::reject
+    );
+    ledSessionId.selectAll();
+    bResult=QDialog::DialogCode::Accepted==dlgESDetails.exec();
+    return bResult;
 }
 
 QHash<BadooFolderType,QString>      hshBadooFolderNames;
@@ -693,6 +1068,10 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
                                            BadooListSectionType &blstSection,
                                            BadooListFilterList  &blflFilters,
                                            int                  &iMediaCount) {
+    static QHash<BadooListFilter,boolean> hCarriedFilterValues={};
+    static int  iCarriedFolderType=0,
+                iCarriedSectionType=0,
+                iCarriedMediaCount=-0;
     bool        bResult=false;
     QDialog     dlgCFParams(this);
     QVBoxLayout vblCFParams;
@@ -713,26 +1092,57 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
     QPushButton btnOK,
                 btnCancel;
     getCustomFolderParameters_Helper();
+    // Configures the Folder spinner.
     spbFolder.setRange(0,99);
     spbFolder.setAlignment(Qt::AlignmentFlag::AlignRight);
     spbFolder.setSizePolicy(
         QSizePolicy::Policy::Fixed,
         QSizePolicy::Policy::Preferred
     );
+    connect(
+        &spbFolder,
+        &QSpinBox::valueChanged,
+        [&](int iV) {
+            cboFolder.blockSignals(true);
+            cboFolder.setCurrentIndex(cboFolder.findData(iV));
+            cboFolder.blockSignals(false);
+        }
+    );
+    // Configures the Section spinner.
     spbSection.setRange(0,99);
     spbSection.setAlignment(Qt::AlignmentFlag::AlignRight);
     spbSection.setSizePolicy(
         QSizePolicy::Policy::Fixed,
         QSizePolicy::Policy::Preferred
     );
+    connect(
+        &spbSection,
+        &QSpinBox::valueChanged,
+        [&](int iV) {
+            cboSection.blockSignals(true);
+            cboSection.setCurrentIndex(cboSection.findData(iV));
+            cboSection.blockSignals(false);
+        }
+    );
+    // Configures the Media Count spinner.
     spbMediaCount.setRange(0,100);
     spbMediaCount.setAlignment(Qt::AlignmentFlag::AlignRight);
     spbMediaCount.setSizePolicy(
         QSizePolicy::Policy::Fixed,
         QSizePolicy::Policy::Preferred
     );
+    connect(
+        &spbMediaCount,
+        &QSpinBox::valueChanged,
+        [&](int iV) {
+            cboMediaCount.blockSignals(true);
+            cboMediaCount.setCurrentIndex(cboMediaCount.findData(iV));
+            cboMediaCount.blockSignals(false);
+        }
+    );
     spbFolder.setMinimumWidth(spbMediaCount.sizeHint().width());
     spbSection.setMinimumWidth(spbMediaCount.sizeHint().width());
+    // Configures the Folder combo-box.
     auto folderKeys=hshBadooFolderNames.keys();
     std::sort(folderKeys.begin(),folderKeys.end());
     for(const auto &k:folderKeys) {
@@ -743,7 +1153,6 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
         }
         cboFolder.addItem(hshBadooFolderNames.value(k),k);
     }
-    cboFolder.setCurrentIndex(-1);
     cboFolder.setPlaceholderText(QStringLiteral("Folder type shortcuts"));
     cboFolder.setSizePolicy(
         QSizePolicy::Policy::Expanding,
@@ -753,14 +1162,16 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
         &cboFolder,
         &QComboBox::currentIndexChanged,
         [&](int) {
+            spbFolder.blockSignals(true);
             spbFolder.setValue(cboFolder.currentData().toInt());
+            spbFolder.blockSignals(false);
         }
     );
+    // Configures the Section combo-box.
     auto sectionKeys=hshBadooSectionNames.keys();
     std::sort(sectionKeys.begin(),sectionKeys.end());
     for(const auto &k:sectionKeys)
         cboSection.addItem(hshBadooSectionNames.value(k),k);
-    cboSection.setCurrentIndex(-1);
     cboSection.setPlaceholderText(QStringLiteral("Section type shortcuts"));
     cboSection.setSizePolicy(
         QSizePolicy::Policy::Expanding,
@@ -770,9 +1181,12 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
         &cboSection,
         &QComboBox::currentIndexChanged,
         [&](int) {
+            spbSection.blockSignals(true);
             spbSection.setValue(cboSection.currentData().toInt());
+            spbSection.blockSignals(false);
         }
     );
+    // Configures the Media Count combo-box.
     cboMediaCount.addItem(QStringLiteral("All available images and videos"),0);
     cboMediaCount.addItem(QStringLiteral("Only one image / one video per profile"),1);
     cboMediaCount.addItem(QStringLiteral("Up to 10 images / 10 videos per profile"),10);
@@ -786,10 +1200,25 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
         &cboMediaCount,
         &QComboBox::currentIndexChanged,
         [&](int) {
+            spbMediaCount.blockSignals(true);
             spbMediaCount.setValue(cboMediaCount.currentData().toInt());
+            spbMediaCount.blockSignals(false);
         }
     );
+    // Configures the Filter check-boxes.
     lblFilter.setText(QStringLiteral("Choose filters:"));
+    auto filterKeys=hshBadooFilterNames.keys();
+    std::sort(filterKeys.begin(),filterKeys.end());
+    for(int iK=0;iK<filterKeys.count();iK++) {
+        int       iRow=iK/3,
+                  iCol=iK%3;
+        QCheckBox *chkFilter=new QCheckBox(hshBadooFilterNames.value(filterKeys.at(iK)));
+        if(hCarriedFilterValues.contains(filterKeys.at(iK)))
+            chkFilter->setChecked(hCarriedFilterValues.value(filterKeys.at(iK)));
+        wglFilters.append(chkFilter);
+        grlFilter.addWidget(wglFilters.at(iK),iRow,iCol);
+    }
+    // Completes the dialog design.
     btnOK.setText(QStringLiteral("OK"));
     btnCancel.setText(QStringLiteral("Cancel"));
     hblFolder.addWidget(&spbFolder);
@@ -801,14 +1230,6 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
     fmlFolder.addRow(QStringLiteral("Folder type [0-99]:"),&hblFolder);
     fmlFolder.addRow(QStringLiteral("Section type [0-99]:"),&hblSection);
     fmlFolder.addRow(QStringLiteral("Media count [0-100]:"),&hblMediaCount);
-    auto filterKeys=hshBadooFilterNames.keys();
-    std::sort(filterKeys.begin(),filterKeys.end());
-    for(int iK=0;iK<filterKeys.count();iK++) {
-        int iRow=iK/3,
-            iCol=iK%3;
-        wglFilters.append(new QCheckBox(hshBadooFilterNames.value(filterKeys.at(iK))));
-        grlFilter.addWidget(wglFilters.at(iK),iRow,iCol);
-    }
     hblButtons.addStretch();
     hblButtons.addWidget(&btnOK);
     hblButtons.addWidget(&btnCancel);
@@ -832,26 +1253,40 @@ bool MainWindow::getCustomFolderParameters(BadooFolderType      &bftFolder,
         &dlgCFParams,
         &QDialog::reject
     );
-    dlgCFParams.show();
+    spbFolder.setValue(iCarriedFolderType);
+    spbSection.setValue(iCarriedSectionType);
+    spbMediaCount.setValue(iCarriedMediaCount);
     spbFolder.selectAll();
     if(QDialog::DialogCode::Accepted==dlgCFParams.exec()) {
-        bftFolder=static_cast<BadooFolderType>(spbFolder.value());
-        blstSection=static_cast<BadooListSectionType>(spbSection.value());
+        iCarriedFolderType=spbFolder.value();
+        iCarriedSectionType=spbSection.value();
+        iCarriedMediaCount=spbMediaCount.value();
         blflFilters.clear();
-        for(int iK=0;iK<wglFilters.count();iK++) {
-            if(qobject_cast<QCheckBox *>(wglFilters.at(iK))->isChecked())
-                blflFilters.append(static_cast<BadooListFilter>(iK));
-            delete wglFilters.at(iK);
+        for(int iK=0;iK<filterKeys.count();iK++) {
+            QCheckBox *chkFilter=qobject_cast<QCheckBox *>(wglFilters[iK]);
+            hCarriedFilterValues[filterKeys.at(iK)]=chkFilter->isChecked();
+            if(chkFilter->isChecked())
+                blflFilters.append(filterKeys.at(iK));
         }
-        iMediaCount=spbMediaCount.value();
+        bftFolder=static_cast<BadooFolderType>(iCarriedFolderType);
+        blstSection=static_cast<BadooListSectionType>(iCarriedSectionType);
+        iMediaCount=iCarriedMediaCount;
         bResult=true;
     }
+    while(!wglFilters.isEmpty())
+        delete wglFilters.takeFirst();
     return bResult;
 }
 
 bool MainWindow::postInit() {
-    int     iButton;
-    QString sError;
+    int        iButton;
+    QString    sError;
+    QByteArray abtPhotoFail,
+               abtVideoFail;
+    // Loads the default media files, to be shown on download errors.
+    BadooAPI::getFullFileContents(QStringLiteral(":img/photo-failure.png"),abtPhotoFail);
+    BadooAPI::getFullFileContents(QStringLiteral(":img/video-failure.mp4"),abtVideoFail);
+    bwMain.setDefaultMedia(abtPhotoFail,abtVideoFail);
     // Initializes the DB.
     do {
         if(this->setupDB(sError)) {
@@ -962,7 +1397,10 @@ bool MainWindow::setupDB(QString &sError) {
             sLocation=QStandardPaths::standardLocations(
                 QStandardPaths::StandardLocation::AppLocalDataLocation
             ).first();
+    QDir    dirDB(sLocation);
     sError.clear();
+    if(!dirDB.exists())
+        dirDB.mkpath(QStringLiteral("."));
     sFilename=QStringLiteral("%1/%2").arg(sLocation,QStringLiteral(DB_NAME));
     dbMain->setFilename(sFilename);
     if(dbMain->exists())
@@ -1032,6 +1470,16 @@ void MainWindow::showCustomProfile(QString sProfileId) {
             mchPhotoContents,
             mchVideoContents
         )) {
+            // The first message of every profile needs to be retrieved separately ...
+            // ... because, for some reason, the SERVER_GET_USER response does not ...
+            // ... come with the last_message object, unlike SERVER_GET_USER_LIST.
+            // It seems that there's nothing that can be done to fix this specific ...
+            // ... behavior. However, the next call to getChatMessages() completes ...
+            // ... the profile details quickly and effortlessly.
+            BadooChatMessageList bcmlChat;
+            if(bwMain.getChatMessages(sProfileId,bcmlChat,1))
+                if(!bcmlChat.isEmpty())
+                    bupProfile.bcmLastMessage=bcmlChat.first();
             int           iActionButtons;
             QDialog       *dlgProfile=new QDialog(this);
             QStatusBar    *stbProfile=new QStatusBar(this);
@@ -1059,6 +1507,42 @@ void MainWindow::showCustomProfile(QString sProfileId) {
             );
             connect(
                 pvProfile,
+                &ProfileViewer::badgeClicked,
+                [&](BadgeAction baAction) {
+                    bool           bUpdateProfile=false;
+                    QString        sMessage=QString();
+                    SessionDetails sdDetails;
+                    switch(baAction) {
+                        case BADGE_ACTION_FAST_MESSAGE:
+                            sMessage=QStringLiteral("Message sent");
+                            // Updates the current profile's last message by force, ...
+                            // ... so there is no need of calling the API to update ...
+                            // ... these details. -Notice that we're only modifying ...
+                            // ... the minimum required that actually cause changes ...
+                            // ... in the UI, but this may vary in the future-.
+                            bwMain.getSessionDetails(sdDetails);
+                            bupProfile.bHasQuickChat=false;
+                            bupProfile.bcmLastMessage.sFromUserId=sdDetails.sUserId;
+                            bupProfile.bcmLastMessage.sToUserId=bupProfile.sUserId;
+                            bUpdateProfile=true;
+                            break;
+                        case BADGE_ACTION_OPEN_CHAT:
+                            break;
+                    }
+                    if(sMessage.isEmpty())
+                        stbProfile->clearMessage();
+                    else
+                        stbProfile->showMessage(sMessage);
+                    if(bUpdateProfile)
+                        pvProfile->load(
+                            bupProfile,
+                            mchPhotoContents.value(sProfileId),
+                            mchVideoContents.value(sProfileId)
+                        );
+                }
+            );
+            connect(
+                pvProfile,
                 &ProfileViewer::buttonClicked,
                 [&](ProfileViewerButton pvbButton) {
                     bool    bUpdateProfile=false;
@@ -1083,8 +1567,11 @@ void MainWindow::showCustomProfile(QString sProfileId) {
                         case PROFILE_VIEWER_BUTTON_LIKE:
                             bupProfile.bvMyVote=VOTE_YES;
                             bUpdateProfile=true;
-                            if(VOTE_YES==bupProfile.bvTheirVote)
+                            if(VOTE_YES==bupProfile.bvTheirVote) {
                                 bupProfile.bIsMatch=true;
+                                if(!bupProfile.bHasConversation)
+                                    bupProfile.bHasQuickChat=true;
+                            }
                             break;
                         case PROFILE_VIEWER_BUTTON_SKIP:
                             break;

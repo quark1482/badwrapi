@@ -46,6 +46,8 @@ QWidget(wgtParent),ui(new Ui::ProfileViewer) {
     iActiveActionButtons=-1;
     iCurrentPhotoIndex=-1;
     iCurrentVideoIndex=-1;
+    iPreviousVideoIndex=-1;
+    sPreviousProfileId.clear();
     BadooAPI::getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
     BadooAPI::getFullFileContents(QStringLiteral(":img/video-placeholder.mp4"),abtPlaceholderVideo);
     if(!bwParent->getLoggedInProfilePhoto(abtOwnProfilePhoto))
@@ -266,6 +268,7 @@ QWidget(wgtParent),ui(new Ui::ProfileViewer) {
 }
 
 ProfileViewer::~ProfileViewer() {
+    this->clearDynamicWidgets();
     delete mctPhotoControls;
     delete mctVideoControls;
     delete mvwPhoto;
@@ -284,27 +287,46 @@ bool ProfileViewer::eventFilter(QObject *objO,
             QTransform()
         );
         if(nullptr!=griPhoto) {
-            if(griPhoto->data(0).isValid()) {
-                if(griPhoto->data(1).isValid()) {
-                    int iItemIndex=griPhoto->data(0).toInt(),
-                        iItemType=griPhoto->data(1).toInt();
-                    if(0==iItemType) {
-                        iCurrentPhotoIndex=iItemIndex;
-                        this->updateMediaButtons();
-                        this->updateMediaTitle();
-                        if(QEvent::Type::GraphicsSceneMouseDoubleClick==evnE->type())
-                            this->toggleMediaViewersIndependence();
-                        this->updatePhotoContent();
-                    }
-                    else if(1==iItemType) {
-                        iCurrentVideoIndex=iItemIndex;
-                        this->updateMediaButtons();
-                        this->updateMediaTitle();
-                        if(QEvent::Type::GraphicsSceneMouseDoubleClick==evnE->type())
-                            this->toggleMediaViewersIndependence();
-                        this->updateVideoContent();
+            if(griPhoto->data(ITEM_DATA_KEY_INDEX).isValid()) {
+                if(griPhoto->data(ITEM_DATA_KEY_TYPE).isValid()) {
+                    int iItemIndex=griPhoto->data(ITEM_DATA_KEY_INDEX).toInt(),
+                        mtItemType=static_cast<MediaType>(griPhoto->data(ITEM_DATA_KEY_TYPE).toInt());
+                    switch(mtItemType) {
+                        case MEDIA_TYPE_PHOTO:
+                            iCurrentPhotoIndex=iItemIndex;
+                            this->updateMediaButtons();
+                            this->updateMediaTitle();
+                            if(QEvent::Type::GraphicsSceneMouseDoubleClick==evnE->type())
+                                this->toggleMediaViewersIndependence();
+                            this->updatePhotoContent();
+                            break;
+                        case MEDIA_TYPE_VIDEO:
+                            iCurrentVideoIndex=iItemIndex;
+                            this->updateMediaButtons();
+                            this->updateMediaTitle();
+                            if(QEvent::Type::GraphicsSceneMouseDoubleClick==evnE->type())
+                                this->toggleMediaViewersIndependence();
+                            this->updateVideoContent();
+                            break;
                     }
                 }
+            }
+            return true;
+        }
+    }
+    else if(QEvent::Type::MouseButtonPress==evnE->type()) {
+        QVariant vAction=objO->property(QStringLiteral("action").toUtf8());
+        if(vAction.isValid()) {
+            BadgeAction baAction=static_cast<BadgeAction>(vAction.toInt());
+            switch(baAction) {
+                case BADGE_ACTION_FAST_MESSAGE:
+                    if(this->showQuickChatWithProfile())
+                        emit badgeClicked(baAction);
+                    break;
+                case BADGE_ACTION_OPEN_CHAT:
+                    if(this->showChatWithProfile())
+                        emit badgeClicked(baAction);
+                    break;
             }
             return true;
         }
@@ -358,7 +380,7 @@ void ProfileViewer::downloadProfileButtonClicked() {
         QFile   fFile;
         sDefaultFolder=QStandardPaths::standardLocations(
             QStandardPaths::StandardLocation::DownloadLocation
-        ).at(0);
+        ).first();
         sTempPath=QFileDialog::getSaveFileName(
             this,
             QStringLiteral("Save profile as HTML"),
@@ -695,6 +717,20 @@ void ProfileViewer::videoMouseHover(QPoint pntP) {
         mctVideoControls->setVisible(true);
 }
 
+void ProfileViewer::clearDynamicWidgets() {
+    // I guess that widgets added dynamically to the UI layouts ...
+    // ... are safely disposed in the parent widget destructor, ...
+    // ... but I don't want to take risks here since load() can ...
+    // ... be invoked more than one time for a single instance.
+    while(auto i=ui->hblInfo->takeAt(0)) {
+        if(i->widget())
+            delete i->widget();
+        delete i;
+    }
+    while(ui->fmlInfo->rowCount())
+        ui->fmlInfo->removeRow(0);
+}
+
 void ProfileViewer::resetProfileWidgets(int iGoToPhotoIndex,
                                         int iGoToVideoIndex) {
     if(abtlProfilePhotos.count())
@@ -708,6 +744,44 @@ void ProfileViewer::resetProfileWidgets(int iGoToPhotoIndex,
     this->updateMediaTitle();
     this->updateMediaWidgets();
     this->updateActionButtons();
+}
+
+bool ProfileViewer::showChatWithProfile() {
+    // Placeholder method for future use - the chat window should be open here.
+    bool bResult=true;
+    QMessageBox::information(
+        this,
+        QStringLiteral("Unimplemented feature"),
+        QStringLiteral("Open chat with %1").arg(bupProfileDetails.sName)
+    );
+    return bResult;
+}
+
+bool ProfileViewer::showQuickChatWithProfile() {
+    bool    bResult=false;
+    QString sMessage=QInputDialog::getMultiLineText(
+        this,
+        QStringLiteral("Quick message to %1").arg(bupProfileDetails.sName),
+        QString(),
+        QString(),
+        nullptr,
+        Qt::WindowType::MSWindowsFixedSizeDialogHint
+    ).trimmed();
+    if(!sMessage.isEmpty())
+        while(true) {
+            if(bwProfile->sendChatMessage(bupProfileDetails.sUserId,sMessage))
+                bResult=true;
+            else
+                if(QMessageBox::StandardButton::Retry==QMessageBox::question(
+                    this,
+                    QStringLiteral("Error"),
+                    bwProfile->getLastError(),
+                    QMessageBox::StandardButton::Retry|QMessageBox::StandardButton::Cancel
+                ))
+                    continue;
+            break;
+        }
+    return bResult;
 }
 
 void ProfileViewer::showMatch(QString    sName,
@@ -1114,8 +1188,8 @@ void ProfileViewer::updatePhotoGallery() {
                 iRow*THUMBNAIL_SIDE+THUMBNAIL_SIDE/2.0-grpiPhoto->pixmap().height()/2.0
             );
         }
-        grpiPhoto->setData(0,iRow*iTCols+iCol);
-        grpiPhoto->setData(1,0);
+        grpiPhoto->setData(ITEM_DATA_KEY_INDEX,iRow*iTCols+iCol);
+        grpiPhoto->setData(ITEM_DATA_KEY_TYPE,MEDIA_TYPE_PHOTO);
         if(++iCol==iTCols) {
             iCol=0;
             iRow++;
@@ -1128,6 +1202,7 @@ void ProfileViewer::updateProfileInfo() {
     int     iGender=bupProfileDetails.iGender;
     QString sTitle=bupProfileDetails.sName,
             sLocation=bupProfileDetails.sCity;
+    this->clearDynamicWidgets();
     if(BadooSexType::SEX_TYPE_MALE==iGender||BadooSexType::SEX_TYPE_FEMALE==iGender) {
         sTitle.append(QStringLiteral(", "));
         if(BadooSexType::SEX_TYPE_MALE==iGender)
@@ -1147,17 +1222,14 @@ void ProfileViewer::updateProfileInfo() {
             sLocation.append(QStringLiteral(", "));
         sLocation.append(bupProfileDetails.sCountry);
     }
-    while(auto i=ui->hblInfo->takeAt(0)) {
-        if(i->widget())
-            delete i->widget();
-        delete i;
-    }
     QLabel *lblTitle=new QLabel(QStringLiteral("<b>%1</b>").arg(sTitle));
     QSize  sizBadge;
     sizBadge.setHeight(lblTitle->fontMetrics().height());
     sizBadge.setWidth(sizBadge.height());
     ui->hblInfo->addWidget(lblTitle);
-    std::function<void(QString,QString)> fnAddBadge=[=](QString sImg,QString sMsg) {
+    std::function<void(QString,QString,BadgeAction)> fnAddBadge=[=](QString     sImg,
+                                                                    QString     sMsg,
+                                                                    BadgeAction baAct) {
         QPixmap pxmBadge;
         QLabel  *lblBadge;
         pxmBadge.load(sImg);
@@ -1166,89 +1238,136 @@ void ProfileViewer::updateProfileInfo() {
         lblBadge->setPixmap(pxmBadge);
         lblBadge->setScaledContents(true);
         lblBadge->setToolTip(sMsg);
+        if(BADGE_ACTION_NONE!=baAct) {
+            lblBadge->setCursor(Qt::CursorShape::PointingHandCursor);
+            lblBadge->setProperty(QStringLiteral("action").toUtf8(),baAct);
+            lblBadge->installEventFilter(this);
+        }
         ui->hblInfo->addWidget(lblBadge);
     };
     if(-1==bupProfileDetails.iLastOnline) {
         fnAddBadge(
             QStringLiteral(":img/badge-offline-hidden.svg"),
-            QStringLiteral("Hidden online status")
+            QStringLiteral("Hidden online status"),
+            BADGE_ACTION_NONE
         );
     }
     else if(!bupProfileDetails.iLastOnline) {
         fnAddBadge(
             QStringLiteral(":img/badge-online.svg"),
-            bupProfileDetails.sOnlineStatus
+            bupProfileDetails.sOnlineStatus,
+            BADGE_ACTION_NONE
         );
     }
     else if(MAX_PROFILE_IDLE_TIME>=bupProfileDetails.iLastOnline) {
         fnAddBadge(
             QStringLiteral(":img/badge-online-idle.svg"),
-            bupProfileDetails.sOnlineStatus
+            bupProfileDetails.sOnlineStatus,
+            BADGE_ACTION_NONE
         );
     }
     else if(MAX_PROFILE_REAL_TIME<=bupProfileDetails.iLastOnline) {
         fnAddBadge(
             QStringLiteral(":img/badge-offline-unknown.svg"),
-            bupProfileDetails.sOnlineStatus
+            bupProfileDetails.sOnlineStatus,
+            BADGE_ACTION_NONE
         );
     }
     else {
         fnAddBadge(
             QStringLiteral(":img/badge-offline.svg"),
-            bupProfileDetails.sOnlineStatus
+            bupProfileDetails.sOnlineStatus,
+            BADGE_ACTION_NONE
         );
     }
     if(bupProfileDetails.bIsVerified) {
         fnAddBadge(
             QStringLiteral(":img/badge-verification.svg"),
-            QStringLiteral("Verifed profile")
+            QStringLiteral("Verifed profile"),
+            BADGE_ACTION_NONE
         );
     }
     if(bupProfileDetails.bIsMatch) {
         fnAddBadge(
             QStringLiteral(":img/badge-match.svg"),
-            QStringLiteral("It's a match!")
+            QStringLiteral("It's a match!"),
+            BADGE_ACTION_NONE
         );
     }
     else if(bupProfileDetails.bIsCrush) {
         fnAddBadge(
             QStringLiteral(":img/badge-crush.svg"),
-            QStringLiteral("They have a crush on you!")
+            QStringLiteral("They have a crush on you!"),
+            BADGE_ACTION_NONE
         );
     }
     else if(BadooVote::VOTE_YES==bupProfileDetails.bvTheirVote) {
         fnAddBadge(
             QStringLiteral(":img/badge-liked-you.svg"),
-            QStringLiteral("They already liked you!")
+            QStringLiteral("They already liked you!"),
+            BADGE_ACTION_NONE
         );
     }
     else if(BadooVote::VOTE_NO==bupProfileDetails.bvTheirVote) {
         if(BadooVote::VOTE_NO==bupProfileDetails.bvMyVote)
             fnAddBadge(
                 QStringLiteral(":img/badge-disliked-mutual.svg"),
-                QStringLiteral("The hate is mutual")
+                QStringLiteral("The hate is mutual"),
+                BADGE_ACTION_NONE
             );
         else
             fnAddBadge(
                 QStringLiteral(":img/badge-disliked-you.svg"),
-                QStringLiteral("They voted against you")
+                QStringLiteral("They voted against you"),
+                BADGE_ACTION_NONE
             );
     }
     if(bupProfileDetails.bIsFavorite) {
         fnAddBadge(
             QStringLiteral(":img/badge-favorite.svg"),
-            QStringLiteral("Your favorite")
+            QStringLiteral("Your favorite"),
+            BADGE_ACTION_NONE
         );
     }
-    if(bupProfileDetails.bHasQuickChat) {
+    ChatDirection cdChatDir;
+    BadooWrapper::getChatDirection(bupProfileDetails,cdChatDir);
+    if(CHAT_DIRECTION_PING==cdChatDir) {
+        if(bupProfileDetails.bHasConversation)
+            fnAddBadge(
+                QStringLiteral(":img/badge-chat-active-ping.svg"),
+                QStringLiteral("An active chat exists"),
+                BADGE_ACTION_OPEN_CHAT
+            );
+        else
+            fnAddBadge(
+                QStringLiteral(":img/badge-chat-requested-ping.svg"),
+                QStringLiteral("You sent them some messages"),
+                BADGE_ACTION_OPEN_CHAT
+            );
+    }
+    else if(CHAT_DIRECTION_PONG==cdChatDir) {
+        if(bupProfileDetails.bHasConversation)
+            fnAddBadge(
+                QStringLiteral(":img/badge-chat-active-pong.svg"),
+                QStringLiteral("An active chat exists -it's your turn!"),
+                BADGE_ACTION_OPEN_CHAT
+            );
+        else
+            fnAddBadge(
+                QStringLiteral(":img/badge-chat-requested-pong.svg"),
+                QStringLiteral("They want to chat with you!"),
+                BADGE_ACTION_OPEN_CHAT
+            );
+    }
+    else if(bupProfileDetails.bHasQuickChat) {
         fnAddBadge(
             QStringLiteral(":img/badge-quick-chat.svg"),
-            QStringLiteral("Quick-chat enabled!")
+            QStringLiteral("Quick-chat enabled!\n"
+                           "Click to send a message..."),
+            BADGE_ACTION_FAST_MESSAGE
         );
     }
     ui->hblInfo->addStretch();
-    while(ui->fmlInfo->rowCount())
-        ui->fmlInfo->removeRow(0);
     QTextEdit *txtAbout=new QTextEdit(bupProfileDetails.sAbout);
     txtAbout->setReadOnly(true);
     txtAbout->setSizeAdjustPolicy(QAbstractScrollArea::SizeAdjustPolicy::AdjustToContents);
@@ -1297,8 +1416,6 @@ void ProfileViewer::updateProfileInfo() {
 }
 
 void ProfileViewer::updateVideoContent() {
-    static int     iPreviousVideoIndex=-1;
-    static QString sPreviousProfileId;
     // Avoids unnecessarily reloading (and restarting) the video.
     if(sPreviousProfileId!=bupProfileDetails.sUserId||iPreviousVideoIndex!=iCurrentVideoIndex) {
         QByteArray abtContent;
@@ -1360,8 +1477,8 @@ void ProfileViewer::updateVideoGallery() {
                 iRow*THUMBNAIL_SIDE+THUMBNAIL_SIDE/2.0-grpiVideo->pixmap().height()/2.0
             );
         }
-        grpiVideo->setData(0,iRow*iTCols+iCol);
-        grpiVideo->setData(1,1);
+        grpiVideo->setData(ITEM_DATA_KEY_INDEX,iRow*iTCols+iCol);
+        grpiVideo->setData(ITEM_DATA_KEY_TYPE,MEDIA_TYPE_VIDEO);
         if(++iCol==iTCols) {
             iCol=0;
             iRow++;

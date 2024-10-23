@@ -103,6 +103,8 @@ BadooWrapper::BadooWrapper() {
     sLastError.clear();
     sLastEncountersId.clear();
     abtSelfPhoto.clear();
+    abtDefaultPhoto.clear();
+    abtDefaultVideo.clear();
     BadooAPI::clearUserProfile(bupSelf);
     this->clearSessionDetails();
     this->clearEncountersSettings();
@@ -163,16 +165,18 @@ void BadooWrapper::clearSessionDetails() {
 }
 
 template bool BadooWrapper::downloadMultiMediaResources<QString>(
-    QStringList,QStringList &,int
+    QStringList,QStringList &,QString,bool,int
 );
 
 template bool BadooWrapper::downloadMultiMediaResources<QByteArray>(
-    QStringList,QByteArrayList &,int
+    QStringList,QByteArrayList &,QByteArray,bool,int
 );
 
 template<typename T>
 bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
                                                QList<T>    &tlResourceContents,
+                                               T           tDefaultContents,
+                                               bool        bFailOnIndividualErrors,
                                                int         iMaxTriesPerResource) {
     bool             bResult=false;
     int              iR,
@@ -232,7 +236,7 @@ bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
                 // If the resource download (corresponding to the given worker) failed ...
                 // ... but still can be retried, sets the resource status to 'non downloaded yet'.
                 blResourceDownload[ilWorkerIndexes.at(iIndex)]=false;
-                qDebug() << "Download failed for resource" << ilWorkerIndexes.at(iIndex) <<
+                qDebug() << "Unable to download resource" << ilWorkerIndexes.at(iIndex) <<
                             ": [" << slWorkerErrors.at(iIndex) << "]" <<
                             "Remaining tries" << ilResourceTries.at(ilWorkerIndexes.at(iIndex));
             }
@@ -277,6 +281,7 @@ bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
                     break;
                 QApplication::processEvents(QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents);
             }
+            // Exits the main loop if every resource has been downloaded, and with no errors.
             if(!iTotalErrors)
                 break;
         }
@@ -303,10 +308,12 @@ bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
                         break;
                     QApplication::processEvents(QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents);
                 }
-                // Exits the main loop if there's already an unrecoverable error, ...
-                // ... since there's no point in downloading the remaining resources.
+                // Exits the main loop if an unrecoverable error has already occurred, ...
+                // ... as continuing is pointless (no reason to download the remaining ...
+                // ... resources, in case there's any).
                 if(!sError.isEmpty())
-                    break;
+                    if(bFailOnIndividualErrors)
+                        break;
             }
             else {
                 // If a free worker slot is found, ...
@@ -343,28 +350,36 @@ bool BadooWrapper::downloadMultiMediaResources(QStringList slResourceURLs,
                 thlWorkerThreads.at(iW)->terminate();
                 thlWorkerThreads.at(iW)->wait();
             }
+    // Sets every empty download to a supplied default value.
+    for(iR=0;iR<iTotalResources;iR++)
+        if(tlResourceContents.at(iR).isEmpty())
+            tlResourceContents[iR]=tDefaultContents;
     emit statusChanged(QString());
-    bResult=true;
-    if(!sError.isEmpty()) {
-        bResult=false;
+    if(bFailOnIndividualErrors)
+        bResult=iProgress==iTotalResources;
+    else
+        bResult=true;
+    if(bResult)
+        sError.clear();
+    else
         sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
-    }
     sLastError=sError;
     return bResult;
 }
 
 template bool BadooWrapper::downloadMultiProfileResources<QString>(
-    BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int
+    BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,bool,int
 );
 
 template bool BadooWrapper::downloadMultiProfileResources<QByteArray>(
-    BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int
+    BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,bool,int
 );
 
 template<typename T>
 bool BadooWrapper::downloadMultiProfileResources(BadooUserProfileList buplProfiles,
                                                  MediaContentsHash    &mchPhotoContents,
                                                  MediaContentsHash    &mchVideoContents,
+                                                 bool                 bFailOnIndividualErrors,
                                                  int                  iMaxTriesPerResource) {
     bool        bResult=false;
     QString     sError;
@@ -383,18 +398,34 @@ bool BadooWrapper::downloadMultiProfileResources(BadooUserProfileList buplProfil
         slPhotoURLs.append(u.slPhotos);
         slVideoURLs.append(u.slVideos);
     }
-    if(this->downloadMultiMediaResources<T>(
+    auto downloadMMR=[this](auto u,
+                            auto &c,
+                            auto d,
+                            auto f,
+                            auto t) {
+        if constexpr(std::is_same_v<T,QString>)
+            return this->downloadMultiMediaResources<T>(u,c,QString::fromUtf8(d),f,t);
+        else if constexpr(std::is_same_v<T,QByteArray>)
+            return this->downloadMultiMediaResources<T>(u,c,d,f,t);
+        else
+            return false;
+    };
+    if(downloadMMR(
         slPhotoURLs,
         tlPhotoContents,
+        abtDefaultPhoto,
+        bFailOnIndividualErrors,
         iMaxTriesPerResource
     ))
-        if(this->downloadMultiMediaResources<T>(
+        if(downloadMMR(
             slVideoURLs,
             tlVideoContents,
+            abtDefaultVideo,
+            bFailOnIndividualErrors,
             iMaxTriesPerResource
         )) {
-            int  iPhotoCounter=0,
-                 iVideoCounter=0;
+            int iPhotoCounter=0,
+                iVideoCounter=0;
             // Deals with adding new content to a MediaContentHash, according ...
             // ... to the type the parent function template was invoked with.
             // This would allow a future caching of the profiles, since the ...
@@ -421,6 +452,113 @@ bool BadooWrapper::downloadMultiProfileResources(BadooUserProfileList buplProfil
     bResult=true;
     if(!sError.isEmpty()) {
         bResult=false;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
+void BadooWrapper::getChatDirection(BadooUserProfile bupUser,
+                                    ChatDirection    &cdDirection) {
+   cdDirection=CHAT_DIRECTION_NONE;
+    if(!bupUser.bcmLastMessage.sFromUserId.isEmpty())
+        if(!bupUser.bcmLastMessage.sToUserId.isEmpty())
+            if(bupUser.sUserId==bupUser.bcmLastMessage.sToUserId)
+                cdDirection=CHAT_DIRECTION_PING;
+            else if(bupUser.sUserId==bupUser.bcmLastMessage.sFromUserId)
+                cdDirection=CHAT_DIRECTION_PONG;
+}
+
+bool BadooWrapper::getChatMessages(QString              sUserId,
+                                   BadooChatMessageList &bcmlFullChat,
+                                   int                  iHowMany) {
+    bool                 bResult=false;
+    QString              sError;
+    int                  iOffset=0,
+                         iTotal,
+                         iRemainingTries;
+    BadooAPIError        baeError;
+    BadooChatMessageList bcmlMessages;
+    sError.clear();
+    bcmlFullChat.clear();
+    emit statusChanged(QStringLiteral("Getting chat messages..."));
+    iRemainingTries=MAX_DOWNLOAD_TRIES;
+    while(true) {
+        if(BadooAPI::sendGetChatMessages(
+            sdSession.sSessionId,
+            sUserId,
+            iOffset,
+            iHowMany,
+            iTotal,
+            bcmlMessages,
+            baeError
+        )) {
+            if(bcmlMessages.isEmpty()) {
+                bResult=true;
+                break;
+            }
+            else {
+                bcmlFullChat.append(bcmlMessages);
+                if(iHowMany>0)
+                    if(bcmlFullChat.count()>=iHowMany) {
+                        if(bcmlFullChat.count()>iHowMany)
+                            bcmlFullChat.resize(iHowMany);
+                        bResult=true;
+                        break;
+                    }
+                iOffset+=bcmlMessages.count();
+                iRemainingTries=MAX_DOWNLOAD_TRIES;
+                continue;
+            }
+        }
+        else
+            if(--iRemainingTries)
+                continue;
+        break;
+    }
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
+bool BadooWrapper::getChatTotalMessages(QString sUserId,
+                                        int     &iTotal) {
+    bool                 bResult=false;
+    int                  iRemainingTries;
+    QString              sError;
+    BadooAPIError        baeError;
+    BadooChatMessageList bcmlMessages;
+    sError.clear();
+    iTotal=0;
+    emit statusChanged(QStringLiteral("Getting chat total messages..."));
+    iRemainingTries=MAX_DOWNLOAD_TRIES;
+    while(true) {
+        if(BadooAPI::sendGetChatMessages(
+            sdSession.sSessionId,
+            sUserId,
+            0,
+            0,
+            iTotal,
+            bcmlMessages,
+            baeError
+        )) {
+            bResult=true;
+            break;
+        }
+        else
+            if(--iRemainingTries)
+                continue;
+        break;
+    }
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
         sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
     }
     sLastError=sError;
@@ -469,6 +607,9 @@ QString BadooWrapper::getFolderName(FolderType ftType) {
     switch(ftType) {
         case FOLDER_TYPE_UNKNOWN:
             sResult=QStringLiteral("Unknown folder");
+            break;
+        case FOLDER_TYPE_CHATS:
+            sResult=QStringLiteral("Conversations");
             break;
         case FOLDER_TYPE_FAVORITES:
             sResult=QStringLiteral("Favorites");
@@ -584,6 +725,11 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
     BadooListSectionType blstSection;
     sError.clear();
     switch(ftType) {
+        case FOLDER_TYPE_CHATS:
+            bftFolder=ALL_MESSAGES;
+            blstSection=LIST_SECTION_TYPE_ALL_MESSAGES;
+            blflFilters.append(LIST_FILTER_CONVERSATIONS);
+            break;
         case FOLDER_TYPE_FAVORITES:
             bftFolder=FAVOURITES;
             blstSection=LIST_SECTION_TYPE_FAVORITES;
@@ -593,7 +739,7 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
             blstSection=LIST_SECTION_TYPE_WANT_TO_MEET_YOU_UNVOTED;
             break;
         case FOLDER_TYPE_MATCHES:
-            // 2024-08-11: for a bunch of days, the folder type MATCHES was not ...
+            // 2024-08-11: For a bunch of days, the folder type MATCHES was not ...
             // ... returning any profile. So I implemented this workaround, and ...
             // ... kept using it. Here, I'm grabbing all the profiles that were ...
             // ... included in a 'you got a match' notification.
@@ -602,7 +748,22 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
             blflFilters.append(LIST_FILTER_MATCHED);
             break;
         case FOLDER_TYPE_PEOPLE_NEARBY:
-            bftFolder=NEARBY_PEOPLE;
+            // 2024-10-13: Detected a problem with NEARBY_PEOPLE which disrupts ...
+            // ... the quick_chat object in the responses of every request from ...
+            // ... here on, causing that every profile comes with no quick chat ...
+            // ... enabled, and the only known way to reset this behavior is by ...
+            // ... logging out and back in.
+            // 2024-10-13: Both the web and mobile apps experience this problem ...
+            // ... as well, so it can be considered a real bug that their users ...
+            // ... never report because they cannot see 'who can you chat with, ...
+            // ... for free' in advance, but WE CAN because of the existence of ...
+            // ... the folder type NEARBY_PEOPLE_WEB.
+            // 2024-10-13: As previously discovered, there is a slight drawback ...
+            // ... when we use this one: the Location in People nearby settings ...
+            // ... is ignored, and the actual location of the logged-in profile ...
+            // ... is used instead, which is not much of a hassle because there ...
+            // ... is already a feature to change the Current location.
+            bftFolder=NEARBY_PEOPLE_WEB;
             blstSection=LIST_SECTION_TYPE_UNKNOWN;
             break;
         case FOLDER_TYPE_VISITORS:
@@ -617,7 +778,7 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
     if(FOLDER_TYPE_UNKNOWN==ftType)
         sError=QStringLiteral("Unknown folder type");
     else
-        bResult=BadooWrapper::getFolderPage(
+        bResult=this->getFolderPage(
             bftFolder,
             blstSection,
             blflFilters,
@@ -630,18 +791,18 @@ bool BadooWrapper::getFolderPage(FolderType           ftType,
         );
     if(!bResult) {
         if(sError.isEmpty())
-            sError=sLastError;
+            sError=this->getLastError();
         sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
     }
     sLastError=sError;
     return bResult;
 }
 
-QString BadooWrapper::getHTMLFromProfile(BadooUserProfile  bupUser,
-                                         bool              bFullHTML,
-                                         QString           sStyle,
-                                         QByteArrayList    abtlPhotos,
-                                         QByteArrayList    abtlVideos) {
+QString BadooWrapper::getHTMLFromProfile(BadooUserProfile bupUser,
+                                         bool             bFullHTML,
+                                         QString          sStyle,
+                                         QByteArrayList   abtlPhotos,
+                                         QByteArrayList   abtlVideos) {
     int         iIndex,
                 iRows,
                 iCols;
@@ -791,7 +952,7 @@ bool BadooWrapper::getLoggedInProfilePhoto(QByteArray &abtPhoto) {
             if(this->downloadMultiMediaResources(slResources,abtlContents))
                 abtSelfPhoto=abtlContents.first();
             else
-                sError=sLastError;
+                sError=this->getLastError();
         }
         if(!abtSelfPhoto.isEmpty()) {
             abtPhoto=abtSelfPhoto;
@@ -932,22 +1093,59 @@ bool BadooWrapper::isEncryptedUserId(QString sUserId) {
     return bResult;
 }
 
-bool BadooWrapper::isValidUserId(QString sUserId) {
+bool BadooWrapper::isValidByRegEx(QString sText,
+                                  QString sRegEx) {
     bool                    bResult=false;
-    QString                 sPattern;
     QRegularExpression      rxRegEx;
     QRegularExpressionMatch rxmMatch;
-    sPattern=QStringLiteral("(%2|%3)[A-Za-z0-9-_]{%1,}").
-             arg(MIN_USER_ID_LENGTH).
-             arg(
-                 QStringLiteral(PREFIX_NORMAL_USER_ID),
-                 QStringLiteral(PREFIX_ENCRYPTED_USER_ID)
-             );
-    rxRegEx.setPattern(sPattern);
-    rxmMatch=rxRegEx.match(sUserId);
+    rxRegEx.setPattern(sRegEx);
+    rxmMatch=rxRegEx.match(sText);
     if(rxmMatch.hasMatch())
-        bResult=rxmMatch.captured(0)==sUserId;
+        bResult=rxmMatch.captured(0)==sText;
     return bResult;
+}
+
+bool BadooWrapper::isValidSessionId(QString sSessionId) {
+    // As of 2024-10-11, I am not sure about the exact regex for a session id.
+    // For now, I'll be using the Edit Session dialog to detect any conflicts.
+    return BadooWrapper::isValidByRegEx(
+        sSessionId,
+        QStringLiteral(
+            "s\\d:\\d{3}:[A-Za-z0-9]{40}"
+        )
+    );
+}
+
+bool BadooWrapper::isValidDeviceId(QString sDeviceId) {
+    return BadooWrapper::isValidByRegEx(
+        sDeviceId,
+        QStringLiteral(
+            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+        )
+    );
+}
+
+bool BadooWrapper::isValidUserId(QString sUserId) {
+    return BadooWrapper::isValidByRegEx(
+        sUserId,
+        QStringLiteral("(%2|%3)[A-Za-z0-9-_]{%1,}").
+        arg(MIN_USER_ID_LENGTH).
+        arg(
+            QStringLiteral(PREFIX_NORMAL_USER_ID),
+            QStringLiteral(PREFIX_ENCRYPTED_USER_ID)
+        )
+    );
+}
+
+bool BadooWrapper::isValidAccountId(QString sAccountId) {
+    // As of 2024-10-11, I am not sure about the exact regex for an account id.
+    // For now, I'll be using the Edit Session dialog to detect any conflicts.
+    return BadooWrapper::isValidByRegEx(
+        sAccountId,
+        QStringLiteral(
+            "\\d{10}"
+        )
+    );
 }
 
 bool BadooWrapper::isLoggedIn() {
@@ -1281,6 +1479,37 @@ bool BadooWrapper::saveSearchSettings() {
     }
     sLastError=sError;
     return bResult;
+}
+
+bool BadooWrapper::sendChatMessage(QString sUserId,
+                                   QString sMessage) {
+    bool          bResult=false;
+    QString       sError;
+    BadooAPIError baeError;
+    sError.clear();
+    emit statusChanged(QStringLiteral("Sending message..."));
+    // Only text messages are supported for now.
+    bResult=BadooAPI::sendSendChatMessage(
+        sdSession.sSessionId,
+        sdSession.sUserId,
+        sUserId,
+        sMessage,
+        baeError
+    );
+    emit statusChanged(QString());
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=baeError.sErrorMessage;
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    sLastError=sError;
+    return bResult;
+}
+
+void BadooWrapper::setDefaultMedia(QByteArray abtNewDefaultPhoto,
+                                   QByteArray abtNewDefaultVideo) {
+    abtDefaultPhoto=abtNewDefaultPhoto;
+    abtDefaultVideo=abtNewDefaultVideo;
 }
 
 void BadooWrapper::setEncountersSettings(EncountersSettings esNew) {

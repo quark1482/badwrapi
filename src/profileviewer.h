@@ -28,6 +28,18 @@ typedef enum {
     PROFILE_VIEWER_DANGER_BUTTON_INDEX_UNMATCH
 } ProfileViewerDangerButtonIndex;
 
+typedef enum {
+    ITEM_DATA_KEY_INDEX,
+    ITEM_DATA_KEY_TYPE,
+    ITEM_DATA_KEY_ACTION
+} ItemDataKey;
+
+typedef enum {
+    BADGE_ACTION_NONE,
+    BADGE_ACTION_FAST_MESSAGE,
+    BADGE_ACTION_OPEN_CHAT
+} BadgeAction;
+
 class ProfileViewer:public QWidget {
     Q_OBJECT
 public:
@@ -72,7 +84,9 @@ private:
     bool              bVideoPausedByUser;
     int               iActiveActionButtons,
                       iCurrentPhotoIndex,
-                      iCurrentVideoIndex;
+                      iCurrentVideoIndex,
+                      iPreviousVideoIndex;
+    QString           sPreviousProfileId;
     QByteArray        abtPlaceholderPhoto,
                       abtPlaceholderVideo,
                       abtOwnProfilePhoto;
@@ -91,20 +105,24 @@ private:
     MediaControls     *mctPhotoControls,
                       *mctVideoControls;
     BadooUserProfile  bupProfileDetails;
-    void    resetProfileWidgets(int=0,int=0);
-    void    showMatch(QString,QByteArray,QByteArray,int=640);
-    void    showVote(bool);
-    void    toggleMediaViewersIndependence();
-    void    updateActionButtons();
-    void    updateMediaButtons();
-    void    updateMediaTitle();
-    void    updateMediaWidgets();
-    void    updatePhotoContent();
-    void    updatePhotoGallery();
-    void    updateProfileInfo();
-    void    updateVideoContent();
-    void    updateVideoGallery();
+    void clearDynamicWidgets();
+    void resetProfileWidgets(int=0,int=0);
+    bool showChatWithProfile();
+    bool showQuickChatWithProfile();
+    void showMatch(QString,QByteArray,QByteArray,int=640);
+    void showVote(bool);
+    void toggleMediaViewersIndependence();
+    void updateActionButtons();
+    void updateMediaButtons();
+    void updateMediaTitle();
+    void updateMediaWidgets();
+    void updatePhotoContent();
+    void updatePhotoGallery();
+    void updateProfileInfo();
+    void updateVideoContent();
+    void updateVideoGallery();
 signals:
+    void badgeClicked(BadgeAction);
     void buttonClicked(ProfileViewerButton);
 };
 

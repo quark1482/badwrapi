@@ -12,7 +12,7 @@ or create an installer: the deployment tool won't detect that the project uses\
 QML (minimal, but still), so we need to assist it.
 
 _Without our help, the deployment will succeed, but the executable will crash as\
-soon as you enter the Search settings, which, guess what...use QML_.
+soon as you enter the Search settings, which, guess what...uses QML_.
 
 Just place this small file in the same directory as the executable:
 
@@ -44,7 +44,7 @@ My findings so far:
 3. I have never seen any image including the letters G, I, L, or T.
 4. I have never seen any image with more than eight letters.
 5. Amazingly, all these words are pronounceable. You hardly find two consonants\
-   in a row. -I'm not sure what this could be useful for, but it's interesting."
+   in a row. -I'm not sure what this could be useful for, but it's interesting.
 
 I know that a model can be trained to reach 100% success here.
 
@@ -83,3 +83,89 @@ HOWEVER, _have in mind these two things about that_:
 2. This approach is highly dependent on the website and may become wrong in the\
    long run. No guarantees can be made. Even with a fair use, and behaving like\
    normal web users, they could still implement protections or even ban us.
+
+
+Chats
+-----
+
+Although I already have methods for sending individual messages and for reading\
+whole conversations (or their last messages), and I could quickly code a working\
+ping-pong chat window, I’m not going to do it. I will do it the right way:\
+_by receiving website events_. And for this approach, I need to figure out some\
+things first.
+
+The last time I checked, the website event system was somehow based on the Comet\
+web application model, which is now considered obsolete by today’s standards. Who\
+knows if they will change this someday.
+
+That said, if you are still determined to code a chat window by polling the server\
+for updates, you may use the following available methods of the BadooWrapper class:\
+`getChatMessages()`, `getChatTotalMessages()` and `sendChatMessage()`.
+
+Use the following snippets as a base to start from.\
+_bwTest is an authenticated BadooWrapper instance._
+
+**Total messages in a conversation**
+```c++
+int     iTotal;     // (out) The resulting total goes here.
+QString sProfileId; // (in)  The chat partner's user id.
+if(bwTest.getChatTotalMessages(sProfileId,iTotal)) {
+    qDebug() << "total" << iTotal;
+}
+else
+    qDebug() << bwTest.getLastError();
+```
+
+**Whole chat history with someone**
+```c++
+QString              sProfileId; // (in)  The chat partner's user id.
+BadooChatMessageList bcmlChat;   // (out) The whole conversation.
+if(bwTest.getChatMessages(sProfileId,bcmlChat)) {
+    int iK=0;
+    for(const auto &c:bcmlChat) {
+        qDebug() << QStringLiteral("#%1").arg(++iK);
+        qDebug() << "from" << c.sFromUserId;
+        qDebug() << "to" << c.sToUserId;
+        qDebug() << "type" << c.bcmtMessageType;
+        qDebug() << "when" << c.dtmCreationTime;
+        qDebug() << "text" << c.sMessageText;
+        qDebug();
+    }
+    qDebug() << "total" << bcmlChat.count();
+}
+else
+    qDebug() << bwTest.getLastError();
+````
+
+**Most recent N messages in a conversation**
+```c++
+int                  iHowMany;   // (in)  The number of messages to get.
+QString              sProfileId; // (in)  The chat partner's user id.
+BadooChatMessageList bcmlChat;   // (out) The list of messages (newest goes first).
+if(bwTest.getChatMessages(sProfileId,bcmlChat,iHowMany)) {
+    int iK=0;
+    for(const auto &c:bcmlChat) {
+        qDebug() << QStringLiteral("#%1").arg(++iK);
+        qDebug() << "from" << c.sFromUserId;
+        qDebug() << "to" << c.sToUserId;
+        qDebug() << "type" << c.bcmtMessageType;
+        qDebug() << "when" << c.dtmCreationTime;
+        qDebug() << "text" << c.sMessageText;
+        qDebug();
+    }
+    qDebug() << "total" << bcmlChat.count();
+}
+else
+    qDebug() << bwTest.getLastError();
+```
+
+**Guess what**
+```c++
+QString sProfileId; // (in) The chat partner's user id.
+QString sMessage;   // (in) The message contents.
+if(bwTest.sendChatMessage(sProfileId,sMessage)) {
+    qDebug() << "message sent";
+}
+else
+    qDebug() << bwTest.getLastError();
+```

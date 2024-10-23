@@ -16,6 +16,7 @@ QWidget(wgtParent) {
     mchPageVideos.clear();
     ftType=FOLDER_TYPE_UNKNOWN;
     BadooAPI::getFullFileContents(QStringLiteral(":img/photo-placeholder.png"),abtPlaceholderPhoto);
+    BadooAPI::getFullFileContents(QStringLiteral(":img/photo-failure.png"),abtFailurePhoto);
     this->configurePageButton(
         &btnFirst,
         QStringLiteral(":img/action-first.png"),
@@ -98,13 +99,31 @@ bool FolderViewer::eventFilter(QObject *objO,
     if(QEvent::Type::GraphicsSceneMousePress==evnE->type()) {
         QGraphicsSceneMouseEvent *mevEvent=static_cast<QGraphicsSceneMouseEvent *>(evnE);
         QGraphicsScene           *grsScene=qobject_cast<QGraphicsScene *>(objO);
-        QGraphicsItem            *griPhoto=grsScene->itemAt(
+        QGraphicsItem            *griItem=grsScene->itemAt(
             mevEvent->scenePos().toPoint(),
             QTransform()
         );
-        if(nullptr!=griPhoto) {
-            if(griPhoto->data(0).isValid())
-                this->showStandaloneProfile(griPhoto->data(0).toInt());
+        if(nullptr!=griItem) {
+            if(griItem->data(ITEM_DATA_KEY_INDEX).isValid()) {
+                int iProfileGridIndex=griItem->data(ITEM_DATA_KEY_INDEX).toInt();
+                if(griItem->data(ITEM_DATA_KEY_ACTION).isValid()) {
+                    BadgeAction baAction=static_cast<BadgeAction>(
+                        griItem->data(ITEM_DATA_KEY_ACTION).toInt()
+                    );
+                    switch(baAction) {
+                        case BADGE_ACTION_FAST_MESSAGE:
+                            if(showQuickChatWithProfile(iProfileGridIndex))
+                                emit badgeClicked(iProfileGridIndex,BADGE_ACTION_FAST_MESSAGE);
+                            break;
+                        case BADGE_ACTION_OPEN_CHAT:
+                            if(showChatWithProfile(iProfileGridIndex))
+                                emit badgeClicked(iProfileGridIndex,BADGE_ACTION_OPEN_CHAT);
+                            break;
+                    }
+                }
+                else
+                    this->showStandaloneProfile(iProfileGridIndex);
+            }
             return true;
         }
     }
@@ -176,6 +195,46 @@ void FolderViewer::configurePageButton(QPushButton *btnButton,
     btnButton->setToolTip(sToolTip);
 }
 
+bool FolderViewer::showChatWithProfile(int iIndex) {
+    // Placeholder method for future use - the chat window should be open here.
+    bool             bResult=true;
+    BadooUserProfile bupUser=buplPageDetails.at(iIndex);
+    QMessageBox::information(
+        this,
+        QStringLiteral("Unimplemented feature"),
+        QStringLiteral("Open chat with %1").arg(bupUser.sName)
+    );
+    return bResult;
+}
+
+bool FolderViewer::showQuickChatWithProfile(int iIndex) {
+    bool             bResult=false;
+    BadooUserProfile bupUser=buplPageDetails.at(iIndex);
+    QString          sMessage=QInputDialog::getMultiLineText(
+        this,
+        QStringLiteral("Quick message to %1").arg(bupUser.sName),
+        QString(),
+        QString(),
+        nullptr,
+        Qt::WindowType::MSWindowsFixedSizeDialogHint
+    ).trimmed();
+    if(!sMessage.isEmpty())
+        while(true) {
+            if(bwFolder->sendChatMessage(bupUser.sUserId,sMessage))
+                bResult=true;
+            else
+                if(QMessageBox::StandardButton::Retry==QMessageBox::question(
+                    this,
+                    QStringLiteral("Error"),
+                    bwFolder->getLastError(),
+                    QMessageBox::StandardButton::Retry|QMessageBox::StandardButton::Cancel
+                ))
+                    continue;
+            break;
+        }
+    return bResult;
+}
+
 void FolderViewer::showStandaloneProfile(int iIndex) {
     QDialog       *dlgProfile=new QDialog(this);
     QStatusBar    *stbProfile=new QStatusBar(this);
@@ -196,6 +255,47 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
         buplPageDetails.at(iIndex),
         mchPagePhotos.value(buplPageDetails.at(iIndex).sUserId),
         mchPageVideos.value(buplPageDetails.at(iIndex).sUserId)
+    );
+    connect(
+        pvProfile,
+        &ProfileViewer::badgeClicked,
+        [&](BadgeAction baAction) {
+            bool           bUpdateProfile=false,
+                           bUpdatePage=false;
+            QString        sMessage=QString();
+            SessionDetails sdDetails;
+            switch(baAction) {
+                case BADGE_ACTION_FAST_MESSAGE:
+                    sMessage=QStringLiteral("Message sent");
+                    // Updates the current profile's last message by force, ...
+                    // ... so there is no need of calling the API to update ...
+                    // ... these details. -Notice that we're only modifying ...
+                    // ... the minimum required that actually cause changes ...
+                    // ... in the UI, but this may vary in the future-.
+                    bwFolder->getSessionDetails(sdDetails);
+                    buplPageDetails[iIndex].bHasQuickChat=false;
+                    buplPageDetails[iIndex].bcmLastMessage.sFromUserId=sdDetails.sUserId;
+                    buplPageDetails[iIndex].bcmLastMessage.sToUserId=buplPageDetails.at(iIndex).sUserId;
+                    bUpdateProfile=true;
+                    bUpdatePage=true;
+                    break;
+                case BADGE_ACTION_OPEN_CHAT:
+                    break;
+            }
+            if(sMessage.isEmpty())
+                stbProfile->clearMessage();
+            else
+                stbProfile->showMessage(sMessage);
+            if(bUpdateProfile) {
+                pvProfile->load(
+                    buplPageDetails.at(iIndex),
+                    mchPagePhotos.value(buplPageDetails.at(iIndex).sUserId),
+                    mchPageVideos.value(buplPageDetails.at(iIndex).sUserId)
+                );
+                if(bUpdatePage)
+                    this->updatePageWidgets();
+            }
+        }
     );
     connect(
         pvProfile,
@@ -235,8 +335,11 @@ void FolderViewer::showStandaloneProfile(int iIndex) {
                     buplPageDetails[iIndex].bvMyVote=VOTE_YES;
                     bUpdateProfile=true;
                     bUpdatePage=true;
-                    if(VOTE_YES==buplPageDetails.at(iIndex).bvTheirVote)
+                    if(VOTE_YES==buplPageDetails.at(iIndex).bvTheirVote) {
                         buplPageDetails[iIndex].bIsMatch=true;
+                        if(!buplPageDetails[iIndex].bHasConversation)
+                            buplPageDetails[iIndex].bHasQuickChat=true;
+                    }
                     break;
                 case PROFILE_VIEWER_BUTTON_SKIP:
                     if(iIndex<buplPageDetails.count()-1) {
@@ -385,8 +488,19 @@ void FolderViewer::updatePageWidgets(bool bReset) {
         );
         if(mchPagePhotos.value(p.sUserId).isEmpty())
             abtPhoto=abtPlaceholderPhoto;
-        else
-            abtPhoto=mchPagePhotos.value(p.sUserId).first();
+        else {
+            // Gets the first successfully downloaded image to show it in the grid.
+            // I certainly dislike this method of comparing every image against the ...
+            // pre-loaded 'failed' one. -This should be about looking for one which ...
+            // ... is not empty. But that conflicts with the recently added feature ...
+            // ... of download contents defaults-. I'll pick a better option later.
+            abtPhoto=abtFailurePhoto;
+            for(const auto &h:mchPagePhotos.value(p.sUserId))
+                if(h.compare(abtPhoto)) {
+                    abtPhoto=h;
+                    break;
+                }
+        }
         this->updateProfilePhoto(
             recPhoto,
             abtPhoto,
@@ -409,6 +523,8 @@ void FolderViewer::updatePageWidgets(bool bReset) {
             iSideSize/2,
             MARGIN_WIDTH
         );
+        ChatDirection cdChatDir;
+        BadooWrapper::getChatDirection(p,cdChatDir);
         this->updateProfileBadges(
             recBadges,
             recPhoto,
@@ -420,8 +536,11 @@ void FolderViewer::updatePageWidgets(bool bReset) {
             p.bIsFavorite,
             p.bIsCrush,
             p.bHasQuickChat,
+            p.bHasConversation,
             p.iLastOnline,
-            p.sOnlineStatus
+            p.sOnlineStatus,
+            cdChatDir,
+            iRow*iTCols+iCol
         );
         if(++iCol==iTCols) {
             iCol=0;
@@ -431,83 +550,123 @@ void FolderViewer::updatePageWidgets(bool bReset) {
     grvView.verticalScrollBar()->setValue(vScrollPos);
 }
 
-void FolderViewer::updateProfileBadges(QRect     recBadges,
-                                       QRect     recPhoto,
-                                       bool      bBlocked,
-                                       bool      bVerified,
-                                       bool      bMatch,
-                                       BadooVote bvMyVote,
-                                       BadooVote bvTheirVote,
-                                       bool      bFavorite,
-                                       bool      bCrush,
-                                       bool      bQuickChat,
-                                       int       iLastOnline,
-                                       QString   sOnlineStatus) {
-    int            iXOffset;
-    QPixmap        pxmBadge;
-    QList<QPixmap> pxmlBadges;
-    QStringList    slBadgeToolTips;
-    if(bQuickChat) {
+void FolderViewer::updateProfileBadges(QRect         recBadges,
+                                       QRect         recPhoto,
+                                       bool          bBlocked,
+                                       bool          bVerified,
+                                       bool          bMatch,
+                                       BadooVote     bvMyVote,
+                                       BadooVote     bvTheirVote,
+                                       bool          bFavorite,
+                                       bool          bCrush,
+                                       bool          bQuickChat,
+                                       bool          bConversation,
+                                       int           iLastOnline,
+                                       QString       sOnlineStatus,
+                                       ChatDirection cdChatDir,
+                                       int           iIndex) {
+    int                iXOffset;
+    QPixmap            pxmBadge;
+    QList<QPixmap>     pxmlBadges;
+    QList<BadgeAction> balBadgeActions;
+    QStringList        slBadgeToolTips;
+    if(CHAT_DIRECTION_PING==cdChatDir) {
+        if(bConversation) {
+            pxmBadge.load(QStringLiteral(":img/badge-chat-active-ping.svg"));
+            slBadgeToolTips.append(QStringLiteral("An active chat exists"));
+        }
+        else {
+            pxmBadge.load(QStringLiteral(":img/badge-chat-requested-ping.svg"));
+            slBadgeToolTips.append(QStringLiteral("You sent them some messages"));
+        }
+        pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_OPEN_CHAT);
+    }
+    else if(CHAT_DIRECTION_PONG==cdChatDir) {
+        if(bConversation) {
+            pxmBadge.load(QStringLiteral(":img/badge-chat-active-pong.svg"));
+            slBadgeToolTips.append(QStringLiteral("An active chat exists -it's your turn!"));
+        }
+        else {
+            pxmBadge.load(QStringLiteral(":img/badge-chat-requested-pong.svg"));
+            slBadgeToolTips.append(QStringLiteral("They want to chat with you!"));
+        }
+        pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_OPEN_CHAT);
+    }
+    else if(bQuickChat) {
         pxmBadge.load(QStringLiteral(":img/badge-quick-chat.svg"));
         pxmlBadges.append(pxmBadge);
-        slBadgeToolTips.append(QStringLiteral("Quick-chat enabled!"));
+        balBadgeActions.append(BADGE_ACTION_FAST_MESSAGE);
+        slBadgeToolTips.append(QStringLiteral("Quick-chat enabled!\n"
+                                              "Click to send a message..."));
     }
     if(bFavorite) {
         pxmBadge.load(QStringLiteral(":img/badge-favorite.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(QStringLiteral("Your favorite"));
     }
     if(bMatch) {
         pxmBadge.load(QStringLiteral(":img/badge-match.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(QStringLiteral("It's a match!"));
     }
     else if(bCrush) {
         pxmBadge.load(QStringLiteral(":img/badge-crush.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(QStringLiteral("They have a crush on you!"));
     }
     else if(BadooVote::VOTE_YES==bvTheirVote) {
         pxmBadge.load(QStringLiteral(":img/badge-liked-you.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(QStringLiteral("They already liked you!"));
     }
     else if(BadooVote::VOTE_NO==bvTheirVote) {
         if(BadooVote::VOTE_NO==bvMyVote) {
             pxmBadge.load(QStringLiteral(":img/badge-disliked-mutual.svg"));
-            pxmlBadges.append(pxmBadge);
             slBadgeToolTips.append(QStringLiteral("The hate is mutual"));
         }
         else {
             pxmBadge.load(QStringLiteral(":img/badge-disliked-you.svg"));
-            pxmlBadges.append(pxmBadge);
             slBadgeToolTips.append(QStringLiteral("They voted against you"));
         }
+        pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
     }
     if(bVerified) {
         pxmBadge.load(QStringLiteral(":img/badge-verification.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(QStringLiteral("Verifed profile"));
     }
     if(-1==iLastOnline) {
         pxmBadge.load(QStringLiteral(":img/badge-offline-hidden.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(QStringLiteral("Hidden online status"));
     } else if(!iLastOnline) {
         pxmBadge.load(QStringLiteral(":img/badge-online.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(sOnlineStatus);
     } else if(MAX_PROFILE_IDLE_TIME>=iLastOnline) {
         pxmBadge.load(QStringLiteral(":img/badge-online-idle.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(sOnlineStatus);
     } else if(MAX_PROFILE_REAL_TIME<=iLastOnline) {
         pxmBadge.load(QStringLiteral(":img/badge-offline-unknown.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(sOnlineStatus);
     } else {
         pxmBadge.load(QStringLiteral(":img/badge-offline.svg"));
         pxmlBadges.append(pxmBadge);
+        balBadgeActions.append(BADGE_ACTION_NONE);
         slBadgeToolTips.append(sOnlineStatus);
     }
     QGraphicsPixmapItem *grpiBadge;
@@ -546,7 +705,13 @@ void FolderViewer::updateProfileBadges(QRect     recBadges,
     }
     iXOffset=-recBadges.height();
     for(const auto &b:pxmlBadges) {
+        BadgeAction baAction=balBadgeActions.takeFirst();
         grpiBadge=grsScene.addPixmap(QPixmap());
+        if(BADGE_ACTION_NONE!=baAction) {
+            grpiBadge->setCursor(Qt::CursorShape::PointingHandCursor);
+            grpiBadge->setData(ITEM_DATA_KEY_INDEX,iIndex);
+            grpiBadge->setData(ITEM_DATA_KEY_ACTION,baAction);
+        }
         grpiBadge->setToolTip(slBadgeToolTips.takeFirst());
         if(!b.isNull()) {
             grpiBadge->setPixmap(
@@ -629,7 +794,7 @@ void FolderViewer::updateProfileMediaCounters(QRect recMediaInfo,
 
 void FolderViewer::updateProfilePhoto(QRect      recPhoto,
                                       QByteArray abtPhoto,
-                                      int        iData) {
+                                      int        iIndex) {
     QPixmap             pxmPhoto;
     QGraphicsPixmapItem *grpiPhoto=grsScene.addPixmap(QPixmap());
     pxmPhoto.loadFromData(abtPhoto);
@@ -648,7 +813,7 @@ void FolderViewer::updateProfilePhoto(QRect      recPhoto,
             recPhoto.y()+recPhoto.height()/2.0-grpiPhoto->pixmap().height()/2.0
         );
     }
-    grpiPhoto->setData(0,iData);
+    grpiPhoto->setData(ITEM_DATA_KEY_INDEX,iIndex);
 }
 
 void FolderViewer::updateProfileTitle(QRect   recTitle,

@@ -52,6 +52,12 @@ QDialog(wgtParent) {
     this->setMinimumSize(400,300);
     connect(
         fvCurrentPage,
+        &FolderViewer::badgeClicked,
+        this,
+        &BrowseFolderDialog::badgeClicked
+    );
+    connect(
+        fvCurrentPage,
         &FolderViewer::buttonClicked,
         this,
         &BrowseFolderDialog::buttonClicked
@@ -72,6 +78,34 @@ BrowseFolderDialog::~BrowseFolderDialog() {
 
 bool BrowseFolderDialog::isReady() {
     return bDialogReady;
+}
+
+void BrowseFolderDialog::badgeClicked(int         iIndex,
+                                      BadgeAction baAction) {
+    bool           bUpdate=false;
+    QString        sMessage=QString();
+    SessionDetails sdDetails;
+    switch(baAction) {
+        case BADGE_ACTION_FAST_MESSAGE:
+            sMessage=QStringLiteral("Message sent");
+            // Updates the current profile's last message by force, ...
+            // ... so there is no need of calling the API to update ...
+            // ... these details. -Notice that we're only modifying ...
+            // ... the minimum required that actually cause changes ...
+            // ... in the UI, but this may vary in the future-.
+            bwBrowse->getSessionDetails(sdDetails);
+            buplBrowse[iIndex].bHasQuickChat=false;
+            buplBrowse[iIndex].bcmLastMessage.sFromUserId=sdDetails.sUserId;
+            buplBrowse[iIndex].bcmLastMessage.sToUserId=buplBrowse.at(iIndex).sUserId;
+            bUpdate=true;
+            break;
+        case BADGE_ACTION_OPEN_CHAT:
+            break;
+    }
+    emit statusChanged(sMessage);
+    if(bUpdate) {
+        this->showCurrentPage();
+    }
 }
 
 void BrowseFolderDialog::buttonClicked(FolderViewerButton fvbButton) {

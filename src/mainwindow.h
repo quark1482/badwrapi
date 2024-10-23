@@ -8,10 +8,10 @@
 #include "db.h"
 #include "playencountersdialog.h"
 
-// Comment this line to disable the custom HTTP user-agent:
+// Comment out this line to disable the custom HTTP user-agent:
 #define HTTP_USER_AGENT "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
 
-// Comment this line to disable the HTTP proxy support:
+// Comment out this line to disable the custom HTTP proxy support:
 // #define HTTP_PROXY_HOST "127.0.0.1"
 // #define HTTP_PROXY_PORT 8080
 
@@ -32,6 +32,7 @@ protected:
 private slots:
     void menuBrowseFolderTriggered(bool);
     void menuBrowseProfileTriggered(bool);
+    void menuEditSessionTriggered(bool);
     void menuEncountersTriggered(bool);
     void menuLocationTriggered(bool);
     void menuLoginTriggered(bool);
@@ -43,6 +44,7 @@ private slots:
 private:
     Ui::MainWindow       *ui;
     BrowseFolderDialog   *dlgBrowseCustom,
+                         *dlgBrowseChats,
                          *dlgBrowseFavorites,
                          *dlgBrowseLikes,
                          *dlgBrowseMatches,
@@ -55,6 +57,7 @@ private:
     DB                   *dbMain;
     QNetworkProxy        *pxyMain;
     bool anyChildrenActive();
+    bool editSessionDetails(QString &,QString &,QString &,QString &);
     bool getCustomFolderParameters(BadooFolderType &,BadooListSectionType &,BadooListFilterList &,int &);
     bool postInit();
     bool setupDB(QString &);

@@ -22,6 +22,7 @@ Features
 * Shows every other section, "People nearby", "Favorites", "Visitors", etc.
 * Reveals people in the "Liked you" section.
 * Shows a special profile badge for people that have already voted you.
+* Shows a special profile badge for people you can chat with for free.
 * Makes you anonymous, no matter if the visited profiles have super-powers.
 * Downloads profiles in self-contained single HTML files.
 
@@ -29,9 +30,10 @@ Features
 Pre-requisites
 --------------
 
-A valid/verified Badoo account (Email / Phone number and Password).
+A valid/verified Badoo account (Email or Phone number).
 
-Other sign-in options are not suported -yet-.
+The available sign-in options are by password and by PIN.\
+Other methods are not suported -yet-.
 
 
 ToDo's
@@ -45,6 +47,8 @@ ToDo's
 - [x] Show "Visitors".
 - [x] Show "Blocked people".
 - [ ] Implement chat.
+- [ ] Implement notifications.
+- [ ] Implement a media cache.
 
 
 Technical notes
@@ -54,6 +58,14 @@ Look [here](TECH.md) for details.
 
 Known issues
 ------------
+
+_2024-10-23_: Browsing the People nearby folder (in either the web or mobile app)\
+will break the quick-chat profile fields. This is THEIR bug, not ours.\
+However, while **the program itself doesn’t experience this behavior**, it’s still\
+vulnerable if the account is accessed through the official apps, or if you browse the\
+custom folder NEARBY_PEOPLE through the Tools menu.\
+If the quick-chat details get broken, log out and then back in to get a fresh session.\
+More details in `BadooWrapper::getFolderPage()`.
 
 _2024-08-15_: The People nearby search Distance setting is broken at this time.\
 The API returns multiple choices, as usual. But no matter what you choose, It\

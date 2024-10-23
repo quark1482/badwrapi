@@ -2,6 +2,7 @@
     <qresource prefix="/">
         <file>../img/bw.ico</file>
         <file>../img/action-back.svg</file>
+        <file>../img/action-chat.svg</file>
         <file>../img/action-favorite.svg</file>
         <file>../img/action-like.svg</file>
         <file>../img/action-nope.svg</file>
@@ -16,6 +17,10 @@
         <file>../img/action-page.png</file>
         <file>../img/action-previous.png</file>
         <file>../img/badge-blocked.svg</file>
+        <file>../img/badge-chat-active-ping.svg</file>
+        <file>../img/badge-chat-active-pong.svg</file>
+        <file>../img/badge-chat-requested-ping.svg</file>
+        <file>../img/badge-chat-requested-pong.svg</file>
         <file>../img/badge-crush.svg</file>
         <file>../img/badge-disliked-mutual.svg</file>
         <file>../img/badge-disliked-you.svg</file>
@@ -47,7 +52,11 @@
         <file>../img/media-sound-on.png</file>
         <file>../img/tool-copy.png</file>
         <file>../img/tool-download.png</file>
+        <file>../img/tool-edit.png</file>
+        <file>../img/tool-paste.png</file>
+        <file>../img/photo-failure.png</file>
         <file>../img/photo-placeholder.png</file>
+        <file>../img/video-failure.mp4</file>
         <file>../img/video-placeholder.mp4</file>
     </qresource>
 </RCC>

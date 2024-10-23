@@ -1,3 +1,25 @@
+_2024-10-23_ "Spooky" 🎃
+------------
+
+* Preliminary support for reading chats and sending messages.\
+  Only quick-chat (fast message) is implemented at this time, but the chat\
+  history backend is also functional.
+* A new folder is supported: "Conversations", which includes all profiles with\
+  an ongoing chat (i.e., where they have replied or written at least once).
+* The download media operations no longer need to be perfect. Images and videos\
+  will be retried on failure as usual, but placeholders will be shown for\
+  unreachable resources.
+* It's now possible to tamper with the session: copy or restore another over the\
+  active one, without having to use the top-level Login/Logout actions.
+* Corrected a problem in `MainWindow::postInit()` that was preventing the program\
+  from starting, by assuming that its application-data folder already existed.
+* Removed the use of static variables in `ProfileViewer::updateVideoContent()`\
+  because they were inadvertently messing things up when multiple instances\
+  were active.
+* The regex for finding the "query id" in `TAGeoCoder::getQueryIdFromScript()`\
+  became outdated and had to be modified.
+
+
 _2024-08-15_ "YES" 💕
 ------------
 

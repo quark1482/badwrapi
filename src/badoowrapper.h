@@ -19,6 +19,7 @@
 
 typedef enum {
     FOLDER_TYPE_UNKNOWN,
+    FOLDER_TYPE_CHATS,
     FOLDER_TYPE_FAVORITES,
     FOLDER_TYPE_LIKES,
     FOLDER_TYPE_MATCHES,
@@ -26,6 +27,12 @@ typedef enum {
     FOLDER_TYPE_VISITORS,
     FOLDER_TYPE_BLOCKED
 } FolderType; // High level forder type - because not every BadooFolderType is supported.
+
+typedef enum {
+    CHAT_DIRECTION_NONE, // The chat is empty.
+    CHAT_DIRECTION_PING, // You sent a message.
+    CHAT_DIRECTION_PONG  // They sent a message.
+} ChatDirection;         // There could be a 'pong' without a 'ping' (they wrote first).
 
 typedef QHash<QString,QByteArrayList> MediaContentsHash;
 
@@ -64,9 +71,11 @@ public:
     bool    addToFavorites(QString);
     void    clearSessionDetails();
     template<typename T>
-    bool    downloadMultiMediaResources(QStringList,QList<T> &,int=MAX_DOWNLOAD_TRIES);
+    bool    downloadMultiMediaResources(QStringList,QList<T> &,T=T(),bool=false,int=MAX_DOWNLOAD_TRIES);
     template<typename T>
-    bool    downloadMultiProfileResources(BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,int=MAX_DOWNLOAD_TRIES);
+    bool    downloadMultiProfileResources(BadooUserProfileList,MediaContentsHash &,MediaContentsHash &,bool=false,int=MAX_DOWNLOAD_TRIES);
+    bool    getChatMessages(QString,BadooChatMessageList &,int=-1);
+    bool    getChatTotalMessages(QString,int &);
     bool    getEncounters(BadooUserProfileList &,bool=false);
     void    getEncountersSettings(EncountersSettings &);
     bool    getFolderPage(BadooFolderType,BadooListSectionType,BadooListFilterList,int,int,BadooUserProfileList &,int &,int &,int &);
@@ -89,6 +98,8 @@ public:
     bool    removeFromFavorites(QString);
     bool    removeFromMatches(QString);
     bool    saveSearchSettings();
+    bool    sendChatMessage(QString,QString);
+    void    setDefaultMedia(QByteArray,QByteArray);
     void    setEncountersSettings(EncountersSettings);
     bool    setLocation(QString);
     void    setPeopleNearbySettings(PeopleNearbySettings);
@@ -99,17 +110,24 @@ public:
     bool    showLoginDialog(QWidget * =nullptr);
     bool    showSearchSettingsDialog(BadooSettingsContextType,QWidget * =nullptr);
     bool    vote(QString,bool,bool &);
+    static void    getChatDirection(BadooUserProfile,ChatDirection &);
     static QString getFolderName(FolderType);
     static QString getHTMLFromProfile(BadooUserProfile,bool=false,QString=QString(),QByteArrayList={},QByteArrayList={});
     static QString getTextFromBoolean(bool);
     static QString getTextFromSexType(BadooSexType);
     static QString getTextFromVote(BadooVote);
     static bool    isEncryptedUserId(QString);
+    static bool    isValidByRegEx(QString,QString);
+    static bool    isValidSessionId(QString);
+    static bool    isValidDeviceId(QString);
     static bool    isValidUserId(QString);
+    static bool    isValidAccountId(QString);
 private:
     QString              sLastError,
                          sLastEncountersId;
-    QByteArray           abtSelfPhoto;
+    QByteArray           abtSelfPhoto,
+                         abtDefaultPhoto,
+                         abtDefaultVideo;
     BadooUserProfile     bupSelf;
     SessionDetails       sdSession;
     EncountersSettings   esEncounters;

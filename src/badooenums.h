@@ -956,14 +956,14 @@ typedef enum {
     YOU_WANT_TO_MEET=7,                      // You liked (enter at your risk haha)
     PROFILE_VISITORS=8,                      // Guess what
     BLOCKED=9,                               // Comes with no media URLs
-    NEARBY_PEOPLE=10,                        // 2024-08-11: used by the web app
+    NEARBY_PEOPLE=10,                        // 2024-10-13: used by the apps, but has issues
     PRIVATE_ALBUM_ACCESS=11,                 // Folder is always empty
     SPOTLIGHT=13,                            // Folder is always empty
     MATCHES=15,                              // 2024-08-11: had issues (using a workaround)
     NEARBY_PEOPLE_4=16,                      // Apparently, same as NEARBY_PEOPLE
     RATED_ME=17,                             // Does not work
     PROFILE_SEARCH=20,                       // Does not work
-    NEARBY_PEOPLE_WEB=25,                    // 2024-08-11: ignores the people-nearby settings
+    NEARBY_PEOPLE_WEB=25,                    // 2024-10-13: seems to be correctly working now
     VERIFICATION_ACCESS=27,                  // Folder is always empty
     FOLDER_TYPE_COMBINED_CONNECTIONS_ALL=31, // From here down, untested
     FOLDER_TYPE_BELL=32,
@@ -2475,6 +2475,55 @@ typedef enum {
 } BadooMinorFeature;
 
 typedef enum {
+    CHAT_MESSAGE_TYPE_UNKNOWN=0, // Added this value to have a default type for clearChatMessage()
+    SIMPLE=1,
+    REQUEST_ACCESS=3,
+    GRANT_ACCESS=4,
+    DENY_ACCESS=5,
+    LOCATION_REQUEST=6,
+    LOCATION=7,
+    LOCATION_DENY=8,
+    GIFT=10,
+    MULTIMEDIA=19,
+    MULTIMEDIA_VIEWING=20,
+    MULTIMEDIA_SCREENSHOT=21,
+    SMILE=22,
+    STICKER=23,
+    NOT_SUPPORTED=24,
+    CHAT_MESSAGE_TYPE_VERIFICATION_ACCESS_REQUEST=25,
+    CHAT_MESSAGE_TYPE_VERIFICATION_DATA=27,
+    CHAT_MESSAGE_TYPE_REQUEST_SELFIE=28,
+    CHAT_MESSAGE_TYPE_REQUEST_SELFIE_DENY=29,
+    CHAT_MESSAGE_TYPE_REQUEST_SELFIE_ACCEPT=30,
+    CHAT_MESSAGE_TYPE_VIDEO_CALL=32,
+    CHAT_MESSAGE_TYPE_USER_JOINED=33,
+    CHAT_MESSAGE_TYPE_USER_LEFT=34,
+    CHAT_MESSAGE_TYPE_GIF=36,
+    CHAT_MESSAGE_TYPE_VERIFICATION_REQUEST=37,
+    CHAT_MESSAGE_TYPE_VERIFICATION_PASSED=38,
+    CHAT_MESSAGE_TYPE_OPEN_USER_SUBSTITUTE=39,
+    CHAT_MESSAGE_TYPE_EMOGI=41,
+    CHAT_MESSAGE_TYPE_NOT_INTERESTED=42,
+    CHAT_MESSAGE_TYPE_CRUSH=44,
+    CHAT_MESSAGE_TYPE_VERIFICATION_FAILED=45,
+    CHAT_MESSAGE_TYPE_SUPER_CRUSH=46,
+    CHAT_MESSAGE_TYPE_LIVE_LOCATION=47,
+    CHAT_MESSAGE_TYPE_AUDIO_TRACK=48,
+    CHAT_MESSAGE_TYPE_DELETED=49,
+    CHAT_MESSAGE_TYPE_INSTANT_QUESTION=50,
+    CHAT_MESSAGE_TYPE_PHOTO_REACTION=51,
+    CHAT_MESSAGE_TYPE_REACTION=52,
+    CHAT_MESSAGE_TYPE_DATING_HUB_EXPERIENCE=53,
+    CHAT_MESSAGE_TYPE_USER_BANNED=54,
+    CHAT_MESSAGE_TYPE_USER_UNBANNED=55,
+    CHAT_MESSAGE_TYPE_WOULD_YOU_RATHER=56,
+    CHAT_MESSAGE_TYPE_HIVE_UPDATED=57,
+    CHAT_MESSAGE_TYPE_KNOWN_FOR_BADGE=58,
+    CHAT_MESSAGE_TYPE_POLL=59,
+    CHAT_MESSAGE_TYPE_USER_REMOVED=60
+} BadooChatMessageType;
+
+typedef enum {
     ONBOARDING_PAGE_TYPE_UNKNOWN=0,
     ONBOARDING_PAGE_TYPE_GENERIC_PROMO=1,
     ONBOARDING_PAGE_TYPE_VERIFICATION_REQUEST=2,
@@ -3316,6 +3365,20 @@ typedef enum {
     GAME_FAILED=2, // ... 'vote_response_type' in the response of the message SERVER_ENCOUNTERS_VOTE.
     GAME_SUCCESS=3 // I am just using GAME_SUCCESS to verify if there was a match or not.
 } BadooGame;
+
+typedef enum {
+    DIRECTION_BACKWARDS=1, // Descending
+    DIRECTION_FORWARDS=2   // Ascending
+} BadooDirection;
+
+typedef enum {
+    MULTIMEDIA_FORMAT_UNKNOWN=0, // Added this value to have a default format for clearChatMessage()
+    MULTIMEDIA_FORMAT_IMAGE=1,
+    MULTIMEDIA_FORMAT_VIDEO=2,
+    MULTIMEDIA_FORMAT_AUDIO=3,
+    MULTIMEDIA_FORMAT_INSTANT_VIDEO_MESSAGE=4,
+    MULTIMEDIA_FORMAT_LIVESTREAM=5
+} BadooMultimediaFormat;
 
 typedef enum {
     ONLINE_STATUS_ONLINE=1,  // Either 'right now' or 'a little while ago'.

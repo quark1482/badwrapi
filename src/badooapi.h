@@ -16,7 +16,10 @@
 
 #define SIGNATURE_MAGIC   "whitetelevisionbulbelectionroofhorseflying"
 
-#define VERSION_WEBAPP    "6.2467.0" // Formerly "1.0.00", the minimum acceptable.
+#define VERSION_WEBAPP    "6.2473.0" // Formerly "1.0.00", the minimum acceptable.
+
+// Uncomment this line to enable the use of the web app's fields and permissions:
+//#define USE_WEBAPP_STARTUP
 
 typedef QPair<int,int> BadooIntRange;
 
@@ -45,37 +48,49 @@ typedef struct {
 } BadooAPIError;
 
 typedef struct {
-    QString     sUserId;
-    QString     sName;
-    int         iAge;
-    int         iGender;
-    int         iLastOnline;
-    bool        bIsVerified;
-    bool        bIsMatch;
-    bool        bIsFavorite;
-    bool        bIsCrush;
-    bool        bIsBlocked;
-    bool        bHasQuickChat;
-    QString     sCountry;
-    QString     sRegion;
-    QString     sCity;
-    QString     sOnlineStatus;
-    QString     sProfilePhotoURL;
-    QStringList slPhotos;
-    QStringList slVideos;
-    QString     sIntent;
-    QString     sMood;
-    BadooVote   bvMyVote;
-    BadooVote   bvTheirVote;
+    QString               sFromUserId;
+    QString               sToUserId;
+    QDateTime             dtmCreationTime;
+    BadooChatMessageType  bcmtMessageType;
+    QString               sMessageText;
+    BadooMultimediaFormat bmfMediaFormat;
+    QString               sMediaURL;
+} BadooChatMessage;
+
+typedef struct {
+    QString          sUserId;
+    QString          sName;
+    int              iAge;
+    int              iGender;
+    int              iLastOnline;
+    bool             bIsVerified;
+    bool             bIsMatch;
+    bool             bIsFavorite;
+    bool             bIsCrush;
+    bool             bIsBlocked;
+    bool             bHasQuickChat;
+    bool             bHasConversation;
+    QString          sCountry;
+    QString          sRegion;
+    QString          sCity;
+    QString          sOnlineStatus;
+    QString          sProfilePhotoURL;
+    QStringList      slPhotos;
+    QStringList      slVideos;
+    QString          sIntent;
+    QString          sMood;
+    BadooVote        bvMyVote;
+    BadooVote        bvTheirVote;
+    BadooChatMessage bcmLastMessage;
     // Profile options go here ...
-    QString     sAbout;
-    QString     sRelationshipStatus;
-    QString     sSexuality;
-    QString     sAppearance;
-    QString     sLiving;
-    QString     sChildren;
-    QString     sSmoking;
-    QString     sDrinking;
+    QString          sAbout;
+    QString          sRelationshipStatus;
+    QString          sSexuality;
+    QString          sAppearance;
+    QString          sLiving;
+    QString          sChildren;
+    QString          sSmoking;
+    QString          sDrinking;
 } BadooUserProfile;
 
 typedef struct {
@@ -91,6 +106,8 @@ typedef struct {
 } BadooIndexedString; // Helper struct that allows having a hash of optionally-sorted string values.
 
 typedef QList<BadooUserProfile> BadooUserProfileList;
+
+typedef QList<BadooChatMessage> BadooChatMessageList;
 
 typedef QList<BadooSearchLocation> BadooSearchLocationList;
 
@@ -127,6 +144,7 @@ public:
     static bool sendEncountersVote(QString,QString,bool,bool &,BadooAPIError &);
     static bool sendGetAppSettings(QString,QVariantHash &,BadooAPIError &);
     static bool sendGetCAPTCHA(QString,QString,QString &,BadooAPIError &);
+    static bool sendGetChatMessages(QString,QString,int,int,int &,BadooChatMessageList &,BadooAPIError &);
     static bool sendGetEncounters(QString,QString,int,BadooUserProfileList &,BadooAPIError &);
     static bool sendGetSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
     static bool sendGetUser(QString,QString,BadooUserProfile &,BadooAPIError &);
@@ -138,14 +156,17 @@ public:
     static bool sendSaveAppSettings(QString,QVariantHash,BadooAPIError &);
     static bool sendSaveSearchSettings(QString,BadooSettingsContextType,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &,BadooAPIError &);
     static bool sendSearchLocations(QString,QString,BadooSearchLocationList &,BadooAPIError &);
+    static bool sendSendChatMessage(QString,QString,QString,QString,BadooAPIError &);
     static bool sendStartup(QString,QString &,QString &,QString &,QString &,BadooUserProfile &,BadooAPIError &);
     static bool sendUpdateLocation(QString,float,float,BadooAPIError &);
+    static bool sendUpdateSession(QString,BadooAPIError &);
     static void setAgent(QString);
     static void setProxy(QNetworkProxy *);
     static void setServer(QString);
     static void setSolver(BadooCAPTCHASolver *);
 private:
     static bool    CAPTCHAHandler(QString,BadooAPIError &);
+    static void    clearChatMessage(BadooChatMessage &);
     static void    clearError(BadooAPIError &);
     static void    clearSearchSettings(BadooSearchSettings &);
     static QString fixURL(QString);
@@ -156,6 +177,7 @@ private:
     static bool    manualCAPTCHASolver(QByteArray,QString &,QString &);
     static bool    noError(BadooAPIError);
     static void    parseAlbum(QJsonObject,QString &,QStringList &,QStringList &);
+    static void    parseChatMessage(QJsonObject,BadooChatMessage &);
     static void    parseError(QJsonObject,BadooAPIError &);
     static void    parseFailure(QJsonObject,QString &);
     static void    parseHostChange(QJsonObject,QString &,bool &);
@@ -166,6 +188,7 @@ private:
     static void    parseSearchSettings(QJsonObject,BadooSearchSettings &,BadooIntRange &,BadooIntRange &,BadooStrKeyStrValueHash &,BadooIntKeyStrValueHash &);
     static void    parseUserProfile(QJsonObject,BadooUserProfile &);
     static bool    sendMessage(BadooMessageType,QString,QJsonObject,RawHeadersHash &,QString &,QString &);
+    static bool    sendRawRequest(QString,QString,QString,RawHeadersHash &,QString &,QString &);
     static inline  QString            sAPIServer=QStringLiteral(DOMAIN_BASE),
                                       sAPIUserAgent=QStringLiteral("Mozilla/5.0");
     static inline  QNetworkProxy      *pxyAPIProxy=nullptr;

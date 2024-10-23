@@ -11,6 +11,7 @@ public:
     ~BrowseFolderDialog();
     bool isReady();
 private slots:
+    void badgeClicked(int,BadgeAction);
     void buttonClicked(FolderViewerButton);
 private:
     bool                 bDialogReady;

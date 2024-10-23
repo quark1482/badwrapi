@@ -29,10 +29,15 @@ BadooMessageNameHash bmnhMessages={
     {SERVER_GET_ENCOUNTERS,QStringLiteral("server_get_encounters")},
     {CLIENT_NO_MORE_ENCOUNTERS,QStringLiteral("no_more_search_results")},
     {CLIENT_ENCOUNTERS,QStringLiteral("client_encounters")},
+    {SERVER_SEND_CHAT_MESSAGE,QStringLiteral("chat_message")},
     {CLIENT_PERSON_NOTICE,QStringLiteral("person_notice")},
+    {CLIENT_CHAT_MESSAGE_RECEIVED,QStringLiteral("chat_message_received")},
+    {SERVER_UPDATE_SESSION,QStringLiteral("server_update_session")},
     {SERVER_GET_USER_LIST,QStringLiteral("server_get_user_list")},
     {CLIENT_USER_LIST,QStringLiteral("client_user_list")},
     {SERVER_SECTION_USER_ACTION,QStringLiteral("server_section_user_action")},
+    {SERVER_GET_CHAT_MESSAGES,QStringLiteral("server_get_chat_messages")},
+    {CLIENT_CHAT_MESSAGES,QStringLiteral("client_chat_messages")},
     {SERVER_GET_CAPTCHA,QStringLiteral("server_get_captcha")},
     {CLIENT_GET_CAPTCHA,QStringLiteral("client_get_captcha")},
     {SERVER_CAPTCHA_ATTEMPT,QStringLiteral("server_captcha_attempt")},
@@ -53,6 +58,50 @@ BadooMessageNameHash bmnhMessages={
 // ... but brings some annoyances for the SERVER_counterparts. See the comments ...
 // ... about it in sendMessage().
 
+#if defined(USE_WEBAPP_STARTUP)
+// User profile fields requested by the web app in the SERVER_GET_USER server message.
+// Can be used for testing the following methods: ...
+// ... sendStartup(), sendGetUser(), sendGetUserList() and sendGetEncounters().
+auto buflProjection={
+    50,93,100,200,210,220,230,250,290,291,304,310,311,320,330,331,340,360,370,410,
+    420,431,460,470,480,490,492,494,541,550,560,580,600,610,650,660,662,663,670,730,
+    732,750,770,1110,1200,1424,1434,1457
+};
+
+// Features list requested by the web app. Used only for testing sendStartup().
+// Include the following values in server_app_startup.supported_features[].
+auto bftlFeatures={
+    1,2,4,6,7,8,9,10,11,13,15,18,19,20,21,25,27,28,29,32,36,37,38,39,42,44,46,
+    50,53,62,64,70,73,75,92,96,100,101,103,106,108,109,111,113,121,127,132,136,
+    139,143,155,160,163,176,177,183,190,193,197,201,204,209,223,232,237,243,247,
+    248,250,259,264,268,281,282,296,301,302,304,308,310,314,316,324,327,333,372
+};
+
+// Minor features list requested by the web app. Used only for testing sendStartup().
+// Include the following values in server_app_startup.supported_minor_features[].
+auto bmflMinorFeatures={
+    2,3,8,14,17,19,20,22,24,35,36,39,40,41,42,46,48,55,60,62,63,70,71,76,81,83,93,
+    100,104,108,114,115,118,121,122,127,130,131,134,136,139,142,146,148,152,153,163,
+    164,168,170,171,175,178,179,180,181,182,183,184,188,192,194,196,202,207,208,214,
+    216,218,220,221,223,226,230,233,234,236,243,244,245,247,250,252,254,260,264,266,
+    267,268,269,273,275,277,278,279,280,284,285,290,292,297,302,305,306,313,319,320,
+    328,332,336,337,352,354,355,363,365,369,377,382,383,390,391,392,394,396,400,404,
+    410,413,418,420,426,427,436,440,450,453,455,462,470,471,479,483,487,488,490,493,
+    495,498,501,504,505,511,514,524,527,530,533,537,538,542,549,555,558,560,561,562,
+    567,576,582,584,592,594,596,605,607,610,611,613,615,616,620,629,630,631,638,644,
+    645,648,650,657,659,662,664,667,669,674,675,677,678,679,681,682,688,690,691,693,
+    696,702,705,707,708,725,731,735,742,748,750,753,754,757,767,774,776,784,829,877,
+    901,912,920,935,936,941,959
+};
+
+// UI screen types requested by the web app. Used only for testing sendStartup().
+// Include the following values in server_app_startup.supported_screens[].
+// Supplied items should be objects ({type,version}). -Version is not required-.
+auto buistlScreenTypes={
+    124,127,128,129,132,133,134,135,143,231,322,346,
+    347,396,398,400,411,413,504,506,508,523,535,537
+};
+#else
 // User profile fields requested by this class.
 BadooUserFieldList buflProjection={
     USER_FIELD_COUNTRY,
@@ -76,24 +125,14 @@ BadooUserFieldList buflProjection={
     USER_FIELD_IS_CRUSH,
     USER_FIELD_IS_BLOCKED,
     USER_FIELD_IS_FAVOURITE,
-    USER_FIELD_QUICK_CHAT,         // Is free chat possible for the queried profile?
+    USER_FIELD_IS_CONVERSATION,    // Is there an existing conversation with this profile?
+    USER_FIELD_LAST_MESSAGE,       // Who wrote last, whom, what, and when.
+    USER_FIELD_QUICK_CHAT,         // Is free chat enabled for this profile?
     USER_FIELD_MOOD_STATUS,        // 'Make me laugh', 'Looking for love', 'Thinking long-term', etc.
-};
-
-BadooAlbumTypeList batlAlbums={ // This is the 'request_albums' array content ...
-    ALBUM_TYPE_PHOTOS_OF_ME,    // ... the app sends with the 'SERVER_GET_USER' message.
-    ALBUM_TYPE_PRIVATE_PHOTOS,  // Not sure about what exactly are 'private' photos ...
-    ALBUM_TYPE_ENCOUNTERS,      // ... or why is the 'encounters' type required here.
-    ALBUM_TYPE_EXTERNAL_PHOTOS, // No idea about what are 'external' photos either.
-};
-
-// Features list requested by the web app. Used only for testing sendStartup().
-// Include the following values in server_app_startup.supported_features[].
-auto debugFeatures={
-    1,2,4,6,7,8,9,10,11,13,15,18,19,20,21,25,27,28,29,32,36,37,38,39,42,44,46,
-    50,53,62,64,70,73,75,92,96,100,101,103,106,108,109,111,113,121,127,132,136,
-    139,143,155,160,163,176,177,183,190,193,197,201,204,209,223,232,237,243,247,
-    248,250,259,264,268,281,282,296,301,302,304,308,310,314,316,324,327,333,372
+    // Unused but somewhat promising constants:
+    // USER_FIELD_ALLOW_CHAT,
+    // USER_FIELD_ALLOW_QUICK_CHAT,
+    // USER_FIELD_CHAT_MESSAGES,
 };
 
 // Features list requested by this class.
@@ -106,23 +145,15 @@ BadooFeatureTypeList bftlFeatures={
     ALLOW_CRUSH,                            // Required to detect crushes.
     ALLOW_GENERIC_SERVER_SIDE_REGISTRATION, // Required for logging in by pin verification.
     ALLOW_BADOO_PROFILE_MOOD_STATUS,        // Required to include moods in user profiles.
-};
-
-// Minor features list requested by the web app. Used only for testing sendStartup().
-// Include the following values in server_app_startup.supported_minor_features[].
-auto debugMinorFeatures={
-    2,3,8,14,17,19,20,22,24,35,36,39,40,41,42,46,48,55,60,62,63,70,71,76,81,83,93,
-    100,104,108,114,115,118,121,122,127,130,131,134,136,139,142,146,148,152,153,163,
-    164,168,170,171,175,178,179,180,181,182,183,184,188,192,194,196,202,207,208,214,
-    216,218,220,221,223,226,230,233,234,236,243,244,245,247,250,252,254,260,264,266,
-    267,268,269,273,275,277,278,279,280,284,285,290,292,297,302,305,306,313,319,320,
-    328,332,336,337,352,354,355,363,365,369,377,382,383,390,391,392,394,396,400,404,
-    410,413,418,420,426,427,436,440,450,453,455,462,470,471,479,483,487,488,490,493,
-    495,498,501,504,505,511,514,524,527,530,533,537,538,542,549,555,558,560,561,562,
-    567,576,582,584,592,594,596,605,607,610,611,613,615,616,620,629,630,631,638,644,
-    645,648,650,657,659,662,664,667,669,674,675,677,678,679,681,682,688,690,691,693,
-    696,702,705,707,708,725,731,735,742,748,750,753,754,757,767,774,776,784,829,877,
-    901
+    // Unused but somewhat promising constants:
+    // ALLOW_OPEN_CHAT,
+    // ALLOW_OPEN_MESSAGES,
+    // ALLOW_SEND_CHAT,
+    // ALLOW_CHAT_HISTORY_SYNC,
+    // ALLOW_START_NEW_CHAT,
+    // ALLOW_CHAT_EXPORT,
+    // ALLOW_BUMBLE_PROFILE_WITH_CHAT_INITIATION,
+    // ALLOW_BADOO_PREMIUM_PLUS,
 };
 
 // Minor features list requested by this class.
@@ -135,15 +166,19 @@ BadooMinorFeatureList bmflMinorFeatures={
     MINOR_FEATURE_SEPARATE_MATCH_FOLDER,               // Allows querying the matches folder.
     MINOR_FEATURE_SERVER_SIDE_SCREEN_STORIES,          // Allows filling out server forms.
     MINOR_FEATURE_CHAT_PLAY_AUDIO,                     // Accepts audio clips in chat messages.
-};
-
-// UI screen types requested by the web app. Used only for testing sendStartup().
-// Include the following values in server_app_startup.supported_screens[].
-// Supplied items are objects ({type,version}). Version can be left out.
-auto debugScreenTypes=std::vector<std::vector<int>>{
-    {124,6},{127,2},{128,2},{129,2},{132,1},{133,1},{134,1},{135,1},
-    {143,1},{231,0},{322,0},{346,0},{347,0},{396,0},{398,0},{400,1},
-    {411,0},{413,0},{504,0},{506,0},{508,0},{523,0},{535,0},{537,0}
+    // Unused but somewhat promising constants:
+    // MINOR_FEATURE_CLIENT_OPEN_CHAT_MESSAGE,
+    // MINOR_FEATURE_CHAT_MESSAGE_UID_PROCESSING,
+    // MINOR_FEATURE_MESSAGE_CHECKER,
+    // MINOR_FEATURE_DISPLAY_MESSAGE_IN_CHAT_MESSAGE,
+    // MINOR_FEATURE_CHAT_WITH_SOURCE_OF_MESSAGE,
+    // MINOR_FEATURE_INITIAL_CHAT_SCREENS,
+    // MINOR_FEATURE_RETHINK_INITIAL_CHAT_SCREENS,
+    // MINOR_FEATURE_USER_TYPE_IN_OPEN_CHAT,
+    // MINOR_FEATURE_CHAT_UNBLOCKERS_FOR_SPP,
+    // MINOR_FEATURE_UNIFIED_INITIAL_CHAT_SCREENS,
+    // MINOR_FEATURE_UPDATE_ALLOW_CHAT,
+    // MINOR_FEATURE_CHAT_REQUESTS_IN_ENCOUNTERS,
 };
 
 // UI screen types requested by this class.
@@ -153,11 +188,14 @@ BadooUIScreenTypeList buistlScreenTypes={
     UI_SCREEN_TYPE_BADOO_MOBILE_REGISTRATION_MW_SIGN_IN,         // ... fill out the requested ...
     UI_SCREEN_TYPE_BADOO_MOBILE_REGISTRATION_MW_RETURNING_USER,  // ... basic login steps.
 };
+#endif
 
-// Onboarding page types requested by the web app. Used only for testing sendStartup().
-// Include the following values in server_app_startup.supported_onboarding_types[].
-// Not required for sendStartup() to work. Probably can be shortened to [2,15,16,19].
-auto debugOnboardingTypes={1,2,6,10,16,17,18,19,20,23,26,59,62,66,72,73,76};
+BadooAlbumTypeList batlAlbums={ // This is the 'request_albums' array content ...
+    ALBUM_TYPE_PHOTOS_OF_ME,    // ... the app sends with the 'SERVER_GET_USER' message.
+    ALBUM_TYPE_PRIVATE_PHOTOS,  // Not sure about what exactly are 'private' photos ...
+    ALBUM_TYPE_ENCOUNTERS,      // ... or why is the 'encounters' type required here.
+    ALBUM_TYPE_EXTERNAL_PHOTOS, // No idea about what are 'external' photos either.
+};
 
 // The API returns the USA region names as ANSI two-letter codes, ...
 // ... making the resulting location name a little tricky to find ...
@@ -227,6 +265,7 @@ void BadooAPI::clearUserProfile(BadooUserProfile &bupProfile) {
     bupProfile.bIsCrush=false;
     bupProfile.bIsBlocked=false;
     bupProfile.bHasQuickChat=false;
+    bupProfile.bHasConversation=false;
     bupProfile.sCountry.clear();
     bupProfile.sRegion.clear();
     bupProfile.sCity.clear();
@@ -238,6 +277,7 @@ void BadooAPI::clearUserProfile(BadooUserProfile &bupProfile) {
     bupProfile.sMood.clear();
     bupProfile.bvMyVote=VOTE_UNKNOWN;
     bupProfile.bvTheirVote=VOTE_UNKNOWN;
+    clearChatMessage(bupProfile.bcmLastMessage);
     bupProfile.sAbout.clear();
     bupProfile.sRelationshipStatus.clear();
     bupProfile.sSexuality.clear();
@@ -423,6 +463,7 @@ bool BadooAPI::searchListSectionIdByType(QString              sSessionId,
     sSectionName.clear();
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
+    jsnMessage.insert(QStringLiteral("source"),CLIENT_SOURCE_DISCOVER);
     const BadooMessagePair bmpMessage={SERVER_GET_USER_LIST,CLIENT_USER_LIST};
     if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
         if(jsnResponse.value(QStringLiteral("section")).isArray()) {
@@ -659,6 +700,56 @@ bool BadooAPI::sendGetCAPTCHA(QString       sSessionId,
     return bResult;
 }
 
+bool BadooAPI::sendGetChatMessages(QString              sSessionId,
+                                   QString              sUserId,
+                                   int                  iOffset,
+                                   int                  iHowMany,
+                                   int                  &iTotal,
+                                   BadooChatMessageList &bcmlMessages,
+                                   BadooAPIError        &baeError) {
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
+    // iTotal gets the total number of available messages in the chat.
+    iTotal=0;
+    bcmlMessages.clear();
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("chat_instance_id"),sUserId);
+    // iHowMany determines how the actual list of messages (bcmlMessages) is made: ...
+    // ... Passing zero returns an empty list.
+    // ... Passing a negative number returns all the available messages.
+    // ... Passing a positive number returns up to that many messages.
+    if(iHowMany>=0)
+        jsnMessage.insert(QStringLiteral("count"),iHowMany);
+    jsnMessage.insert(QStringLiteral("offset"),iOffset);
+    // The most recent chat message goes first.
+    jsnMessage.insert(QStringLiteral("direction"),DIRECTION_BACKWARDS);
+    const BadooMessagePair bmpMessage={SERVER_GET_CHAT_MESSAGES,CLIENT_CHAT_MESSAGES};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
+        if(jsnResponse.value(QStringLiteral("chat_instance")).isObject()) {
+            QJsonObject jsnObj=jsnResponse.value(QStringLiteral("chat_instance")).toObject();
+            iTotal=jsnObj.value(QStringLiteral("counter")).toInt();
+            if(jsnResponse.value(QStringLiteral("messages")).isArray()) {
+                QJsonArray       jsnMessages;
+                BadooChatMessage bcmMessage;
+                jsnMessages=jsnResponse.value(QStringLiteral("messages")).toArray();
+                for(const auto &m:jsnMessages)
+                    if(m.isObject()) {
+                        parseChatMessage(m.toObject(),bcmMessage);
+                        bcmlMessages.append(bcmMessage);
+                    }
+            }
+            bResult=true;
+        }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
 bool BadooAPI::sendGetEncounters(QString              sSessionId,
                                  QString              sLastUserId,
                                  int                  iCount,
@@ -766,7 +857,8 @@ bool BadooAPI::sendGetUser(QString          sSessionId,
     bool           bResult=false;
     QJsonObject    jsnMessage,
                    jsnResponse,
-                   jsnFieldFilter;
+                   jsnFieldFilter,
+                   jsnQuickChat;
     QJsonArray     jsnProjection,
                    jsnAlbums;
     RawHeadersHash rhhHeaders;
@@ -782,6 +874,8 @@ bool BadooAPI::sendGetUser(QString          sSessionId,
         jsnAlbums.append(jsnObj);
     }
     jsnFieldFilter.insert(QStringLiteral("request_albums"),jsnAlbums);
+    jsnQuickChat.insert(QStringLiteral("message_count"),0);
+    jsnFieldFilter.insert(QStringLiteral("quick_chat_request"),jsnQuickChat);
     jsnMessage.insert(QStringLiteral("user_field_filter"),jsnFieldFilter);
     jsnMessage.insert(QStringLiteral("client_source"),0);
     const BadooMessagePair bmpMessage={SERVER_GET_USER,CLIENT_USER};
@@ -810,7 +904,8 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
     QJsonObject    jsnMessage,
                    jsnResponse,
                    jsnPhotoRequest,
-                   jsnFieldFilter;
+                   jsnFieldFilter,
+                   jsnQuickChat;
     QJsonArray     jsnProjection,
                    jsnAlbums,
                    jsnListFilter;
@@ -819,6 +914,7 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
     iTotal=0;
     clearError(baeError);
     jsnMessage.insert(QStringLiteral("folder_id"),bftFolder);
+    jsnMessage.insert(QStringLiteral("source"),CLIENT_SOURCE_DISCOVER);
     // Fills the requested profile fields and album types if iCount is not zero.
     // As of September 2023, the new API has screwed the meaning of total_count.
     // It does not contain the 'total in folder' anymore, but something like ...
@@ -844,6 +940,8 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
     jsnFieldFilter.insert(QStringLiteral("profile_photo_request"),jsnPhotoRequest);
     jsnFieldFilter.insert(QStringLiteral("projection"),jsnProjection);
     jsnFieldFilter.insert(QStringLiteral("request_albums"),jsnAlbums);
+    jsnQuickChat.insert(QStringLiteral("message_count"),0);
+    jsnFieldFilter.insert(QStringLiteral("quick_chat_request"),jsnQuickChat);
     jsnMessage.insert(QStringLiteral("user_field_filter"),jsnFieldFilter);
     if(!sSectionId.isEmpty())
         jsnMessage.insert(QStringLiteral("section_id"),sSectionId);
@@ -866,7 +964,7 @@ bool BadooAPI::sendGetUserList(QString              sSessionId,
                 // ... to provide partial results (beyond the frst call) when multiple ...
                 // ... sections are included in the response.
                 // Neither the web app nor the mobile one deal with these cases, and they ...
-                // ... make little sense in the end. So be specific and pass a Section Id  ...
+                // ... make little sense in the end. So be specific and pass a Section Id ...
                 // ... when the required Folder may have one (see BadooListSectionType) ...
                 // ... and use the helper function searchListSectionIdByType() to find ...
                 // ... the correct value.
@@ -1237,6 +1335,57 @@ bool BadooAPI::sendSearchLocations(QString                 sSessionId,
     return bResult;
 }
 
+// Sorry about this idiotic method name, resulted from tightly following standards.
+// In this case, the first 'send' means sending an API message, and the second one, ...
+// ... sending a chat message. Nothing to do when 'SERVER_SEND_CHAT_MESSAGE' is the ...
+// ... name they chose for the API message type.
+bool BadooAPI::sendSendChatMessage(QString       sSessionId,
+                                   QString       sFromUserId,
+                                   QString       sToUserId,
+                                   QString       sMessage,
+                                   BadooAPIError &baeError) {
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
+    QString        sMessageId;
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("mssg"),sMessage);
+    // Only 'simple' messages are supported for now.
+    jsnMessage.insert(QStringLiteral("message_type"),SIMPLE);
+    // The message unique identifier (uid) seems to be just a numeric sequence ...
+    // ... after the string 'TEMP_ID:', used only to identify the message once ...
+    // ... the response arrives. but it could be anything, so we use here just ...
+    // ... a Unix timestamp.
+    sMessageId=QString::number(QDateTime::currentDateTimeUtc().toMSecsSinceEpoch());
+    jsnMessage.insert(QStringLiteral("uid"),sMessageId);
+    jsnMessage.insert(QStringLiteral("from_person_id"),sFromUserId);
+    jsnMessage.insert(QStringLiteral("to_person_id"),sToUserId);
+    // The source context can be omitted, but if not, set it to one of these: ...
+    // ... CLIENT_SOURCE_OTHER_PROFILE, for messaging from their own profile; ...
+    // ... CLIENT_SOURCE_CHAT, for messaging through the 'quick chat' option; ...
+    // ... CLIENT_SOURCE_MESSAGES, for messaging from their existing chat.
+    jsnMessage.insert(QStringLiteral("context"),CLIENT_SOURCE_MESSAGES);
+    // Having to pass this makes no sense at all, but it's mandatory.
+    jsnMessage.insert(QStringLiteral("read"),false);
+    const BadooMessagePair bmpMessage={SERVER_SEND_CHAT_MESSAGE,CLIENT_CHAT_MESSAGE_RECEIVED};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError)) {
+        // We don't need anything else, apart of the 'success' status value.
+        bool    bSuccess=jsnResponse.value(QStringLiteral("success")).toBool();
+        QString sError=jsnResponse.value(QStringLiteral("error_message")).toString();
+        if(bSuccess)
+            bResult=true;
+        else
+            baeError.sErrorMessage=sError;
+    }
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
 bool BadooAPI::sendStartup(QString          sDeviceId,
                            QString          &sSessionId,
                            QString          &sAccountId,
@@ -1271,15 +1420,15 @@ bool BadooAPI::sendStartup(QString          sDeviceId,
     jsnMessage.insert(QStringLiteral("screen_width"),0);
     jsnMessage.insert(QStringLiteral("screen_height"),0);
     jsnMessage.insert(QStringLiteral("language"),0);
-    for(const auto &f:bftlFeatures)//debugFeatures//
+    for(const auto &f:bftlFeatures)
         jsnFeatures.append(f);
     jsnMessage.insert(QStringLiteral("supported_features"),jsnFeatures);
-    for(const auto &f:bmflMinorFeatures)//debugMinorFeatures//
+    for(const auto &f:bmflMinorFeatures)
         jsnMinorFeatures.append(f);
     jsnMessage.insert(QStringLiteral("supported_minor_features"),jsnMinorFeatures);
-    for(const auto &s:buistlScreenTypes) {//debugScreenTypes//
+    for(const auto &s:buistlScreenTypes) {
         QJsonObject jsnScreen;
-        jsnScreen.insert(QStringLiteral("type"),s);//s[0]//
+        jsnScreen.insert(QStringLiteral("type"),s);
         jsnScreens.append(jsnScreen);
     }
     jsnMessage.insert(QStringLiteral("supported_screens"),jsnScreens);
@@ -1303,6 +1452,10 @@ bool BadooAPI::sendStartup(QString          sDeviceId,
     // ...     if it is (not) matching the User-Agent header we send ...
     // ...     along with the other requests made by the class.
     jsnMessage.insert(QStringLiteral("user_agent"),sAPIUserAgent);
+    // The following value looks promising, but I have yet to find a ...
+    // ... single difference with or without it being present in the ...
+    // ... SERVER_APP_STARTUP request. So for now, it's disabled:
+    // jsnMessage.insert(QStringLiteral("is_cold_start"),true);
     if(getResponse(SERVER_APP_STARTUP,sSessionId,jsnMessage,rhhHeaders,bmrhResponses,baeError)) {
         if(bmrhResponses.contains(CLIENT_STARTUP)) {
             bool        bReconnect;
@@ -1370,6 +1523,25 @@ bool BadooAPI::sendUpdateLocation(QString       sSessionId,
     return bResult;
 }
 
+bool BadooAPI::sendUpdateSession(QString       sSessionId,
+                                 BadooAPIError &baeError) {
+    bool           bResult=false;
+    QJsonObject    jsnMessage,
+                   jsnResponse;
+    RawHeadersHash rhhHeaders;
+    clearError(baeError);
+    jsnMessage.insert(QStringLiteral("background_session"),false);
+    const BadooMessagePair bmpMessage={SERVER_UPDATE_SESSION,CLIENT_ACKNOWLEDGE_COMMAND};
+    if(getResponse(bmpMessage,sSessionId,jsnMessage,rhhHeaders,jsnResponse,baeError))
+        bResult=true;
+    if(!bResult) {
+        if(noError(baeError))
+            baeError.sErrorMessage=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
+    }
+    return bResult;
+}
+
 void BadooAPI::setAgent(QString sAgent) {
     sAPIUserAgent=sAgent;
 }
@@ -1417,6 +1589,16 @@ bool BadooAPI::CAPTCHAHandler(QString       sSessionId,
         baeError.sErrorMessage=QStringLiteral("[%1()] %2").arg(__FUNCTION__,baeError.sErrorMessage);
     }
     return bResult;
+}
+
+void BadooAPI::clearChatMessage(BadooChatMessage &bcmMessage) {
+    bcmMessage.sFromUserId.clear();
+    bcmMessage.sToUserId.clear();
+    bcmMessage.dtmCreationTime=QDateTime();
+    bcmMessage.bcmtMessageType=CHAT_MESSAGE_TYPE_UNKNOWN;
+    bcmMessage.sMessageText.clear();
+    bcmMessage.bmfMediaFormat=MULTIMEDIA_FORMAT_UNKNOWN;
+    bcmMessage.sMediaURL.clear();
 }
 
 void BadooAPI::clearError(BadooAPIError &baeError) {
@@ -1620,6 +1802,43 @@ void BadooAPI::parseAlbum(QJsonObject jsnAlbum,
     }
 }
 
+void BadooAPI::parseChatMessage(QJsonObject      jsnMessage,
+                                BadooChatMessage &bcmMessage) {
+    clearChatMessage(bcmMessage);
+    bcmMessage.sFromUserId=jsnMessage.value(QStringLiteral("from_person_id")).toString();
+    bcmMessage.sToUserId=jsnMessage.value(QStringLiteral("to_person_id")).toString();
+    bcmMessage.dtmCreationTime=QDateTime::fromSecsSinceEpoch(
+        jsnMessage.value(QStringLiteral("date_created")).toInteger()
+    );
+    bcmMessage.bcmtMessageType=static_cast<BadooChatMessageType>(
+        jsnMessage.value(QStringLiteral("message_type")).toInt()
+    );
+    bcmMessage.sMessageText=jsnMessage.value(QStringLiteral("mssg")).toString();
+    if(MULTIMEDIA==bcmMessage.bcmtMessageType)
+        if(jsnMessage.value(QStringLiteral("multimedia")).isObject()) {
+            QString     sAttrName,
+                        sAttrURL;
+            QJsonObject jsnObj;
+            jsnObj=jsnMessage.value(QStringLiteral("multimedia")).toObject();
+            bcmMessage.bmfMediaFormat=static_cast<BadooMultimediaFormat>(
+                jsnObj.value(QStringLiteral("format")).toInt()
+            );
+            if(MULTIMEDIA_FORMAT_IMAGE==bcmMessage.bmfMediaFormat) {
+                sAttrName=QStringLiteral("photo");
+                sAttrURL=QStringLiteral("large_url");
+            }
+            else if(MULTIMEDIA_FORMAT_AUDIO==bcmMessage.bmfMediaFormat) {
+                sAttrName=QStringLiteral("audio");
+                sAttrURL=QStringLiteral("url");
+            }
+            if(!sAttrName.isEmpty())
+                if(jsnObj.value(sAttrName).isObject()) {
+                    jsnObj=jsnObj.value(sAttrName).toObject();
+                    bcmMessage.sMediaURL=fixURL(jsnObj.value(sAttrURL).toString());
+                }
+        }
+}
+
 void BadooAPI::parseError(QJsonObject   jsnError,
                           BadooAPIError &baeError) {
     baeError.iErrorCode=jsnError.value(QStringLiteral("type")).toInt();
@@ -1698,7 +1917,7 @@ void BadooAPI::parseHostChange(QJsonObject jsnStartup,
                         }
             }
             // As of 2024-08-12, a reconnection request doesn't seem to have ...
-            // ... any effect in the way we use the API after this point..
+            // ... any effect in the way we use the API after this point.
             if(jsnHost.contains(QStringLiteral("must_reconnect"))) {
                 QJsonValue jsnReconnect=jsnHost.value(QStringLiteral("must_reconnect"));
                 if(jsnReconnect.isBool())
@@ -2033,7 +2252,20 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     bupUser.bIsFavorite=jsnUser.value(QStringLiteral("is_favourite")).toBool();
     bupUser.bIsCrush=jsnUser.value(QStringLiteral("is_crush")).toBool();
     bupUser.bIsBlocked=jsnUser.value(QStringLiteral("is_blocked")).toBool();
-    bupUser.bHasQuickChat=jsnUser.value(QStringLiteral("quick_chat")).isObject();
+    // Checking the value of 'allow_quick_chat' should be enough to detect if a chat ...
+    // ... can be started for free with this user. But after many tests, I think the ...
+    // ... method of locating the value 'type' in the quick_chat.initial_chat_screen ...
+    // ... object has proven to be a safer bet.
+    if(jsnUser.value(QStringLiteral("quick_chat")).isObject()) {
+        jsnObj=jsnUser.value(QStringLiteral("quick_chat")).toObject();
+        if(jsnObj.value(QStringLiteral("initial_chat_screen")).isObject()) {
+            jsnObj=jsnObj.value(QStringLiteral("initial_chat_screen")).toObject();
+            // I've been unable to find the right constant names for these types.
+            bupUser.bHasQuickChat=2==jsnObj.value("type").toInt();
+        }
+    }
+    // A conversation exists only if the other end has replied at least once.
+    bupUser.bHasConversation=jsnUser.value(QStringLiteral("is_conversation")).toBool();
     if(jsnUser.value(QStringLiteral("country")).isObject()) {
         jsnObj=jsnUser.value(QStringLiteral("country")).toObject();
         bInUSA=!jsnObj.value(QStringLiteral("iso_code")).toString().compare("US");
@@ -2097,6 +2329,10 @@ void BadooAPI::parseUserProfile(QJsonObject      jsnUser,
     bupUser.bvTheirVote=static_cast<BadooVote>(
         jsnUser.value(QStringLiteral("their_vote")).toInt()
     );
+    if(jsnUser.value(QStringLiteral("last_message")).isObject()) {
+        jsnObj=jsnUser.value(QStringLiteral("last_message")).toObject();
+        parseChatMessage(jsnObj,bupUser.bcmLastMessage);
+    }
     if(jsnUser.value(QStringLiteral("profile_fields")).isArray()) {
         jsnArr=jsnUser.value(QStringLiteral("profile_fields")).toArray();
         for(const auto &a:jsnArr)
@@ -2175,17 +2411,13 @@ bool BadooAPI::sendMessage(BadooMessageType bmtMessage,
                            RawHeadersHash   &rhhHeaders,
                            QString          &sBody,
                            QString          &sError) {
-    bool           bResult=false;
-    uint           uiResCode;
-    QString        sRequest,
-                   sSignature,
-                   sContentType;
-    QByteArray     abtBody;
-    QJsonDocument  jsnDoc;
-    QJsonObject    jsnObj,
-                   jsnBody;
-    QJsonArray     jsnArr;
-    QUrl           urlEndPoint;
+    bool          bResult=false;
+    QString       sRequest,
+                  sParameter;
+    QJsonDocument jsnDoc;
+    QJsonObject   jsnObj,
+                  jsnBody;
+    QJsonArray    jsnArr;
     rhhHeaders.clear();
     sBody.clear();
     sError.clear();
@@ -2201,70 +2433,94 @@ bool BadooAPI::sendMessage(BadooMessageType bmtMessage,
         jsnObj.insert(QStringLiteral("version"),1);
         jsnDoc.setObject(jsnObj);
         sRequest=jsnDoc.toJson(QJsonDocument::JsonFormat::Compact);
-        sSignature=QCryptographicHash::hash(
-            QStringLiteral("%1%2").arg(sRequest,QStringLiteral(SIGNATURE_MAGIC)).toUtf8(),
-            QCryptographicHash::Algorithm::Md5
-        ).toHex();
-        urlEndPoint=QUrl(QStringLiteral("https://%1%2").arg(sAPIServer,PATH_API_ENDPOINT));
-        // The query parameter is not required at all, but identifies the request ...
-        // ... so we can tell it apart during debug.
-        // An infamous exception to this happens for the SERVER_SAVE_APP_SETTINGS ...
-        // ... message, whos object must be named 'app_settings' and not what the ...
-        // ... logic says ('server_save_app_settings'). Because of this, I've set ...
-        // ... the name 'app_settings' for all the APP_SETTINGS messages, even if ...
-        // ... they don't experience the issue (like SERVER_GET_APP_SETTINGS), in ...
-        // ... a way of having just some kind of standardization. -As I mentioned ...
-        // ... above, the query parameter is only a request convention-.
+        sParameter.clear();
         if(!bmnhMessages.value(bmtMessage).isEmpty())
-            urlEndPoint.setQuery(bmnhMessages.value(bmtMessage).toUpper());
-        HTTPRequest::post(
-            urlEndPoint,
-            sRequest.toUtf8(),
-            {
-                {
-                    QStringLiteral("user-agent").toUtf8(),
-                    sAPIUserAgent.toUtf8()
-                },
-                {
-                    QStringLiteral("content-type").toUtf8(),
-                    QStringLiteral(HTTP_HEADER_CONTENT_TYPE_JSON).toUtf8()
-                },
-                {
-                    QStringLiteral("cookie").toUtf8(),
-                    QStringLiteral("session=%1").arg(sSessionId).toUtf8()
-                },
-                {
-                    QStringLiteral("x-use-session-cookie").toUtf8(),
-                    QStringLiteral("1").toUtf8()
-                },
-                {
-                    QStringLiteral("x-pingback").toUtf8(),
-                    sSignature.toUtf8()
-                }
-            },
-            {},
-            pxyAPIProxy,
-            uiResCode,
-            abtBody,
-            rhhHeaders,
-            sError
-        );
-        sContentType=rhhHeaders.value(QStringLiteral("content-type").toUtf8());
-        if(HTTP_STATUS_OK==uiResCode)
-            if(sContentType.startsWith(QStringLiteral(HTTP_HEADER_CONTENT_TYPE_JSON))) {
-                sBody=abtBody;
-                bResult=true;
-            }
-            else
-                sError=QStringLiteral("Unexpected content type: %1").
-                       arg(sContentType);
-        else if(HTTP_STATUS_INVALID!=uiResCode)
-            sError=QStringLiteral("Unexpected response code: %1").
-                   arg(uiResCode);
+            sParameter=bmnhMessages.value(bmtMessage).toUpper();
+        bResult=sendRawRequest(sSessionId,sRequest,sParameter,rhhHeaders,sBody,sError);
     }
     else
         sError=QStringLiteral("Unknown message type: %1").
                arg(bmtMessage);
+    if(!bResult) {
+        if(sError.isEmpty())
+            sError=QStringLiteral(DEFAULT_ERROR_MESSAGE);
+        sError=QStringLiteral("[%1()] %2").arg(__FUNCTION__,sError);
+    }
+    return bResult;
+}
+
+bool BadooAPI::sendRawRequest(QString        sSessionId,
+                              QString        sRequest,
+                              QString        sParameter,
+                              RawHeadersHash &rhhHeaders,
+                              QString        &sBody,
+                              QString        &sError) {
+    bool       bResult=false;
+    uint       uiResCode;
+    QString    sSignature,
+               sContentType;
+    QByteArray abtBody;
+    QUrl       urlEndPoint;
+    sSignature=QCryptographicHash::hash(
+        QStringLiteral("%1%2").arg(sRequest,QStringLiteral(SIGNATURE_MAGIC)).toUtf8(),
+        QCryptographicHash::Algorithm::Md5
+    ).toHex();
+    urlEndPoint=QUrl(QStringLiteral("https://%1%2").arg(sAPIServer,PATH_API_ENDPOINT));
+    // The query parameter is not required at all, but identifies the request ...
+    // ... so we can tell it apart during debug.
+    // An infamous exception to this happens for the SERVER_SAVE_APP_SETTINGS ...
+    // ... message, whos object must be named 'app_settings' and not what the ...
+    // ... logic says ('server_save_app_settings'). Because of this, I've set ...
+    // ... the name 'app_settings' for all the APP_SETTINGS messages, even if ...
+    // ... they don't experience the issue (like SERVER_GET_APP_SETTINGS), in ...
+    // ... a way of having just some kind of standardization. -As I mentioned ...
+    // ... above, the query parameter is only a request convention-.
+    if(!sParameter.isEmpty())
+        urlEndPoint.setQuery(sParameter);
+    HTTPRequest::post(
+        urlEndPoint,
+        sRequest.toUtf8(),
+        {
+            {
+                QStringLiteral("user-agent").toUtf8(),
+                sAPIUserAgent.toUtf8()
+            },
+            {
+                QStringLiteral("content-type").toUtf8(),
+                QStringLiteral(HTTP_HEADER_CONTENT_TYPE_JSON).toUtf8()
+            },
+            {
+                QStringLiteral("cookie").toUtf8(),
+                QStringLiteral("session=%1").arg(sSessionId).toUtf8()
+            },
+            {
+                QStringLiteral("x-use-session-cookie").toUtf8(),
+                QStringLiteral("1").toUtf8()
+            },
+            {
+                QStringLiteral("x-pingback").toUtf8(),
+                sSignature.toUtf8()
+            }
+        },
+        {},
+        pxyAPIProxy,
+        uiResCode,
+        abtBody,
+        rhhHeaders,
+        sError
+    );
+    sContentType=rhhHeaders.value(QStringLiteral("content-type").toUtf8());
+    if(HTTP_STATUS_OK==uiResCode)
+        if(sContentType.startsWith(QStringLiteral(HTTP_HEADER_CONTENT_TYPE_JSON))) {
+            sBody=abtBody;
+            bResult=true;
+        }
+        else
+            sError=QStringLiteral("Unexpected content type: %1").
+                   arg(sContentType);
+    else if(HTTP_STATUS_INVALID!=uiResCode)
+        sError=QStringLiteral("Unexpected response code: %1").
+               arg(uiResCode);
     if(!bResult) {
         if(sError.isEmpty())
             sError=QStringLiteral(DEFAULT_ERROR_MESSAGE);

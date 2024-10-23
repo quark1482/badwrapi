@@ -2,7 +2,7 @@
 
 #define REGEX_FIND_SCRIPT     R"(\s*<\s*(https?:\/\/.+\.js)\s*>\s*.*\s*;\s*rel\s*=\s*\"preload\")"
 
-#define REGEX_FIND_QUERY_ID   R"([a-zA-Z_]+\s*=\s*{\s*__key\s*:\s*[0-9a-fx]+\s*,\s*id\s*:\s*\"([0-9a-fx]+)\"\s*,\s*loc\s*:\s*{}\s*,\s*definitions\s*:\s*\[\]\s*}\s*,\s*[a-zA-Z_]+\s*=\s*\(\s*{\s*buCategory\s*:\s*[a-zA-Z_]+\s*}\s*\)\s*=>)"
+#define REGEX_FIND_QUERY_ID   R"(startQuery\s*:\s*[a-zA-Z_]+\s*,\s*typeaheadId\s*:\s*[a-zA-Z_]+\s*}\s*}\s*,\s*[a-zA-Z_]+\s*=\s*{\s*__key\s*:\s*[0-9a-fx]+\s*,\s*id\s*:\s*\"([0-9a-fx]+)\"\s*,\s*loc\s*:\s*{}\s*,\s*definitions\s*:\s*\[\]\s*})"
 
 #define DEFAULT_ERROR_MESSAGE "Unexpected response"
 
@@ -108,15 +108,13 @@ bool TAGeoCoder::getLatLng(QString sLocation,
                     if(jsnDoc.isArray())
                         if(jsnDoc.array().count())
                             jsnObj=jsnDoc.array()[0].toObject();
-                    if(jsnObj.contains(QStringLiteral("data"))) {
+                    if(jsnObj.contains(QStringLiteral("data")))
                         if(jsnObj.value(QStringLiteral("data")).isObject())
                             jsnObj=jsnObj.value(QStringLiteral("data")).toObject();
-                    }
-                    if(jsnObj.contains(QStringLiteral("Typeahead_autocomplete"))) {
+                    if(jsnObj.contains(QStringLiteral("Typeahead_autocomplete")))
                         if(jsnObj.value(QStringLiteral("Typeahead_autocomplete")).isObject())
                             jsnObj=jsnObj.value(QStringLiteral("Typeahead_autocomplete")).toObject();
-                    }
-                    if(jsnObj.contains(QStringLiteral("results"))) {
+                    if(jsnObj.contains(QStringLiteral("results")))
                         if(jsnObj.value(QStringLiteral("results")).isArray()) {
                             QJsonArray jsnRes;
                             jsnRes=jsnObj.value(QStringLiteral("results")).toArray();
@@ -126,8 +124,7 @@ bool TAGeoCoder::getLatLng(QString sLocation,
                                 if(jsnRes[0].isObject())
                                     jsnObj=jsnRes[0].toObject();
                         }
-                    }
-                    if(jsnObj.contains(QStringLiteral("details"))) {
+                    if(jsnObj.contains(QStringLiteral("details")))
                         if(jsnObj.value(QStringLiteral("details")).isObject()) {
                             jsnObj=jsnObj.value(QStringLiteral("details")).toObject();
                             if(jsnObj.contains(QStringLiteral("latitude"))&&
@@ -140,7 +137,6 @@ bool TAGeoCoder::getLatLng(QString sLocation,
                                     bResult=true;
                                 }
                         }
-                    }
                     if(!bResult)
                         if(sError.isEmpty())
                             sError=QStringLiteral("The geocode request failed");
@@ -199,11 +195,10 @@ bool TAGeoCoder::findQueryId(QString     &sQueryId,
     sContentType=rhhHeaders.value(QStringLiteral("content-type").toUtf8());
     sCookies=rhhHeaders.value(QStringLiteral("set-cookie").toUtf8());
     slCookies=sCookies.split(QStringLiteral("\n"));
-    for(auto &c:slCookies) {
+    for(auto &c:slCookies)
         c=c.split(QStringLiteral("; "))[0];
-    }
     if(HTTP_STATUS_OK==uiResCode)
-        if(sContentType.startsWith(QStringLiteral(HTTP_HEADER_CONTENT_TYPE_HTML))) {
+        if(sContentType.startsWith(QStringLiteral(HTTP_HEADER_CONTENT_TYPE_HTML)))
             if(rhhHeaders.contains(QStringLiteral("link").toUtf8())) {
                 QString            sLinks=rhhHeaders.value(QStringLiteral("link").toUtf8());
                 QStringList        slLinks=sLinks.split(QStringLiteral("\n")),
@@ -218,12 +213,11 @@ bool TAGeoCoder::findQueryId(QString     &sQueryId,
                             slScripts.append(rxmMatch.captured(1));
                     }
                 if(slScripts.length()) {
-                    for(const auto &s:slScripts) {
+                    for(const auto &s:slScripts)
                         if(getQueryIdFromScript(s,sQueryId,sError))
                             break;
-                    }
                     if(sQueryId.isEmpty())
-                        sError=QStringLiteral("Unable to find the query id any script");
+                        sError=QStringLiteral("Unable to find the query id in any script");
                     else
                         bResult=true;
                 }
@@ -232,7 +226,6 @@ bool TAGeoCoder::findQueryId(QString     &sQueryId,
             }
             else
                 sError=QStringLiteral("No 'Link' headers found");
-        }
         else
             sError=QStringLiteral("Unexpected content type: %1").
                    arg(sContentType);

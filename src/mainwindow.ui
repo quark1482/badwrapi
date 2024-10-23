@@ -39,6 +39,7 @@
     </widget>
     <addaction name="actEncounters"/>
     <addaction name="separator"/>
+    <addaction name="actChats"/>
     <addaction name="actFavorites"/>
     <addaction name="actLikes"/>
     <addaction name="actMatches"/>
@@ -73,6 +74,8 @@
     </property>
     <addaction name="actCustomFolder"/>
     <addaction name="actCustomProfile"/>
+    <addaction name="separator"/>
+    <addaction name="actSessionDetails"/>
    </widget>
    <addaction name="mnuDemo"/>
    <addaction name="menuTools"/>
@@ -238,6 +241,21 @@
    </property>
    <property name="text">
     <string>Current location</string>
+   </property>
+  </action>
+  <action name="actChats">
+   <property name="icon">
+    <iconset>
+     <normalon>:/img/action-chat.svg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Conversations</string>
+   </property>
+  </action>
+  <action name="actSessionDetails">
+   <property name="text">
+    <string>Edit session details</string>
    </property>
   </action>
  </widget>
